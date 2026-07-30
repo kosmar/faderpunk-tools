@@ -3152,6 +3152,12 @@
           }
         },
         {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
           "tag": "MidiCc",
           "value": {
             "name": "CC number"
