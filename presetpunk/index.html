@@ -4,17 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title data-i18n="doc.title">Presetpunk</title>
-  <link rel="icon" href="/favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" href="/favicon.png" />
-  <script src="/i18n.js"></script>
+  <link rel="icon" href="./favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" href="./favicon.png" />
+  <script src="./i18n.js"></script>
+  <script src="./midi-browser.js"></script>
   <script type="importmap">
   {
     "imports": {
-      "@atov/fp-config": "/vendor/fp-config/index.js"
+      "@atov/fp-config": "./vendor/fp-config/index.js"
     }
   }
   </script>
-  <script type="module" src="/lib/fp-midi.js"></script>
+  <script type="module" src="./lib/fp-midi.js"></script>
   <script>
     /* Apply stored/nav lang before first paint of chrome text. */
     try {
@@ -69,8 +70,8 @@
   <style>
     @font-face {
       font-family: "Martian Mono";
-      src: url("/fonts/MartianMonoVF.woff2") format("woff2-variations"),
-           url("/fonts/MartianMonoVF.woff2") format("woff2");
+      src: url("./fonts/MartianMonoVF.woff2") format("woff2-variations"),
+           url("./fonts/MartianMonoVF.woff2") format("woff2");
       font-weight: 100 800;
       font-stretch: 75% 112.5%;
       font-style: normal;
@@ -193,8 +194,8 @@
       will-change: transform;
       opacity: 1;
       box-shadow: none;
-      -webkit-mask: url("/icons/meteor-fill.svg") center / contain no-repeat;
-      mask: url("/icons/meteor-fill.svg") center / contain no-repeat;
+      -webkit-mask: url("./icons/meteor-fill.svg") center / contain no-repeat;
+      mask: url("./icons/meteor-fill.svg") center / contain no-repeat;
     }
     .fab-push .fab-face {
       position: absolute;
@@ -1078,8 +1079,8 @@
       transform-style: preserve-3d;
       transform-origin: center center;
       will-change: transform;
-      -webkit-mask: url("/icons/meteor-fill.svg") center / contain no-repeat;
-      mask: url("/icons/meteor-fill.svg") center / contain no-repeat;
+      -webkit-mask: url("./icons/meteor-fill.svg") center / contain no-repeat;
+      mask: url("./icons/meteor-fill.svg") center / contain no-repeat;
       opacity: 0.32;
       pointer-events: none;
     }
@@ -2114,12 +2115,12 @@
   </button>
   <header>
     <div class="brand">
-      <img class="brand-logo" src="/img/fp-logo.svg" width="55" height="72" alt="Faderpunk">
+      <img class="brand-logo" src="./img/fp-logo.svg" width="55" height="72" alt="Faderpunk">
       <div class="brand-text">
         <h1 data-i18n="app.h1">Presetpunk</h1>
         <p class="compat-note">
           <span class="app-ver">v0.1.0</span>
-          <span data-i18n="app.compat" data-i18n-html>Works with beta configurator</span>
+          <span data-i18n="app.compat" data-i18n-html>direct Web MIDI</span>
         </p>
       </div>
     </div>
@@ -2278,7 +2279,7 @@
           <div class="aux-pair atom">
             <label>
               <span class="aux-pair-title">
-                <span class="aux-icon" style="--aux-icon:url('/icons/atom.svg')" aria-hidden="true"></span>
+                <span class="aux-icon" style="--aux-icon:url('./icons/atom.svg')" aria-hidden="true"></span>
                 <span data-i18n="global.atom">Atom</span>
               </span>
               <select id="gAux0Mode"></select>
@@ -2290,7 +2291,7 @@
           <div class="aux-pair meteor">
             <label>
               <span class="aux-pair-title">
-                <span class="aux-icon" style="--aux-icon:url('/icons/meteor.svg')" aria-hidden="true"></span>
+                <span class="aux-icon" style="--aux-icon:url('./icons/meteor.svg')" aria-hidden="true"></span>
                 <span data-i18n="global.meteor">Meteor</span>
               </span>
               <select id="gAux1Mode"></select>
@@ -2302,7 +2303,7 @@
           <div class="aux-pair cube">
             <label>
               <span class="aux-pair-title">
-                <span class="aux-icon" style="--aux-icon:url('/icons/cube.svg')" aria-hidden="true"></span>
+                <span class="aux-icon" style="--aux-icon:url('./icons/cube.svg')" aria-hidden="true"></span>
                 <span data-i18n="global.cube">Cube</span>
               </span>
               <select id="gAux2Mode"></select>
@@ -3538,7 +3539,7 @@
         <div class="fader-app-stack" style="--fader-led:${bg};--fader-led-fg:${fg}">
           <div class="fader-chip${waveClass}" style="background:${bg};color:${fg};--led-dur:${ledDur}s;--led-delay:${ledDelay}s">
             <div class="fader-id drag-handle${isRange ? " is-range" : ""}" draggable="true" title="${escapeAttr(t("row.drag"))} · ${escapeAttr(APPS[s.app]?.label || s.app)} · ${escapeAttr(tag)}">
-              <span class="app-icon" style="--app-icon:url('/icons/${escapeAttr(icon)}.svg')" aria-hidden="true"></span>
+              <span class="app-icon" style="--app-icon:url('./icons/${escapeAttr(icon)}.svg')" aria-hidden="true"></span>
               ${numHtml}
             </div>
             ${faderColorHookHtml(s, idx)}
@@ -4091,15 +4092,21 @@
 
     async function fetchCcs(csvPath) {
       if (!csvPath) return [];
-      const res = await fetch(`/api/ccs?path=${encodeURIComponent(csvPath)}`);
-      if (!res.ok) throw new Error("CC CSV unreadable");
-      return res.json();
+      const server = await window.MidiBrowser?.tryServerJson(
+        `./api/ccs?path=${encodeURIComponent(csvPath)}`,
+      );
+      if (server?.res?.ok && Array.isArray(server.data)) return server.data;
+      if (!window.MidiBrowser) throw new Error("CC CSV unreadable");
+      return window.MidiBrowser.fetchCcs(csvPath);
     }
 
     async function refillCsvSelect() {
       try {
-        const cat = await fetch("/api/catalog").then((r) => r.json());
-        window.__csvCatalog = cat;
+        let cat = null;
+        const server = await window.MidiBrowser?.tryServerJson("./api/catalog");
+        if (server?.res?.ok && Array.isArray(server.data)) cat = server.data;
+        if (!cat && window.MidiBrowser) cat = await window.MidiBrowser.listCatalog();
+        window.__csvCatalog = cat || [];
         const sel = document.getElementById("newInstCsv");
         if (!sel) return;
         const cur = sel.value;
@@ -4535,7 +4542,7 @@
 
     async function loadAppsCatalog() {
       try {
-        const res = await fetch("/apps-catalog.json", { cache: "no-store" });
+        const res = await fetch("./apps-catalog.json", { cache: "no-store" });
         if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
         APPS_CATALOG = data;
@@ -5735,8 +5742,8 @@
     function saveBank() {
       const payload = bankPayload();
       writeBankLocal(payload);
-      // Shared across Chrome profiles (Debug-Chrome ≠ Alltag) via server file
-      fetch("/api/bank", {
+      // Optional local Node server file (cross-profile sync); ignore on Pages
+      fetch("./api/bank", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -5754,11 +5761,11 @@
     async function hydrateBankFromServer() {
       const local = loadBankFromLocal();
       try {
-        const res = await fetch("/api/bank");
+        const res = await fetch("./api/bank");
         if (res.status === 404) {
           bank = local.presets;
           active = local.active;
-          await fetch("/api/bank", {
+          await fetch("./api/bank", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bankPayload()),
@@ -5781,7 +5788,7 @@
         if (localTs > remoteTs) {
           bank = local.presets;
           active = local.active;
-          await fetch("/api/bank", {
+          await fetch("./api/bank", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bankPayload()),
@@ -8194,19 +8201,24 @@
       if (btn) btn.disabled = true;
       setStatus("busy", t("inst.csvUpload") + " …");
       try {
-        const res = await fetch(
-          `/api/midi/upload?name=${encodeURIComponent(file.name)}`,
+        const text = await file.text();
+        let path = "";
+        const server = await window.MidiBrowser?.tryServerJson(
+          `./api/midi/upload?name=${encodeURIComponent(file.name)}`,
           {
             method: "POST",
             headers: { "Content-Type": "text/csv; charset=utf-8" },
-            body: await file.text(),
+            body: text,
           },
         );
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.ok === false) {
-          throw new Error(data.error || `HTTP ${res.status}`);
+        if (server?.res?.ok && server.data?.ok !== false) {
+          path = server.data.path || "";
+        } else if (window.MidiBrowser) {
+          const data = window.MidiBrowser.uploadCustom(file.name, text);
+          path = data.path || "";
+        } else {
+          throw new Error("upload unavailable");
         }
-        const path = data.path || "";
         rememberRecentCsv(path);
         await refillCsvSelect();
         const csvSel = document.getElementById("newInstCsv");
@@ -8237,13 +8249,20 @@
       btn.disabled = true;
       setStatus("busy", t("inst.midiSync") + " …");
       try {
-        const res = await fetch("/api/midi/sync", { method: "POST" });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || data.ok === false) {
-          throw new Error(data.error || data.message || `HTTP ${res.status}`);
+        let message = "ok";
+        const server = await window.MidiBrowser?.tryServerJson("./api/midi/sync", {
+          method: "POST",
+        });
+        if (server?.res?.ok && server.data?.ok !== false) {
+          message = server.data.message || "ok";
+        } else if (window.MidiBrowser) {
+          const data = await window.MidiBrowser.syncFromGithub();
+          message = data.message || "ok";
+        } else {
+          throw new Error("sync unavailable");
         }
         await refillCsvSelect();
-        setStatus("ok", t("inst.midiSyncOk", { message: data.message || "ok" }));
+        setStatus("ok", t("inst.midiSyncOk", { message }));
       } catch (e) {
         setStatus("warn", t("inst.midiSyncFail", { msg: e.message || e }));
       } finally {
