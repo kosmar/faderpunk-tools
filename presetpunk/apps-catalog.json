@@ -3238,6 +3238,102 @@
           }
         }
       ]
+    },
+    {
+      "id": 37,
+      "slug": "harmonica",
+      "module": "harmonica",
+      "channels": 1,
+      "name": "Harmonica",
+      "description": "Monophonic MIDI/CV harmonizer",
+      "color": "Orange",
+      "icon": "Note",
+      "params": [
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "I/O",
+            "variants": [
+              "MIDI\u2192MIDI",
+              "MIDI\u2192CV",
+              "CV\u2192MIDI"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiIn"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI In CH"
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Out CH"
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Bypass quantizer"
+          }
+        }
+      ]
     }
   ]
 }
