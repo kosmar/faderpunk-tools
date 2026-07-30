@@ -3457,6 +3457,8 @@
     function kindForApp(app, midiModeTag) {
       if (NONE_APPS.has(app)) return "none";
       if (APPS_WITH_NOTE_AND_CC.has(app)) return "both";
+      // Hold Sam: pitch from CV — no base note column; CC column only in Cc mode
+      if (app === "hold_sam") return midiModeTag === "Cc" ? "cc" : "none";
       if (APPS_WITH_MIDI_MODE.has(app)) return midiModeTag === "Cc" ? "cc" : "note";
       return NOTE_APPS.has(app) ? "note" : "cc";
     }
@@ -5027,7 +5029,7 @@
         return out;
       }
 
-      if (row.app === "turing" || row.app === "clkturing") {
+      if (row.app === "turing" || row.app === "clkturing" || row.app === "hold_sam") {
         const mode = rowMidiMode(row);
         const cat = catalogApp(row.app);
         (cat?.params || []).forEach((p, i) => {
