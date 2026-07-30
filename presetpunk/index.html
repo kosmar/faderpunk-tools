@@ -2688,46 +2688,24 @@
       });
     }
 
-    // IDs/channels from faderpunk firmware register_apps! (main)
-    const APPS = {
-      control: { id: 1, channels: 1, label: "Control" },
-      lfo: { id: 2, channels: 1, label: "LFO" },
-      ad: { id: 3, channels: 2, label: "AD Envelope" },
-      rnd: { id: 4, channels: 1, label: "Random CC/CV" },
-      seq8: { id: 5, channels: 8, label: "Sequencer" },
-      turing: { id: 6, channels: 1, label: "Turing" },
-      clkturing: { id: 7, channels: 2, label: "Turing+" },
-      euclid: { id: 8, channels: 2, label: "Euclid" },
-      probatrigger: { id: 9, channels: 1, label: "Random Triggers" },
-      notefader: { id: 10, channels: 1, label: "Note Fader" },
-      offset_att: { id: 11, channels: 2, label: "Offset+Attenuverter" },
-      slew: { id: 12, channels: 2, label: "Slew Limiter" },
-      follower: { id: 13, channels: 2, label: "Envelope Follower" },
-      quantizer: { id: 14, channels: 2, label: "Quantizer" },
-      midi2cv: { id: 15, channels: 1, label: "MIDI to CV" },
-      cv2midi: { id: 16, channels: 1, label: "CV to MIDI" },
-      cv2midinote: { id: 17, channels: 2, label: "CV/OCT to MIDI" },
-      clk_div: { id: 18, channels: 1, label: "Clock Divider" },
-      panner: { id: 19, channels: 2, label: "Panner" },
-      rnd_plus: { id: 20, channels: 2, label: "Random+" },
-      clk_div_plus: { id: 21, channels: 2, label: "Clock Divider+" },
-      lfo_plus: { id: 22, channels: 2, label: "LFO+" },
-      fp_grids: { id: 23, channels: 4, label: "FP Grids" },
-      tb3po: { id: 24, channels: 3, label: "TB-3PO" },
-      automator: { id: 25, channels: 1, label: "Automator" },
-      genseq: { id: 26, channels: 3, label: "GenSeq" },
-      bernoulli: { id: 27, channels: 2, label: "Bernoulli Gate" },
-      // 28: Sift predates our own app plans (external contrib, May 2026)
-      sift: { id: 28, channels: 2, label: "Sift" },
-      heat_pump: { id: 29, channels: 1, label: "Heat Pump" },
-      grooves: { id: 30, channels: 1, label: "Grooves" },
-      fibonacci_gate: { id: 31, channels: 1, label: "Golden Gate" },
-      super_lfo: { id: 32, channels: 2, label: "Super LFO" },
-      echolot: { id: 33, channels: 1, label: "Echolot" },
-      arp_de_levy: { id: 34, channels: 1, label: "Arp de Lévy" },
-      vamp: { id: 35, channels: 1, label: "Chord Vamp" },
-      hold_sam: { id: 36, channels: 1, label: "Hold Sam" },
-    };
+    /**
+     * App registry — filled from apps-catalog.json (firmware CONFIG via
+     * tools/gen-apps-catalog.py). Only pool caps + aliases stay hardcoded.
+     */
+    let APPS = {};
+    let APP_ORDER = [];
+    let APP_ICON = {};
+    let APP_COLOR = {};
+    let APP_PARAM_MIN = {};
+    let APPS_WITH_COLOR = new Set();
+    let APPS_NO_MIDIOUT = new Set();
+    let APPS_WITH_SPEED = new Set();
+    let APPS_WITH_MIDI_MODE = new Set();
+    let APPS_WITH_NOTE_AND_CC = new Set();
+    let APPS_WITH_RANGE = new Set();
+    let APPS_HAS_MIDI_NOTE = new Set();
+    let NOTE_APPS = new Set();
+    let NONE_APPS = new Set();
 
     /** Old bank slugs → current register_apps! module names. */
     const APP_ALIASES = {
@@ -2753,6 +2731,99 @@
       hold_sam: 4,
     };
 
+    /** Shared Note/CC column forced to "—" even when catalog has MidiNote/MidiCc. */
+    const NONE_APPS_FORCE = new Set(["midi2cv"]);
+
+    function appIconToKebab(icon) {
+      return String(icon || "Fader")
+        .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+        .replace(/_/g, "-")
+        .toLowerCase();
+    }
+
+    function rebuildAppRegistries(catalog) {
+      const apps = {};
+      const icons = {};
+      const colors = {};
+      const paramMin = {};
+      const withColor = new Set();
+      const noMidiOut = new Set();
+      const withSpeed = new Set();
+      const withMidiMode = new Set();
+      const withNoteAndCc = new Set();
+      const withRange = new Set();
+      const hasMidiNote = new Set();
+      const noteApps = new Set();
+      const noneApps = new Set(NONE_APPS_FORCE);
+
+      for (const a of catalog?.apps || []) {
+        const slug = a.slug;
+        if (!slug) continue;
+        apps[slug] = {
+          id: Number(a.id),
+          channels: Number(a.channels) || 1,
+          label: a.name || slug,
+        };
+        icons[slug] = appIconToKebab(a.icon);
+        if (a.color) colors[slug] = a.color;
+        const params = a.params || [];
+        paramMin[slug] = params.length;
+
+        const tags = new Set(params.map((p) => p.tag));
+        const hasNote = tags.has("MidiNote");
+        const hasCc = tags.has("MidiCc");
+        const hasMode = tags.has("MidiMode");
+
+        if (tags.has("Color")) withColor.add(slug);
+        if (!tags.has("MidiOut")) noMidiOut.add(slug);
+        if (tags.has("Range")) withRange.add(slug);
+        if (hasMode) withMidiMode.add(slug);
+        if (hasNote) hasMidiNote.add(slug);
+
+        if (
+          params.some((p) => {
+            if (p.tag !== "Enum") return false;
+            if (!/^Speed$/i.test(p.value?.name || "")) return false;
+            // LFO speed only (not Fibonacci division labels)
+            const vars = (p.value?.variants || []).map((v) =>
+              typeof v === "string" ? v : v?.tag || "",
+            );
+            return (
+              vars.includes("Normal") &&
+              vars.includes("Slow") &&
+              vars.includes("Slowest")
+            );
+          })
+        ) {
+          withSpeed.add(slug);
+        }
+
+        if (hasNote && hasCc && !hasMode && !NONE_APPS_FORCE.has(slug)) {
+          withNoteAndCc.add(slug);
+        } else if (!hasNote && !hasCc) {
+          noneApps.add(slug);
+        } else if (hasNote && !hasCc && !hasMode) {
+          noteApps.add(slug);
+        }
+      }
+
+      APPS = apps;
+      APP_ORDER = Object.keys(apps).sort((a, b) =>
+        apps[a].label.localeCompare(apps[b].label),
+      );
+      APP_ICON = icons;
+      APP_COLOR = colors;
+      APP_PARAM_MIN = paramMin;
+      APPS_WITH_COLOR = withColor;
+      APPS_NO_MIDIOUT = noMidiOut;
+      APPS_WITH_SPEED = withSpeed;
+      APPS_WITH_MIDI_MODE = withMidiMode;
+      APPS_WITH_NOTE_AND_CC = withNoteAndCc;
+      APPS_HAS_MIDI_NOTE = hasMidiNote;
+      NOTE_APPS = noteApps;
+      NONE_APPS = noneApps;
+    }
+
     function canonicalizeAppSlug(slug) {
       return APP_ALIASES[slug] || slug;
     }
@@ -2760,7 +2831,17 @@
     function poolMaxForApp(slug) {
       const app = canonicalizeAppSlug(slug);
       if (APP_POOL_MAX[app] != null) return APP_POOL_MAX[app];
-      const ch = APPS[app]?.channels || 1;
+      if (APP_POOL_MAX[slug] != null) return APP_POOL_MAX[slug];
+      // Alias either direction (catalog may still use the old slug)
+      for (const [oldSlug, neu] of Object.entries(APP_ALIASES)) {
+        if ((neu === app || neu === slug) && APP_POOL_MAX[oldSlug] != null) {
+          return APP_POOL_MAX[oldSlug];
+        }
+        if ((oldSlug === app || oldSlug === slug) && APP_POOL_MAX[neu] != null) {
+          return APP_POOL_MAX[neu];
+        }
+      }
+      const ch = APPS[app]?.channels || APPS[slug]?.channels || 1;
       return Math.floor(16 / ch);
     }
 
@@ -2786,50 +2867,6 @@
         );
       }
     }
-
-    const APP_ORDER = Object.keys(APPS).sort((a, b) =>
-      APPS[a].label.localeCompare(APPS[b].label),
-    );
-
-    // Configurator AppIcon → kebab SVG under /icons/ (ATOVproject/faderpunk)
-    const APP_ICON = {
-      control: "fader",
-      lfo: "sine",
-      ad: "ad-env",
-      rnd: "random",
-      seq8: "sequence",
-      turing: "sequence-square",
-      clkturing: "sequence-square",
-      euclid: "euclid",
-      probatrigger: "die",
-      notefader: "note",
-      offset_att: "attenuate",
-      slew: "soft-random",
-      follower: "env-follower",
-      quantizer: "quantize",
-      midi2cv: "knob-round",
-      cv2midi: "note-grid",
-      cv2midinote: "note-box",
-      clk_div: "note-box",
-      panner: "stereo",
-      rnd_plus: "random",
-      clk_div_plus: "note-box",
-      lfo_plus: "sine",
-      fp_grids: "euclid",
-      tb3po: "soft-random",
-      automator: "fader",
-      genseq: "sequence",
-      bernoulli: "die",
-      sift: "sequence-square",
-      heat_pump: "ad-env",
-      grooves: "die",
-      fibonacci_gate: "sequence-square",
-      super_lfo: "sine",
-      echolot: "sine",
-      arp_de_levy: "soft-random",
-      vamp: "note-grid",
-      hold_sam: "note-box",
-    };
 
     // MidiOut flags: [usb, out1, out2] — all non-empty combinations
     const PORTS = {
@@ -3395,61 +3432,8 @@
       return COLOR_TAGS[hash % COLOR_TAGS.length];
     }
 
-    /** Fallback when no instrument: separate app roles */
-    const APP_COLOR = {
-      control: "Violet",
-      lfo_plus: "Yellow",
-      turing: "Blue",
-      euclid: "Orange",
-      automator: "Pink",
-      notefader: "Cyan",
-      probatrigger: "Salmon",
-      clk_div: "Sand",
-      tb3po: "Lime",
-      fp_grids: "Red",
-      heat_pump: "Pink",
-      grooves: "Orange",
-      super_lfo: "Cyan",
-      echolot: "Cyan",
-      arp_de_levy: "Rose",
-      vamp: "Violet",
-      hold_sam: "Cyan",
-    };
+    /** Fallback when no instrument: separate app roles (from catalog Color) */
 
-    /** Apps where our paramsFor emits Color (basic LFO / Random have none) */
-    // Apps whose CONFIG has a Color param (firmware subset)
-    const APPS_WITH_COLOR = new Set([
-      "control", "lfo_plus", "turing", "clkturing", "euclid", "automator",
-      "probatrigger", "bernoulli", "fibonacci_gate", "notefader", "rnd_plus", "fp_grids",
-      "clk_div", "clk_div_plus", "genseq", "tb3po", "panner", "cv2midi",
-      "cv2midinote", "midi2cv", "follower", "offset_att", "slew", "quantizer",
-      "heat_pump", "sift", "grooves", "super_lfo", "echolot", "arp_de_levy", "vamp",
-      "hold_sam",
-    ]);
-    // Apps without MidiOut in CONFIG (CV-only / MIDI-in)
-    const APPS_NO_MIDIOUT = new Set([
-      "ad", "follower", "offset_att", "slew", "quantizer", "midi2cv",
-    ]);
-    const APPS_WITH_SPEED = new Set(["lfo", "lfo_plus", "super_lfo"]);
-    const APPS_WITH_MIDI_MODE = new Set(["turing", "clkturing", "hold_sam"]);
-    /** Firmware exposes MidiNote and MidiCc together (not XOR via MidiMode). */
-    const APPS_WITH_NOTE_AND_CC = new Set(["fibonacci_gate", "echolot"]);
-    const APPS_WITH_RANGE = new Set([
-      "lfo", "lfo_plus", "rnd", "control", "turing", "clkturing", "automator",
-      "panner", "cv2midi", "cv2midinote", "follower", "offset_att", "slew", "quantizer",
-      "heat_pump", "sift", "super_lfo", "echolot",
-      "hold_sam",
-    ]);
-    const NOTE_APPS = new Set([
-      "turing", "clkturing", "euclid", "probatrigger", "bernoulli", "notefader",
-      "fp_grids", "genseq", "clk_div", "clk_div_plus", "tb3po",
-      "grooves", "arp_de_levy", "vamp",
-    ]);
-    /** Apps with no MidiCc/MidiNote in the shared column (show —).
-     * midi2cv: Note/CC are mode-dependent and live in app-extras only. */
-    const NONE_APPS = new Set([
-      "ad", "seq8", "offset_att", "slew", "follower", "quantizer", "sift", "midi2cv",
-    ]);
     function rowMidiMode(row) {
       // Firmware MidiMode: Note (no CC out) | Cc
       return row.midiMode === "Cc" ? "Cc" : "Note";
@@ -3457,8 +3441,10 @@
     function kindForApp(app, midiModeTag) {
       if (NONE_APPS.has(app)) return "none";
       if (APPS_WITH_NOTE_AND_CC.has(app)) return "both";
-      // Hold Sam: pitch from CV — no base note column; CC column only in Cc mode
-      if (app === "hold_sam") return midiModeTag === "Cc" ? "cc" : "none";
+      // MidiMode without MidiNote (e.g. Hold Sam): pitch from CV — no base-note column
+      if (APPS_WITH_MIDI_MODE.has(app) && !APPS_HAS_MIDI_NOTE.has(app)) {
+        return midiModeTag === "Cc" ? "cc" : "none";
+      }
       if (APPS_WITH_MIDI_MODE.has(app)) return midiModeTag === "Cc" ? "cc" : "note";
       return NOTE_APPS.has(app) ? "note" : "cc";
     }
@@ -3487,22 +3473,7 @@
       row.cc = rowCcNum(row);
       row.kind = "both";
     }
-    // Minimum param counts from firmware CONFIG (reject incomplete pulls)
-    const APP_PARAM_MIN = {
-      control: 13, lfo: 7, lfo_plus: 8, rnd: 5, rnd_plus: 6, turing: 12,
-      clkturing: 10, euclid: 6, probatrigger: 5, bernoulli: 6, notefader: 9,
-      automator: 7, fp_grids: 13, clk_div: 6, clk_div_plus: 6, genseq: 6,
-      tb3po: 4, panner: 10, cv2midi: 6, cv2midinote: 7, midi2cv: 9,
-      fibonacci_gate: 12,
-      grooves: 15,
-      ad: 3, seq8: 14, follower_att: 2, slew: 2, follower: 2, quantizer: 4,
-      heat_pump: 9, sift: 11,
-      super_lfo: 13,
-      echolot: 15,
-      arp_de_levy: 11,
-      vamp: 16,
-      hold_sam: 10,
-    };
+    // APP_PARAM_MIN filled by rebuildAppRegistries() from catalog
 
     function resolveColor(row, idx = 0) {
       if (row.color && COLOR_TAGS.includes(row.color)) return row.color;
@@ -4550,6 +4521,10 @@
           ${noteSelectHtml(idx, rowNoteNum(s), { key: "note" })}</span>`;
       }
       if (s.kind === "none") {
+        // MidiMode apps without MidiNote (e.g. Hold Sam): pitch from CV
+        if (APPS_WITH_MIDI_MODE.has(s.app) && !APPS_HAS_MIDI_NOTE.has(s.app)) {
+          return `<span class="led-muted" title="Pitch from CV input">CV → Note</span>`;
+        }
         return `<span class="led-muted" title="${escapeAttr(APPS[s.app]?.label || s.app || "")}: kein CC/Note-Parameter">—</span>`;
       }
       if (s.kind === "both" || APPS_WITH_NOTE_AND_CC.has(s.app)) {
@@ -4583,7 +4558,16 @@
     let APPS_CATALOG_BY_SLUG = {};
 
     function catalogApp(slug) {
-      return APPS_CATALOG_BY_SLUG[canonicalizeAppSlug(slug)] || null;
+      if (!slug) return null;
+      if (APPS_CATALOG_BY_SLUG[slug]) return APPS_CATALOG_BY_SLUG[slug];
+      const canon = canonicalizeAppSlug(slug);
+      if (APPS_CATALOG_BY_SLUG[canon]) return APPS_CATALOG_BY_SLUG[canon];
+      for (const [oldSlug, neu] of Object.entries(APP_ALIASES)) {
+        if (neu === slug || neu === canon) {
+          if (APPS_CATALOG_BY_SLUG[oldSlug]) return APPS_CATALOG_BY_SLUG[oldSlug];
+        }
+      }
+      return null;
     }
 
     async function loadAppsCatalog() {
@@ -4592,18 +4576,20 @@
         if (!res.ok) throw new Error(String(res.status));
         const data = await res.json();
         APPS_CATALOG = data;
-        APPS_CATALOG_BY_SLUG = Object.fromEntries(
-          (data.apps || []).map((a) => [a.slug, a]),
-        );
-        // Keep APP_PARAM_MIN in sync when catalog is present
+        APPS_CATALOG_BY_SLUG = {};
         for (const a of data.apps || []) {
-          APP_PARAM_MIN[a.slug] = a.params.length;
+          if (!a?.slug) continue;
+          APPS_CATALOG_BY_SLUG[a.slug] = a;
+          const canon = canonicalizeAppSlug(a.slug);
+          if (canon !== a.slug) APPS_CATALOG_BY_SLUG[canon] = a;
         }
+        rebuildAppRegistries(data);
         return true;
       } catch (e) {
-        console.warn("apps-catalog.json missing — legacy extras only", e);
+        console.warn("apps-catalog.json missing — app dropdown empty", e);
         APPS_CATALOG = null;
         APPS_CATALOG_BY_SLUG = {};
+        rebuildAppRegistries({ apps: [] });
         return false;
       }
     }
@@ -5029,7 +5015,7 @@
         return out;
       }
 
-      if (row.app === "turing" || row.app === "clkturing" || row.app === "hold_sam") {
+      if (APPS_WITH_MIDI_MODE.has(row.app)) {
         const mode = rowMidiMode(row);
         const cat = catalogApp(row.app);
         (cat?.params || []).forEach((p, i) => {
@@ -6578,7 +6564,12 @@
         if (hit?.name) return hit.name;
       }
       if (row.kind === "note") return midiNoteName(row.cc);
-      if (row.kind === "none") return "";
+      if (row.kind === "none") {
+        if (APPS_WITH_MIDI_MODE.has(row.app) && !APPS_HAS_MIDI_NOTE.has(row.app)) {
+          return "CV → Note";
+        }
+        return "";
+      }
       if (row.cc != null && row.cc !== "") return `CC${row.cc}`;
       return "";
     }
