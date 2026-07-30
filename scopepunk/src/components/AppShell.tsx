@@ -237,7 +237,13 @@ export function AppShell() {
       <div className="stage">
       <header className="top">
         <div className="brand">
-          <img className="brand-logo" src="/img/fp-logo.svg" width="55" height="72" alt="Faderpunk" />
+          <img
+            className="brand-logo"
+            src={`${import.meta.env.BASE_URL}img/fp-logo.svg`}
+            width="55"
+            height="72"
+            alt="Faderpunk"
+          />
           <div className="brand-text">
             <h1>Scopepunk</h1>
             <p className="compat-note">
@@ -531,7 +537,11 @@ export function AppShell() {
         title="kosmar.design"
         aria-label="kosmar.design"
       >
-        <img className="maker__logo" src="/img/kosmar.svg" alt="kosmar" />
+        <img
+          className="maker__logo"
+          src={`${import.meta.env.BASE_URL}img/kosmar.svg`}
+          alt="kosmar"
+        />
       </a>
       </div>
 
