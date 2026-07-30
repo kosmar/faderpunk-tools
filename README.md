@@ -10,6 +10,8 @@ These are **not** part of the upstream ATOV repo and will not be proposed as PRs
 | **Presetpunk** | `presetpunk/` | https://kosmar.github.io/faderpunk-tools/presetpunk/ |
 | **Scopepunk** | `scopepunk/` | https://kosmar.github.io/faderpunk-tools/scopepunk/ |
 
+**Persistence:** both apps use browser `localStorage` on Pages (Presetpunk: preset bank, instruments, MIDI CSV cache; Scopepunk: gain/key/BPM/view/mutes). Local `node server.mjs` can additionally mirror the Presetpunk bank to `out/preset-bank.json`.
+
 Also mirrored on feature branches of the fork [kosmar/faderpunk](https://github.com/kosmar/faderpunk) (`add-preset-editor`, `feat/midi-diagnostics`).
 
 Use Chromium with Web MIDI + SysEx. Close other tabs that hold the Faderpunk ports.

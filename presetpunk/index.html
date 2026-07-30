@@ -5742,7 +5742,8 @@
     function saveBank() {
       const payload = bankPayload();
       writeBankLocal(payload);
-      // Optional local Node server file (cross-profile sync); ignore on Pages
+      // Optional local Node server file; skip on GitHub Pages / static hosts
+      if (/\.github\.io$/i.test(location.hostname)) return;
       fetch("./api/bank", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -5759,6 +5760,8 @@
     }
 
     async function hydrateBankFromServer() {
+      // Pages / static: bank lives only in localStorage
+      if (/\.github\.io$/i.test(location.hostname)) return false;
       const local = loadBankFromLocal();
       try {
         const res = await fetch("./api/bank");

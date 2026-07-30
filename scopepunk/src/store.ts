@@ -38,8 +38,11 @@ import { liveStats, resetLiveStats } from "./midi/live-stats";
 import { sendMidiPanic, sendMidiPanicChannels } from "./midi/panic";
 import { PerformanceParser, type MidiEvent } from "./midi/performance";
 import { sendMidiTransport } from "./midi/transport";
+import { loadScopePrefs, patchScopePrefs } from "./prefs";
 
 export type ViewMode = "all" | "solo" | "compare";
+
+const savedPrefs = loadScopePrefs();
 
 /** One scope lane: MidiIn or one MidiOut channel (apps may have several outs). */
 export interface MidiLane {
@@ -713,6 +716,22 @@ function startParamsPoll(
   }, PARAMS_POLL_MS);
 }
 
+function persistMutedLayoutIds(tracks: TrackRuntime[]) {
+  patchScopePrefs({
+    mutedLayoutIds: tracks.filter((tr) => tr.muted).map((tr) => tr.track.layoutId),
+  });
+}
+
+function applyMutedPrefs(tracks: TrackRuntime[]): TrackRuntime[] {
+  const ids = new Set(loadScopePrefs().mutedLayoutIds ?? []);
+  if (ids.size === 0) return tracks;
+  return tracks.map((tr) => {
+    if (!ids.has(tr.track.layoutId)) return tr;
+    audioEngine.setTrackState(tr.key, { muted: true, solo: false });
+    return { ...tr, muted: true, solo: false };
+  });
+}
+
 export const useDiag = create<DiagState>((set, get) => ({
   status: "idle",
   error: null,
@@ -720,12 +739,21 @@ export const useDiag = create<DiagState>((set, get) => ({
   version: null,
   deviceInfo: null,
   demo: false,
-  viewMode: "all",
+  viewMode: savedPrefs.viewMode === "solo" || savedPrefs.viewMode === "compare"
+    ? savedPrefs.viewMode
+    : "all",
   focusKey: null,
-  masterGain: 0.65,
-  keyPc: 0,
+  masterGain:
+    typeof savedPrefs.masterGain === "number" && Number.isFinite(savedPrefs.masterGain)
+      ? Math.min(1, Math.max(0, savedPrefs.masterGain))
+      : 0.65,
+  keyPc: clampKeyPc(
+    typeof savedPrefs.keyPc === "number" ? savedPrefs.keyPc : 0,
+  ),
   clockSrc: null,
-  clockBpm: 120,
+  clockBpm: clampBpm(
+    typeof savedPrefs.clockBpm === "number" ? savedPrefs.clockBpm : 120,
+  ),
   playing: true,
   transportRunning: false,
   tracks: [],
@@ -757,10 +785,11 @@ export const useDiag = create<DiagState>((set, get) => ({
       hostClock.setOutputs(snap.device.performanceOutputs);
       if (clock) hostClock.setBpm(clock.bpm);
 
-      const { runtimes: tracks, collisions } = buildTrackRuntimes(
+      const { runtimes: built, collisions } = buildTrackRuntimes(
         snap.tracks,
         get().keyPc,
       );
+      const tracks = applyMutedPrefs(built);
 
       bindMidiHandlers(
         snap.device,
@@ -1087,7 +1116,10 @@ export const useDiag = create<DiagState>((set, get) => ({
     });
   },
 
-  setViewMode: (viewMode) => set({ viewMode }),
+  setViewMode: (viewMode) => {
+    patchScopePrefs({ viewMode });
+    set({ viewMode });
+  },
   setFocus: (focusKey) => set({ focusKey, viewMode: focusKey ? "solo" : get().viewMode }),
 
   toggleMute: (key) => {
@@ -1134,6 +1166,7 @@ export const useDiag = create<DiagState>((set, get) => ({
         notice: tr?.muted ? `${tr.track.app.name} muted` : null,
       };
     });
+    persistMutedLayoutIds(get().tracks);
   },
 
   toggleMuteAll: () => {
@@ -1163,6 +1196,7 @@ export const useDiag = create<DiagState>((set, get) => ({
         ? "All muted — host MIDI echo paused. M = unmute."
         : "All unmuted — host MIDI echo on.",
     });
+    persistMutedLayoutIds(next);
   },
 
   toggleSolo: (key) => {
@@ -1223,11 +1257,13 @@ export const useDiag = create<DiagState>((set, get) => ({
 
   setMasterGain: (masterGain) => {
     audioEngine.setMasterGain(masterGain);
+    patchScopePrefs({ masterGain });
     set({ masterGain });
   },
 
   setKeyPc: (pc) => {
     const keyPc = clampKeyPc(pc);
+    patchScopePrefs({ keyPc });
     set({ keyPc });
     for (const tr of get().tracks) syncTrackCcPitch(tr, keyPc);
   },
@@ -1235,6 +1271,7 @@ export const useDiag = create<DiagState>((set, get) => ({
   setClockBpm: (raw) => {
     const clockBpm = clampBpm(raw);
     hostClock.setBpm(clockBpm);
+    patchScopePrefs({ clockBpm });
     set((s) => ({
       clockBpm,
       deviceInfo: s.deviceInfo ? { ...s.deviceInfo, bpm: clockBpm } : null,
