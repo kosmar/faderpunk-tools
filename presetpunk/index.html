@@ -4441,9 +4441,17 @@
           .filter((x) => x.p.tag === "MidiChannel");
         if (chParams.length > 1) {
           ensureSchemaValues(s);
-          const rows = chParams
-            .map(({ p, i: pi }, slot) => {
-              const lab = (p.value?.name || `CH${slot + 1}`).replace(/^MIDI\s*/i, "").slice(0, 8);
+          coerceParamDeps(s);
+          const deps = paramDeps(s);
+          const visible = chParams.filter(({ i }) => !deps.hide.has(i));
+          if (!visible.length) {
+            return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
+          }
+          const rows = visible
+            .map(({ p, i: pi }) => {
+              const lab = (p.value?.name || "CH")
+                .replace(/^MIDI\s*/i, "")
+                .slice(0, 8);
               const cur = Math.max(
                 1,
                 Math.min(16, Number(s.schemaValues?.[pi]?.value?.[0]) || Number(s.ch) || 1),
@@ -4671,6 +4679,8 @@
       const params = cat.params || [];
       const specialMulti =
         row.app === "fp_grids" || row.app === "grooves" || row.app === "echolot";
+      const multiMidiCh =
+        params.filter((p) => p?.tag === "MidiChannel").length > 1;
       let firstCh = true;
       let firstCc = true;
       let firstNote = true;
@@ -4681,7 +4691,8 @@
           return;
         }
         if (p.tag === "MidiChannel") {
-          if (specialMulti || firstCh) {
+          // Multi-CH apps render every MidiChannel in the CH column (chCellHtml).
+          if (specialMulti || multiMidiCh || firstCh) {
             claimed.add(i);
             firstCh = false;
           }
@@ -4952,6 +4963,23 @@
         out.echolotChSlots = slots;
         out.echolotCcMode =
           io === 2 && signal === 2 ? "cc" : io === 2 && signal === 3 ? "note" : "none";
+        return out;
+      }
+
+      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass
+      if (row.app === "harmonica") {
+        const io = schemaEnumIndex(row, 0); // 0 MIDI→MIDI, 1 MIDI→CV, 2 CV→MIDI
+        if (io === 0) {
+          hide.add(1); // Range — no jack
+          hide.add(7); // VoltPerOct
+        }
+        if (io === 1) {
+          hide.add(6); // Out CH — CV only, no MIDI emit
+        }
+        if (io === 2) {
+          hide.add(3); // MidiIn
+          hide.add(4); // In CH
+        }
         return out;
       }
 
