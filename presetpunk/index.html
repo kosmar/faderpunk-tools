@@ -4139,15 +4139,22 @@
     function applyInstrumentChannelToBank(instrumentId, midiCh) {
       const ch = Math.max(1, Math.min(16, Number(midiCh) || 1));
       let n = 0;
+      const touched = [];
       for (const sc of bank) {
-        for (const row of sc.rows || []) {
+        for (let ri = 0; ri < (sc.rows || []).length; ri++) {
+          const row = sc.rows[ri];
           if (row.instrumentId === instrumentId && Number(row.ch) !== ch) {
             row.ch = ch;
+            if (catalogApp(row.app)) {
+              ensureSchemaValues(row);
+              applyColumnOverlaysToSchema(row, sc.port);
+            }
             n += 1;
+            touched.push({ scene: sc, index: ri });
           }
         }
       }
-      return n;
+      return { n, touched };
     }
 
     function renderInstruments() {
@@ -4192,7 +4199,10 @@
             if (k === "midiCh") {
               inst.midiCh = Math.max(1, Math.min(16, Number(el.value) || 1));
               el.value = String(inst.midiCh);
-              const updated = applyInstrumentChannelToBank(inst.id, inst.midiCh);
+              const { n: updated, touched } = applyInstrumentChannelToBank(
+                inst.id,
+                inst.midiCh,
+              );
               saveInstruments();
               saveBank();
               render();
@@ -4202,6 +4212,12 @@
                   "ok",
                   t("inst.chUpdated", { name: inst.name, ch: inst.midiCh, n: updated }),
                 );
+                if (livePushEnabled()) {
+                  const sc = preset();
+                  for (const hit of touched) {
+                    if (hit.scene === sc) scheduleLiveParamPush(hit.index);
+                  }
+                }
               }
               return;
             }
@@ -7090,6 +7106,11 @@
           }
           rowRef.color = instrumentColor(inst.id) || rowRef.color;
         }
+        delete rowRef.rawParams;
+        if (catalogApp(rowRef.app)) {
+          ensureSchemaValues(rowRef);
+          applyColumnOverlaysToSchema(rowRef, sc.port);
+        }
       } else if (k === "color") {
         rowRef.color = el.value;
         delete rowRef.rawParams;
@@ -7298,11 +7319,7 @@
       }
       if (k === "app") {
         scheduleLiveStructurePush({ rowIndexes: [i] });
-      } else if (
-        k !== "target" &&
-        k !== "instrumentId" &&
-        livePushEnabled()
-      ) {
+      } else if (k !== "target" && livePushEnabled()) {
         scheduleLiveParamPush(i);
       }
     }
