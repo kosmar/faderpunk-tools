@@ -828,6 +828,37 @@ export async function pushSetupToDevice(setup, opts = {}) {
 }
 
 /**
+ * Live Presettings push: SetGlobalConfig only (clock, quantizer, AUX, MIDI outs).
+ * Firmware does not ack — fire-and-forget + brief settle.
+ * @param {object} globalConfig
+ * @param {{ onLog?: (line: string) => void }} [opts]
+ */
+export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
+  const log = opts.onLog || (() => {});
+  const t0 = Date.now();
+  if (!globalConfig || typeof globalConfig !== "object") {
+    throw new Error("Invalid global config");
+  }
+  let device;
+  try {
+    log("Connecting via Web MIDI …");
+    device = await connectDevice();
+    log(`Connected · fw ${device.config.version} · ${device.portSummary}`);
+    log("SetGlobalConfig …");
+    await sendMessage(device.config, {
+      tag: "SetGlobalConfig",
+      value: globalConfig,
+    });
+    await delay(200);
+    const ms = Date.now() - t0;
+    log(`Global config live · ${(ms / 1000).toFixed(1)}s`);
+    return { ok: true, ms, version: device.config.version };
+  } finally {
+    if (device) disconnectDevice(device);
+  }
+}
+
+/**
  * Live structural push: SetLayout + SetAppParams for selected (or all) slots.
  * Used when swapping an app / adding / reordering — not a param-only tweak.
  *

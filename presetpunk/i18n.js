@@ -246,7 +246,7 @@
       "push.liveOk": 'Preset "{name}" live',
       "push.liveToggle": "Live sync",
       "push.liveTitle":
-        "Live sync: param edits → SetAppParams (even if layout is dirty). App swap / add / reorder → SetLayout. Full Push still best after big layout changes.",
+        "Live sync: param edits → SetAppParams; Presettings → SetGlobalConfig; app swap / add / reorder → SetLayout. Full Push still best after big layout changes.",
       "push.liveOkSlot": "✓ live · layoutId {id}",
       "push.liveErr": "Live push failed: {msg}",
       "push.liveNeedFull":
@@ -256,15 +256,18 @@
       "push.liveParamBusy": "Live · pushing {n} row(s) …",
       "push.liveParamBusyUnsynced":
         "Live · pushing {n} row(s) (layout may differ on device) …",
+      "push.liveGlobalBusy": "Live · pushing presettings ({n}) …",
+      "push.liveGlobalOk": "✓ live presettings applied",
       "push.liveQueued": "Live · queued (waiting for current push)",
       "push.liveQueuedRow": "Live · row {row} queued",
+      "push.liveQueuedGlobal": "Live · presettings queued",
       "push.liveBusyFull": "Live paused — full Push in progress",
       "push.liveOverflowRow": "Live skipped row {row} (overflow / not on device)",
       "push.liveNoParams": "Live failed: no params for layoutId {id}",
       "push.liveNothing": "Live: nothing to push for that edit",
       "push.liveOnSynced": "Live sync on — edits go to the Punk",
       "push.liveOnUnsynced":
-        "Live sync on — params push anyway; Push once if apps/order changed",
+        "Live sync on — params + presettings push anyway; Push once if apps/order changed",
       "push.liveOff": "Live sync off",
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
@@ -670,7 +673,7 @@
       "push.liveOk": 'Preset „{name}“ live',
       "push.liveToggle": "Live Sync",
       "push.liveTitle":
-        "Live Sync: Param-Edits → SetAppParams (auch wenn Layout dirty). App tauschen / adden / umsortieren → SetLayout. Nach großen Layout-Änderungen weiter Push empfohlen.",
+        "Live Sync: Param-Edits → SetAppParams; Presettings → SetGlobalConfig; App tauschen / adden / umsortieren → SetLayout. Nach großen Layout-Änderungen weiter Push empfohlen.",
       "push.liveOkSlot": "✓ live · layoutId {id}",
       "push.liveErr": "Live-Push fehlgeschlagen: {msg}",
       "push.liveNeedFull":
@@ -680,15 +683,18 @@
       "push.liveParamBusy": "Live · {n} Zeile(n) werden gepusht …",
       "push.liveParamBusyUnsynced":
         "Live · {n} Zeile(n) (Layout auf Gerät evtl. anders) …",
+      "push.liveGlobalBusy": "Live · Presettings werden gepusht ({n}) …",
+      "push.liveGlobalOk": "✓ Live-Presettings angewendet",
       "push.liveQueued": "Live · in Warteschlange (aktueller Push läuft)",
       "push.liveQueuedRow": "Live · Zeile {row} wartend",
+      "push.liveQueuedGlobal": "Live · Presettings wartend",
       "push.liveBusyFull": "Live pausiert — voller Push läuft",
       "push.liveOverflowRow": "Live übersprungen: Zeile {row} (Overflow / nicht auf Gerät)",
       "push.liveNoParams": "Live fehlgeschlagen: keine Params für layoutId {id}",
       "push.liveNothing": "Live: für diese Änderung nichts zu pushen",
       "push.liveOnSynced": "Live Sync an — Edits gehen zum Punk",
       "push.liveOnUnsynced":
-        "Live Sync an — Params gehen trotzdem; einmal Push wenn Apps/Reihenfolge geändert",
+        "Live Sync an — Params + Presettings gehen trotzdem; einmal Push wenn Apps/Reihenfolge geändert",
       "push.liveOff": "Live Sync aus",
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
@@ -1026,7 +1032,7 @@
       "push.liveOk": 'Preset « {name} » actif',
       "push.liveToggle": "Sync live",
       "push.liveTitle":
-        "Sync live : params → SetAppParams (même si layout dirty). Changer d’app / ordre → SetLayout. Push complet encore utile après gros changements.",
+        "Sync live : params → SetAppParams ; Presettings → SetGlobalConfig ; changer d’app / ordre → SetLayout. Push complet encore utile après gros changements.",
       "push.liveOkSlot": "✓ live · layoutId {id}",
       "push.liveErr": "Échec push live : {msg}",
       "push.liveNeedFull":
@@ -1036,15 +1042,18 @@
       "push.liveParamBusy": "Live · envoi de {n} ligne(s) …",
       "push.liveParamBusyUnsynced":
         "Live · envoi de {n} ligne(s) (layout device peut différer) …",
+      "push.liveGlobalBusy": "Live · envoi presettings ({n}) …",
+      "push.liveGlobalOk": "✓ presettings live appliqués",
       "push.liveQueued": "Live · en file (push en cours)",
       "push.liveQueuedRow": "Live · ligne {row} en file",
+      "push.liveQueuedGlobal": "Live · presettings en file",
       "push.liveBusyFull": "Live en pause — Push complet en cours",
       "push.liveOverflowRow": "Live ignoré : ligne {row} (overflow)",
       "push.liveNoParams": "Échec live : pas de params pour layoutId {id}",
       "push.liveNothing": "Live : rien à envoyer pour cet edit",
       "push.liveOnSynced": "Sync live on — les edits partent vers le Punk",
       "push.liveOnUnsynced":
-        "Sync live on — params quand même ; Push si apps/ordre ont changé",
+        "Sync live on — params + presettings quand même ; Push si apps/ordre ont changé",
       "push.liveOff": "Sync live off",
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",

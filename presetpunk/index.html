@@ -1678,12 +1678,31 @@
     }
     .global-group-label {
       flex: 1 0 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 11px;
       font-weight: 450;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       color: var(--muted);
       margin: 0;
+    }
+    .global-group-label > span:first-child {
+      min-width: 0;
+    }
+    .global-group-label .row-meteor {
+      margin: 0;
+      width: 1.35rem;
+      height: 1.35rem;
+      flex: 0 0 auto;
+      opacity: 0.28;
+    }
+    .global-group-label .row-meteor.is-pending,
+    .global-group-label .row-meteor.is-spinning,
+    .global-group-label .row-meteor.is-spun,
+    .global-group-label .row-meteor.is-spinning-back {
+      opacity: 1;
     }
     .global-group > label {
       flex: 1 1 110px;
@@ -2236,8 +2255,13 @@
             <input id="presetDesc" type="text" />
           </label>
         </div>
-        <div class="global-group" role="group" aria-labelledby="gGroupQuant">
-          <div class="global-group-label" id="gGroupQuant" data-i18n="global.quantizer">Quantizer</div>
+        <div class="global-group" role="group" aria-labelledby="gGroupQuant" data-global-section="quant">
+          <div class="global-group-label" id="gGroupQuant">
+            <span data-i18n="global.quantizer">Quantizer</span>
+            <span class="row-meteor" data-global-meteor="quant" aria-hidden="true" title="">
+              <span class="row-meteor-face"></span>
+            </span>
+          </div>
           <label><span data-i18n="global.scale">Scale (Key)</span>
             <select id="gScale"></select>
           </label>
@@ -2246,8 +2270,13 @@
           </label>
         </div>
 
-        <div class="global-group clock" role="group" aria-labelledby="gGroupClock">
-          <div class="global-group-label" id="gGroupClock" data-i18n="global.clock">Clock</div>
+        <div class="global-group clock" role="group" aria-labelledby="gGroupClock" data-global-section="clock">
+          <div class="global-group-label" id="gGroupClock">
+            <span data-i18n="global.clock">Clock</span>
+            <span class="row-meteor" data-global-meteor="clock" aria-hidden="true" title="">
+              <span class="row-meteor-face"></span>
+            </span>
+          </div>
           <label><span data-i18n="global.clockSrc">Clock source</span>
             <select id="gClockSrc"></select>
           </label>
@@ -2274,8 +2303,13 @@
           </div>
         </div>
 
-        <div class="global-group aux" role="group" aria-labelledby="gGroupAux">
-          <div class="global-group-label" id="gGroupAux" data-i18n="global.aux">AUX clocks</div>
+        <div class="global-group aux" role="group" aria-labelledby="gGroupAux" data-global-section="aux">
+          <div class="global-group-label" id="gGroupAux">
+            <span data-i18n="global.aux">AUX clocks</span>
+            <span class="row-meteor" data-global-meteor="aux" aria-hidden="true" title="">
+              <span class="row-meteor-face"></span>
+            </span>
+          </div>
           <div class="aux-pair atom">
             <label>
               <span class="aux-pair-title">
@@ -2314,8 +2348,13 @@
           </div>
         </div>
 
-        <div class="global-group midi" role="group" aria-labelledby="gGroupMidi">
-          <div class="global-group-label" id="gGroupMidi" data-i18n="global.midi">MIDI Outs</div>
+        <div class="global-group midi" role="group" aria-labelledby="gGroupMidi" data-global-section="midi">
+          <div class="global-group-label" id="gGroupMidi">
+            <span data-i18n="global.midi">MIDI Outs</span>
+            <span class="row-meteor" data-global-meteor="midi" aria-hidden="true" title="">
+              <span class="row-meteor-face"></span>
+            </span>
+          </div>
           <div class="midi-out usb">
             <label>
               <span class="midi-out-title" data-i18n="port.usb">USB</span>
@@ -6384,6 +6423,21 @@
     }
 
     function wireGlobalFields() {
+      const sectionForId = (id) => {
+        if (id === "gScale" || id === "gTonic") return "quant";
+        if (
+          id === "gClockSrc" ||
+          id === "gResetSrc" ||
+          id === "gBpm" ||
+          id === "gSwing" ||
+          id === "gTakeover"
+        ) {
+          return "clock";
+        }
+        if (id.startsWith("gAux")) return "aux";
+        if (id.startsWith("gMidi")) return "midi";
+        return null;
+      };
       const ids = [
         "gScale", "gTonic", "gClockSrc", "gResetSrc", "gBpm", "gSwing", "gTakeover",
         "gAux0Mode", "gAux0Div", "gAux1Mode", "gAux1Div", "gAux2Mode", "gAux2Div",
@@ -6393,12 +6447,19 @@
       ];
       for (const id of ids) {
         const el = document.getElementById(id);
-        el.addEventListener("change", () => {
+        const onEdit = () => {
           syncPresetFromFields();
+          updateAuxDivEnabled();
+          updateMidiSourcesVisible();
           render();
-        });
+          const section = sectionForId(id);
+          if (section) scheduleLiveGlobalPush(section);
+        };
+        el.addEventListener("change", onEdit);
         el.addEventListener("input", () => {
           syncPresetFromFields();
+          const section = sectionForId(id);
+          if (section) scheduleLiveGlobalPush(section);
         });
       }
     }
@@ -7474,6 +7535,10 @@
     let livePushInFlight = false;
     /** Row indexes currently in live transport (meteor spin). */
     const liveSpinningRows = new Set();
+    /** Presettings sections pending / spinning for live SetGlobalConfig. */
+    let liveGlobalTimer = null;
+    const liveGlobalSections = new Set();
+    const liveSpinningGlobals = new Set();
     /** Keep live status visible across render() rebuilds. */
     let liveStatusHold = null;
 
@@ -7593,9 +7658,120 @@
       if (
         liveStatusHold &&
         Date.now() < liveStatusHold.until &&
-        (livePushEnabled() || livePushInFlight || livePendingRows.size)
+        (livePushEnabled() ||
+          livePushInFlight ||
+          livePendingRows.size ||
+          liveGlobalSections.size)
       ) {
         setStatus(liveStatusHold.kind, liveStatusHold.text);
+      }
+    }
+
+    function globalMeteorEl(section) {
+      return document.querySelector(
+        `[data-global-meteor="${CSS.escape(String(section))}"]`,
+      );
+    }
+
+    function markGlobalMeteorPending(sections) {
+      for (const s of sections) {
+        const el = globalMeteorEl(s);
+        if (!el || liveSpinningGlobals.has(s)) continue;
+        el.classList.remove("is-ok", "is-err", "is-spinning-back");
+        if (!el.classList.contains("is-spinning") && !el.classList.contains("is-spun")) {
+          el.classList.add("is-pending");
+        }
+      }
+    }
+
+    function startGlobalMeteorSpin(sections) {
+      for (const s of sections) {
+        liveSpinningGlobals.add(s);
+        const el = globalMeteorEl(s);
+        if (!el) continue;
+        clearRowMeteorClasses(el);
+        void el.offsetWidth;
+        el.classList.add("is-spinning");
+      }
+    }
+
+    function finishGlobalMeteorSpin(sections, { ok = true } = {}) {
+      for (const s of sections) {
+        liveSpinningGlobals.delete(s);
+        const el = globalMeteorEl(s);
+        if (!el) continue;
+        el.classList.remove("is-pending", "is-err", "is-ok", "is-spinning");
+        el.classList.add(ok ? "is-ok" : "is-err");
+        el.classList.add("is-spun");
+        el.dataset.spun = "1";
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!liveSpinningGlobals.has(s)) rowMeteorSpinBack(el);
+          });
+        });
+      }
+    }
+
+    /**
+     * Presettings (quant / clock / aux / midi) → SetGlobalConfig while Live is on.
+     * @param {string} section
+     */
+    function scheduleLiveGlobalPush(section) {
+      if (!livePushEnabled() || !section) return;
+      if (pushLive) {
+        liveNote("warn", t("push.liveBusyFull"), { expand: true });
+        return;
+      }
+      liveGlobalSections.add(section);
+      markGlobalMeteorPending([section]);
+      if (livePushInFlight || liveStructureTimer || liveStructureOpts || livePendingRows.size) {
+        liveNote("busy", t("push.liveQueuedGlobal"));
+        return;
+      }
+      if (liveGlobalTimer) clearTimeout(liveGlobalTimer);
+      liveGlobalTimer = setTimeout(() => {
+        liveGlobalTimer = null;
+        flushLiveGlobalPush();
+      }, 450);
+    }
+
+    async function flushLiveGlobalPush() {
+      if (!livePushEnabled() || pushLive || livePushInFlight) return;
+      if (liveStructureTimer || liveStructureOpts || livePendingRows.size || liveDebounceTimer) {
+        if (liveGlobalSections.size) {
+          liveGlobalTimer = setTimeout(() => {
+            liveGlobalTimer = null;
+            flushLiveGlobalPush();
+          }, 280);
+        }
+        return;
+      }
+      const sections = [...liveGlobalSections];
+      liveGlobalSections.clear();
+      if (!sections.length) return;
+      livePushInFlight = true;
+      startGlobalMeteorSpin(sections);
+      liveNote("busy", t("push.liveGlobalBusy", { n: sections.length }));
+      try {
+        syncPresetFromFields();
+        saveBank();
+        const midi = await ensureFpMidi();
+        const setup = buildSetup(preset());
+        if (!setup?.config) throw new Error("no global config");
+        appendPushLog(`→ Live presettings · SetGlobalConfig [${sections.join(",")}]`);
+        await midi.pushGlobalConfigToDevice(setup.config, {
+          onLog: (line) => appendPushLog(line),
+        });
+        liveNote("ok", t("push.liveGlobalOk"));
+        finishGlobalMeteorSpin(sections, { ok: true });
+      } catch (e) {
+        liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
+        finishGlobalMeteorSpin(sections, { ok: false });
+      } finally {
+        livePushInFlight = false;
+        if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
+        else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
+        else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);
       }
     }
 
@@ -7691,6 +7867,7 @@
         livePushInFlight = false;
         if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
         else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
+        else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);
       }
     }
 
@@ -7808,6 +7985,7 @@
         livePushInFlight = false;
         if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
         else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
+        else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);
       }
     }
 
@@ -7982,6 +8160,15 @@
     });
     document.getElementById("rowsOverflow")?.addEventListener("animationend", (ev) => {
       const el = ev.target.closest?.(".row-meteor");
+      if (!el) return;
+      if (ev.animationName === "row-meteor-spin-3d-back") {
+        el.classList.remove("is-spinning-back", "is-spun", "is-ok", "is-err");
+        delete el.dataset.spun;
+        delete el.dataset.spinBack;
+      }
+    });
+    document.querySelector(".global-cfg")?.addEventListener("animationend", (ev) => {
+      const el = ev.target.closest?.(".row-meteor[data-global-meteor]");
       if (!el) return;
       if (ev.animationName === "row-meteor-spin-3d-back") {
         el.classList.remove("is-spinning-back", "is-spun", "is-ok", "is-err");
