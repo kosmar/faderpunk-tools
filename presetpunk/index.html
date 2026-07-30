@@ -2726,6 +2726,7 @@
       echolot: { id: 33, channels: 1, label: "Echolot" },
       arp_de_levy: { id: 34, channels: 1, label: "Arp de Lévy" },
       vamp: { id: 35, channels: 1, label: "Chord Vamp" },
+      hold_sam: { id: 36, channels: 1, label: "Hold Sam" },
     };
 
     /** Old bank slugs → current register_apps! module names. */
@@ -2749,6 +2750,7 @@
       echolot: 4,
       arp_de_levy: 4,
       vamp: 4,
+      hold_sam: 4,
     };
 
     function canonicalizeAppSlug(slug) {
@@ -2826,6 +2828,7 @@
       echolot: "sine",
       arp_de_levy: "soft-random",
       vamp: "note-grid",
+      hold_sam: "note-box",
     };
 
     // MidiOut flags: [usb, out1, out2] — all non-empty combinations
@@ -3410,6 +3413,7 @@
       echolot: "Cyan",
       arp_de_levy: "Rose",
       vamp: "Violet",
+      hold_sam: "Cyan",
     };
 
     /** Apps where our paramsFor emits Color (basic LFO / Random have none) */
@@ -3420,19 +3424,21 @@
       "clk_div", "clk_div_plus", "genseq", "tb3po", "panner", "cv2midi",
       "cv2midinote", "midi2cv", "follower", "offset_att", "slew", "quantizer",
       "heat_pump", "sift", "grooves", "super_lfo", "echolot", "arp_de_levy", "vamp",
+      "hold_sam",
     ]);
     // Apps without MidiOut in CONFIG (CV-only / MIDI-in)
     const APPS_NO_MIDIOUT = new Set([
       "ad", "follower", "offset_att", "slew", "quantizer", "midi2cv",
     ]);
     const APPS_WITH_SPEED = new Set(["lfo", "lfo_plus", "super_lfo"]);
-    const APPS_WITH_MIDI_MODE = new Set(["turing", "clkturing"]);
+    const APPS_WITH_MIDI_MODE = new Set(["turing", "clkturing", "hold_sam"]);
     /** Firmware exposes MidiNote and MidiCc together (not XOR via MidiMode). */
     const APPS_WITH_NOTE_AND_CC = new Set(["fibonacci_gate", "echolot"]);
     const APPS_WITH_RANGE = new Set([
       "lfo", "lfo_plus", "rnd", "control", "turing", "clkturing", "automator",
       "panner", "cv2midi", "cv2midinote", "follower", "offset_att", "slew", "quantizer",
       "heat_pump", "sift", "super_lfo", "echolot",
+      "hold_sam",
     ]);
     const NOTE_APPS = new Set([
       "turing", "clkturing", "euclid", "probatrigger", "bernoulli", "notefader",
@@ -3493,6 +3499,7 @@
       echolot: 15,
       arp_de_levy: 11,
       vamp: 16,
+      hold_sam: 10,
     };
 
     function resolveColor(row, idx = 0) {
