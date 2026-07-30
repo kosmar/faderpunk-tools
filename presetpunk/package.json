@@ -1,0 +1,13 @@
+{
+  "name": "faderpunk-preset-editor",
+  "version": "0.1.0",
+  "description": "Faderpunk preset bank editor with direct Web MIDI SysEx pull/push",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check midi-sync.mjs && node --check i18n.js && node --check lib/sysex.js && node --check lib/device.js && node --check lib/setup-io.js && node --check lib/fp-midi.js",
+    "pretest": "mkdir -p node_modules/@atov && ln -sfn ../../vendor/fp-config node_modules/@atov/fp-config",
+    "test": "node --test tests/"
+  }
+}
