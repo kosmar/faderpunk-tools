@@ -10,7 +10,6 @@
     en: {
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
-      "app.compat": "direct Web MIDI",
       "lang.label": "Language",
 
       "push.fabTitle": "Push the active preset to the Faderpunk",
@@ -352,7 +351,6 @@
     de: {
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
-      "app.compat": "direktes Web MIDI",
       "lang.label": "Sprache",
 
       "push.fabTitle": "Aktives Preset zum Faderpunk: Push",
@@ -711,7 +709,6 @@
     fr: {
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
-      "app.compat": "Web MIDI direct",
       "lang.label": "Langue",
 
       "push.fabTitle": "Push le preset actif vers le Faderpunk",
