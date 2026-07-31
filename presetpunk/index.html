@@ -3192,10 +3192,6 @@
       let i32i = 0;
       let firstNotePatched = false;
       let firstCcPatched = false;
-      let sawMidiIn = false;
-      let sawMidiOut = false;
-      let stampedOutCh = false;
-      let stampedLoneCh = false;
       if (row.app === "fp_grids") {
         const chs = gridsChs(row);
         const notes = gridsNotes(row);
@@ -3253,6 +3249,23 @@
         }
         return out;
       }
+      if (row.app === "harmonica") {
+        ensureHarmonicaMidi(row);
+        const chs = harmonicaChs(row);
+        let ci = 0;
+        for (const p of out) {
+          if (!p || typeof p !== "object") continue;
+          if (p.tag === "MidiChannel" && ci < 2) p.value = [chs[ci++]];
+          if (p.tag === "MidiOut") p.value = [flagsFromPort(wantPort)];
+          if (p.tag === "Color" && appCol?.value?.tag) p.value = { tag: appCol.value.tag };
+          if (p.tag === "Range") p.value = { tag: cvR === "_Neg5_5V" ? cvR : "_0_10V" };
+        }
+        return out;
+      }
+      let sawMidiIn = false;
+      let sawMidiOut = false;
+      let stampedOutCh = false;
+      let stampedLoneCh = false;
       for (const p of out) {
         if (!p || typeof p !== "object") continue;
         if (p.tag === "MidiIn") sawMidiIn = true;
@@ -3260,15 +3273,12 @@
         if (p.tag === "MidiChannel") {
           const n = Math.max(1, Math.min(16, Number(row.ch) || 1));
           if (sawMidiOut && !stampedOutCh) {
-            // In+Out apps (Harmonica): row.ch is the *output* channel.
             p.value = [n];
             stampedOutCh = true;
           } else if (!sawMidiIn && !stampedLoneCh) {
-            // Classic single-CH apps (no MidiIn): only MidiChannel follows row.ch.
             p.value = [n];
             stampedLoneCh = true;
           }
-          // else: MIDI In CH — keep pulled/schema value
         }
         if (row.kind === "both" || APPS_WITH_NOTE_AND_CC.has(row.app)) {
           if (p.tag === "MidiCc" && !firstCcPatched) {
@@ -3938,6 +3948,19 @@
         }
         return params;
       }
+      if (row.app === "harmonica") {
+        ensureHarmonicaMidi(row);
+        const chs = harmonicaChs(row);
+        let ci = 0;
+        for (const p of params) {
+          if (!p || typeof p !== "object") continue;
+          if (p.tag === "MidiChannel" && ci < 2) p.value = [chs[ci++]];
+          if (p.tag === "Color") {
+            p.value = colorForApp(row.instrumentId || row.app, resolveColor(row, 0)).value;
+          }
+        }
+        return params;
+      }
       const chNum = Math.max(1, Math.min(16, Number(row.ch) || 1));
       const mode = rowMidiMode(row);
       let sawMidiIn = false;
@@ -4172,10 +4195,20 @@
         for (let ri = 0; ri < (sc.rows || []).length; ri++) {
           const row = sc.rows[ri];
           if (row.instrumentId === instrumentId && Number(row.ch) !== ch) {
-            row.ch = ch;
-            if (catalogApp(row.app)) {
+            if (row.app === "harmonica") {
+              // Instrument CH is Out only — never stamp MIDI In CH.
               ensureSchemaValues(row);
-              applyColumnOverlaysToSchema(row, sc.port);
+              const chs = harmonicaChs(row);
+              chs[1] = ch;
+              row.chs = chs;
+              row.ch = ch;
+              ensureHarmonicaMidi(row);
+            } else {
+              row.ch = ch;
+              if (catalogApp(row.app)) {
+                ensureSchemaValues(row);
+                applyColumnOverlaysToSchema(row, sc.port);
+              }
             }
             n += 1;
             touched.push({ scene: sc, index: ri });
@@ -4343,6 +4376,73 @@
       row.kind = "note";
     }
 
+    /** MidiChannel wire value may be `[n]` or bare `n` depending on pull path. */
+    function midiChannelValueNum(val) {
+      if (!val || val.tag !== "MidiChannel") return null;
+      const raw = val.value;
+      const n = Number(Array.isArray(raw) ? raw[0] : raw);
+      if (!Number.isFinite(n)) return null;
+      return Math.max(1, Math.min(16, Math.round(n)));
+    }
+
+    /**
+     * Harmonica: chs[0]=MIDI In CH, chs[1]=MIDI Out CH.
+     * row.chs wins when set (CH column / instrument keep-In) — never treat row.ch as In.
+     * schemaValues fill gaps (pull / first paint).
+     */
+    function harmonicaMidiIndices(row) {
+      const cat = catalogApp(row?.app || "harmonica");
+      const idxs = [];
+      (cat?.params || []).forEach((p, i) => {
+        if (p?.tag === "MidiChannel") idxs.push(i);
+      });
+      return idxs.length >= 2 ? idxs : [4, 6];
+    }
+
+    function harmonicaChs(row) {
+      let inCh = 1;
+      let outCh = Math.max(1, Math.min(16, Number(row.ch) || 2));
+      if (Array.isArray(row.schemaValues)) {
+        const [inI, outI] = harmonicaMidiIndices(row);
+        const a = midiChannelValueNum(row.schemaValues[inI]);
+        const b = midiChannelValueNum(row.schemaValues[outI]);
+        if (a != null) inCh = a;
+        if (b != null) outCh = b;
+      }
+      if (Array.isArray(row.chs)) {
+        if (Number.isFinite(Number(row.chs[0]))) {
+          inCh = Math.max(1, Math.min(16, Number(row.chs[0])));
+        }
+        if (Number.isFinite(Number(row.chs[1]))) {
+          outCh = Math.max(1, Math.min(16, Number(row.chs[1])));
+        }
+      }
+      return [inCh, outCh];
+    }
+
+    function ensureHarmonicaMidi(row) {
+      if (!row || row.app !== "harmonica") return;
+      const chs = harmonicaChs(row);
+      row.chs = chs;
+      row.ch = chs[1];
+      ensureSchemaValues(row);
+      if (Array.isArray(row.schemaValues)) {
+        const [inI, outI] = harmonicaMidiIndices(row);
+        if (row.schemaValues.length > Math.max(inI, outI)) {
+          row.schemaValues[inI] = ch(chs[0]);
+          row.schemaValues[outI] = ch(chs[1]);
+        }
+      }
+    }
+
+    function syncHarmonicaRowFromSchema(row) {
+      if (!row || row.app !== "harmonica") return;
+      if (!Array.isArray(row.schemaValues)) return;
+      const chs = harmonicaChs(row);
+      row.chs = chs;
+      row.ch = chs[1];
+    }
+
     /** Keep denormalized groove/swingMax mirrors in sync with catalog schemaValues. */
     function syncGroovesRowFromSchema(row) {
       if (!row || row.app !== "grooves") return;
@@ -4459,6 +4559,31 @@
           })
           .join("");
         return `<div class="multi-midi" title="${escapeAttr(t("midi.echolotChTitle"))}">${rows}</div>`;
+      }
+      if (s.app === "harmonica") {
+        ensureHarmonicaMidi(s);
+        coerceParamDeps(s);
+        const chs = harmonicaChs(s);
+        const deps = paramDeps(s);
+        const [inI, outI] = harmonicaMidiIndices(s);
+        const slots = [];
+        if (!deps.hide.has(inI)) slots.push(0); // In CH
+        if (!deps.hide.has(outI)) slots.push(1); // Out CH
+        if (!slots.length) {
+          return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
+        }
+        const rows = slots
+          .map((slot) => {
+            const lab = slot === 0 ? "In CH" : "Out CH";
+            const opts = Array.from({ length: 16 }, (_, i) => {
+              const n = i + 1;
+              return `<option value="${n}" ${chs[slot] === n ? "selected" : ""}>${n}</option>`;
+            }).join("");
+            return `<span class="vm">${lab}</span>
+            <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
+          })
+          .join("");
+        return `<div class="multi-midi" title="Harmonica MIDI In / Out">${rows}</div>`;
       }
       // Generic: multiple named MidiChannel params from catalog
       {
@@ -4885,7 +5010,9 @@
             ? groovesChs(row)
             : row.app === "echolot"
               ? echolotChs(row)
-              : null;
+              : row.app === "harmonica"
+                ? harmonicaChs(row)
+                : null;
       const notes =
         row.app === "fp_grids"
           ? gridsNotes(row)
@@ -5140,6 +5267,11 @@
         row.echoRouting = schemaEnumIndex(row, 4);
         row.echoSignal = schemaEnumIndex(row, 5);
       }
+      if (row.app === "harmonica") {
+        // Keep chs[0]=In / chs[1]=Out + schema slots aligned across I/O mode toggles.
+        syncHarmonicaRowFromSchema(row);
+        ensureHarmonicaMidi(row);
+      }
       if (row.app === "fibonacci_gate") {
         const cat = catalogApp(row.app);
         const modeI = (cat?.params || []).findIndex(
@@ -5173,9 +5305,17 @@
       }
       if (p.tag === "VoltPerOct" && value?.value?.tag) row.vpo = value.value.tag;
       if (p.tag === "MidiChannel" && value?.tag === "MidiChannel") {
-        const n = Math.max(1, Math.min(16, Number(value.value?.[0]) || 1));
-        // Keep denormalized row.ch on the *output* channel only.
-        if (!/\bin\b/i.test(String(p.value?.name || ""))) row.ch = n;
+        const n = midiChannelValueNum(value) ?? 1;
+        if (row.app === "harmonica") {
+          const chs = harmonicaChs(row);
+          const [inI, outI] = harmonicaMidiIndices(row);
+          if (pi === inI) chs[0] = n;
+          else if (pi === outI) chs[1] = n;
+          row.chs = chs;
+          row.ch = chs[1];
+        } else if (!/\bin\b/i.test(String(p.value?.name || ""))) {
+          row.ch = n;
+        }
       }
       if (p.tag === "bool" && /bypass|quant/i.test(p.value?.name || "")) {
         row.bypassQ = !!value.value;
@@ -5189,6 +5329,7 @@
         }
       }
       if (row.app === "grooves") syncGroovesRowFromSchema(row);
+      if (row.app === "harmonica") syncHarmonicaRowFromSchema(row);
       if (p.tag === "Enum") coerceParamDeps(row);
     }
 
@@ -6300,6 +6441,14 @@
             row.ch = row.chs[0];
             ensureNoteAndCc(row);
           }
+          if (appKey === "harmonica") {
+            // allChs[0]=In, allChs[1]=Out — denormalized row.ch is Out only.
+            row.chs = [
+              Number.isFinite(allChs[0]) ? allChs[0] : 1,
+              Number.isFinite(allChs[1]) ? allChs[1] : Number(channel) || 2,
+            ];
+            row.ch = row.chs[1];
+          }
           if (appKey === "fibonacci_gate") {
             const enums = params
               .filter((v) => v?.tag === "Enum")
@@ -6326,6 +6475,7 @@
           if (catalogApp(appKey) && params.length) {
             row.schemaValues = structuredClone(params);
             if (appKey === "grooves") syncGroovesRowFromSchema(row);
+            if (appKey === "harmonica") ensureHarmonicaMidi(row);
           }
           const previous = previousRows[rowIndex];
           const preferredId =
@@ -7133,6 +7283,8 @@
           if (rowRef.groove == null) rowRef.groove = 3;
         } else if (el.value === "echolot") {
           ensureEcholotMidi(rowRef);
+        } else if (el.value === "harmonica") {
+          ensureHarmonicaMidi(rowRef);
         } else if (APPS_WITH_NOTE_AND_CC.has(el.value)) {
           ensureNoteAndCc(rowRef);
           delete rowRef.chs;
@@ -7172,6 +7324,16 @@
               Math.min(16, Number(inst.midiCh) + 1),
             ];
             ensureEcholotMidi(rowRef);
+          }
+          if (rowRef.app === "harmonica") {
+            ensureSchemaValues(rowRef);
+            const inKeep =
+              midiChannelValueNum(rowRef.schemaValues?.[4]) ??
+              (Array.isArray(rowRef.chs) ? Number(rowRef.chs[0]) : null) ??
+              1;
+            rowRef.chs = [inKeep, inst.midiCh];
+            rowRef.ch = inst.midiCh;
+            ensureHarmonicaMidi(rowRef);
           }
           if (inst.ccs?.length && rowRef.kind !== "note") {
             const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
@@ -7357,10 +7519,19 @@
             ? groovesChs(rowRef)
             : rowRef.app === "echolot"
               ? echolotChs(rowRef)
-              : gridsChs(rowRef);
+              : rowRef.app === "harmonica"
+                ? harmonicaChs(rowRef)
+                : gridsChs(rowRef);
         chs[slot] = Math.max(1, Math.min(16, Number(el.value) || 1));
         rowRef.chs = chs;
-        rowRef.ch = chs[0];
+        // Harmonica: denormalized row.ch is Out; others use first voice/out.
+        rowRef.ch = rowRef.app === "harmonica" ? chs[1] : chs[0];
+        if (rowRef.app === "harmonica") {
+          ensureSchemaValues(rowRef);
+          const [inI, outI] = harmonicaMidiIndices(rowRef);
+          rowRef.schemaValues[inI] = ch(chs[0]);
+          rowRef.schemaValues[outI] = ch(chs[1]);
+        }
         delete rowRef.rawParams;
       } else if (k === "ccs") {
         const slot = Number(el.dataset.slot);
