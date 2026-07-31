@@ -2758,8 +2758,11 @@
       const noneApps = new Set(NONE_APPS_FORCE);
 
       for (const a of catalog?.apps || []) {
-        const slug = a.slug;
-        if (!slug) continue;
+        // Prefer firmware module name; canonicalize old bank slugs (e.g. house_pump → heat_pump).
+        const raw = a.module || a.slug;
+        if (!raw) continue;
+        const slug = canonicalizeAppSlug(raw);
+        if (apps[slug]) continue;
         apps[slug] = {
           id: Number(a.id),
           channels: Number(a.channels) || 1,
@@ -4603,10 +4606,13 @@
         APPS_CATALOG = data;
         APPS_CATALOG_BY_SLUG = {};
         for (const a of data.apps || []) {
-          if (!a?.slug) continue;
-          APPS_CATALOG_BY_SLUG[a.slug] = a;
-          const canon = canonicalizeAppSlug(a.slug);
-          if (canon !== a.slug) APPS_CATALOG_BY_SLUG[canon] = a;
+          if (!a?.slug && !a?.module) continue;
+          const keys = new Set(
+            [a.slug, a.module]
+              .filter(Boolean)
+              .flatMap((s) => [s, canonicalizeAppSlug(s)]),
+          );
+          for (const k of keys) APPS_CATALOG_BY_SLUG[k] = a;
         }
         rebuildAppRegistries(data);
         return true;

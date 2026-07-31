@@ -2139,7 +2139,7 @@
     },
     {
       "id": 29,
-      "slug": "house_pump",
+      "slug": "heat_pump",
       "module": "heat_pump",
       "channels": 1,
       "name": "Heat Pump",
