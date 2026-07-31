@@ -8042,6 +8042,18 @@
       return i >= 0 ? i : null;
     }
 
+    /** Human slot (1–16 channel) + app label for live status lines. */
+    function liveSlotMeta(setup, layoutId) {
+      const slot = setup?.layout?.find(
+        (x) => Number(x.layoutId) === Number(layoutId),
+      );
+      const entry = Object.entries(APPS).find(([, a]) => a.id === slot?.appId);
+      const app = entry?.[1]?.label || entry?.[0] || `app ${slot?.appId ?? "?"}`;
+      const ch = Number(slot?.startChannel);
+      const slotNum = Number.isFinite(ch) ? ch + 1 : Number(layoutId) + 1;
+      return { slot: slotNum, app };
+    }
+
     /**
      * App swap / add / remove / reorder → SetLayout + SetAppParams.
      * @param {{ rowIndexes?: number[], allParams?: boolean }} opts
@@ -8214,7 +8226,8 @@
         for (const [layoutId, values] of byLayout) {
           const rowsFor = layoutToRows.get(layoutId) || ids;
           try {
-            appendPushLog(`→ Live · layoutId=${layoutId}`);
+            const meta = liveSlotMeta(setup, layoutId);
+            appendPushLog(`→ Live · ${meta.slot} · ${meta.app}`);
             const slotForId = setup.layout.find(
               (x) => Number(x.layoutId) === Number(layoutId),
             );
@@ -8224,7 +8237,7 @@
               // after an aborted structure push).
               expectAppId: slotForId?.appId ?? null,
             });
-            liveNote("ok", t("push.liveOkSlot", { id: layoutId }));
+            liveNote("ok", t("push.liveOkSlot", meta));
             finishRowMeteorSpin(rowsFor, { ok: true });
           } catch (e) {
             liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
