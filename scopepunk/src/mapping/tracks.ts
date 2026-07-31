@@ -652,15 +652,17 @@ function inferSignalMonitorFlags(
   if (io && /midi\s*->\s*cv/i.test(io)) {
     return { noteMode: true, playCc: false };
   }
-  // CV→MIDI: Signal selects Gate→Note vs CV→CC.
-  if (!io || !/cv\s*->\s*midi/i.test(io)) return null;
-
-  const signal = enumVariantLabel(params, values, /^signal$/i);
-  if (!signal) return null;
-  if (/cv\s*->\s*cc/i.test(signal)) return { noteMode: false, playCc: true };
-  if (/gate\s*->\s*note/i.test(signal)) return { noteMode: true, playCc: false };
-  if (/^pitch$/i.test(signal)) return { noteMode: true, playCc: false };
-  if (/^gate$/i.test(signal)) return { noteMode: true, playCc: false };
+  // CV→MIDI: Signal selects Gate→Note vs CV→CC (Echolot). Apps without
+  // Signal (Harmonica) still emit notes.
+  if (io && /cv\s*->\s*midi/i.test(io)) {
+    const signal = enumVariantLabel(params, values, /^signal$/i);
+    if (!signal) return { noteMode: true, playCc: false };
+    if (/cv\s*->\s*cc/i.test(signal)) return { noteMode: false, playCc: true };
+    if (/gate\s*->\s*note/i.test(signal)) return { noteMode: true, playCc: false };
+    if (/^pitch$/i.test(signal)) return { noteMode: true, playCc: false };
+    if (/^gate$/i.test(signal)) return { noteMode: true, playCc: false };
+    return { noteMode: true, playCc: false };
+  }
   return null;
 }
 
@@ -675,8 +677,13 @@ function computeHasMidiMirror(
     return false;
   }
   const io = enumVariantLabel(params, values, /^i\/?o$/i);
-  // Echolot MIDI→CV is jack-only — no USB MIDI out to scope.
-  if (io && /midi\s*->\s*cv/i.test(io)) return false;
+  // MIDI→CV: jack is primary. Harmonica also mirrors notes on MidiOut for scopes.
+  if (io && /midi\s*->\s*cv/i.test(io)) {
+    if (/harmonica/i.test(appName)) {
+      return params.some((p) => p.tag === "MidiOut");
+    }
+    return false;
+  }
   return params.some((p) => p.tag === "MidiOut" || p.tag === "MidiChannel");
 }
 
@@ -689,7 +696,7 @@ function friendlyOutChannelName(name: string, hasPongSibling: boolean): string {
 
 /** Sequencer / drum / clock / generative note apps — notes are the musical output. */
 function nameSuggestsNotes(appName: string): boolean {
-  return /seq|euclid|turing|grids|groove|tb3|bernoulli|trigger|note|clk|gate|echo|arp|vamp|l[eé]vy/i.test(
+  return /seq|euclid|turing|grids|groove|tb3|bernoulli|trigger|note|clk|gate|echo|arp|vamp|l[eé]vy|harmonica|harmon/i.test(
     appName,
   );
 }
@@ -730,6 +737,10 @@ function inferMonitorFlags(
   if (hasMidiIn && hasNote) return { noteMode: true, playCc: false };
   if (hasNote) return { noteMode: true, playCc: false };
   if (hasCc) return { noteMode: false, playCc: true };
+  // MIDI In→Out processors without MidiNote/MidiCc params (Harmonica, …).
+  if (hasMidiIn && params.some((p) => p.tag === "MidiOut")) {
+    return { noteMode: true, playCc: false };
+  }
   if (nameSuggestsNotes(appName)) return { noteMode: true, playCc: false };
   return { noteMode: false, playCc: true };
 }

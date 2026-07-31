@@ -3192,7 +3192,10 @@
       let i32i = 0;
       let firstNotePatched = false;
       let firstCcPatched = false;
-      let firstChPatched = false;
+      let sawMidiIn = false;
+      let sawMidiOut = false;
+      let stampedOutCh = false;
+      let stampedLoneCh = false;
       if (row.app === "fp_grids") {
         const chs = gridsChs(row);
         const notes = gridsNotes(row);
@@ -3252,9 +3255,20 @@
       }
       for (const p of out) {
         if (!p || typeof p !== "object") continue;
-        if (p.tag === "MidiChannel" && !firstChPatched) {
-          p.value = [Number(row.ch)];
-          firstChPatched = true;
+        if (p.tag === "MidiIn") sawMidiIn = true;
+        if (p.tag === "MidiOut") sawMidiOut = true;
+        if (p.tag === "MidiChannel") {
+          const n = Math.max(1, Math.min(16, Number(row.ch) || 1));
+          if (sawMidiOut && !stampedOutCh) {
+            // In+Out apps (Harmonica): row.ch is the *output* channel.
+            p.value = [n];
+            stampedOutCh = true;
+          } else if (!sawMidiIn && !stampedLoneCh) {
+            // Classic single-CH apps (no MidiIn): only MidiChannel follows row.ch.
+            p.value = [n];
+            stampedLoneCh = true;
+          }
+          // else: MIDI In CH — keep pulled/schema value
         }
         if (row.kind === "both" || APPS_WITH_NOTE_AND_CC.has(row.app)) {
           if (p.tag === "MidiCc" && !firstCcPatched) {
@@ -3926,7 +3940,10 @@
       }
       const chNum = Math.max(1, Math.min(16, Number(row.ch) || 1));
       const mode = rowMidiMode(row);
-      let firstCh = false;
+      let sawMidiIn = false;
+      let sawMidiOut = false;
+      let stampedOutCh = false;
+      let stampedLoneCh = false;
       let firstCc = false;
       let firstNote = false;
       const wantColor = colorForApp(
@@ -3936,9 +3953,16 @@
       for (const p of params) {
         if (!p || typeof p !== "object") continue;
         if (p.tag === "Color") p.value = wantColor;
-        if (p.tag === "MidiChannel" && !firstCh) {
-          p.value = [chNum];
-          firstCh = true;
+        if (p.tag === "MidiIn") sawMidiIn = true;
+        if (p.tag === "MidiOut") sawMidiOut = true;
+        if (p.tag === "MidiChannel") {
+          if (sawMidiOut && !stampedOutCh) {
+            p.value = [chNum];
+            stampedOutCh = true;
+          } else if (!sawMidiIn && !stampedLoneCh) {
+            p.value = [chNum];
+            stampedLoneCh = true;
+          }
         }
         if (p.tag === "MidiMode" && APPS_WITH_MIDI_MODE.has(row.app)) {
           p.value = { tag: mode };
@@ -4668,7 +4692,12 @@
         const vars = (param.value?.variants || []).map((v) => v.tag || v);
         return { tag: "Note", value: { tag: vars[0] || "C" } };
       }
-      if (tag === "MidiChannel") return ch(Math.max(1, Math.min(16, Number(row?.ch) || 1)));
+      if (tag === "MidiChannel") {
+        const name = String(param.value?.name || "");
+        // Named In CH must not inherit instrument/out row.ch (Harmonica, …).
+        if (/\bin\b/i.test(name)) return ch(1);
+        return ch(Math.max(1, Math.min(16, Number(row?.ch) || 1)));
+      }
       if (tag === "MidiCc") return cc(rowCcNum(row || {}));
       if (tag === "MidiNote") return note(rowNoteNum(row || {}));
       if (tag === "MidiOut") return midiOut(row?.port || portKey || "usb");
@@ -4863,6 +4892,7 @@
           : row.app === "grooves"
             ? groovesNotes(row)
             : null;
+      const midiChCount = cat.params.filter((p) => p?.tag === "MidiChannel").length;
       cat.params.forEach((p, i) => {
         const v = row.schemaValues[i];
         if (!v || !p) return;
@@ -4876,10 +4906,13 @@
         if (p.tag === "MidiChannel") {
           if (chs && ci < chs.length) {
             v.value = [chs[ci++]];
-          } else if (ci === 0) {
+          } else if (midiChCount === 1 && ci === 0) {
+            // Single-CH apps: denormalized row.ch owns the only MidiChannel.
             v.value = [Math.max(1, Math.min(16, Number(row.ch) || 1))];
             ci++;
           } else {
+            // In+Out (Harmonica, Echolot-style): keep per-slot schemaValues —
+            // never clobber MIDI In CH with row.ch (often the Out/instrument CH).
             ci++;
           }
         }
@@ -5139,6 +5172,11 @@
         row.kind = kindForApp(row.app, row.midiMode);
       }
       if (p.tag === "VoltPerOct" && value?.value?.tag) row.vpo = value.value.tag;
+      if (p.tag === "MidiChannel" && value?.tag === "MidiChannel") {
+        const n = Math.max(1, Math.min(16, Number(value.value?.[0]) || 1));
+        // Keep denormalized row.ch on the *output* channel only.
+        if (!/\bin\b/i.test(String(p.value?.name || ""))) row.ch = n;
+      }
       if (p.tag === "bool" && /bypass|quant/i.test(p.value?.name || "")) {
         row.bypassQ = !!value.value;
       }
