@@ -7413,6 +7413,10 @@
         else if (el.value === "grooves") {
           ensureGroovesMidi(rowRef);
           if (rowRef.groove == null) rowRef.groove = 3;
+          if (rowRef.instrumentId && !Array.isArray(rowRef.chsInst)) {
+            const id = rowRef.instrumentId;
+            rowRef.chsInst = [id, id, id];
+          }
         } else if (el.value === "echolot") {
           ensureEcholotMidi(rowRef);
         } else if (el.value === "harmonica") {
