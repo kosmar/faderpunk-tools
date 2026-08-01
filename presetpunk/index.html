@@ -4605,22 +4605,7 @@
         const slots = [];
         if (!deps.hide.has(inI)) slots.push(0); // In
         if (!deps.hide.has(outI)) slots.push(1); // Out
-        const cat = catalogApp(s.app);
-        const gatePi = (cat?.params || []).findIndex(
-          (p) => p?.tag === "i32" && /gate\s*ms/i.test(String(p.value?.name || "")),
-        );
-        let gateHtml = "";
-        if (gatePi >= 0 && !deps.hide.has(gatePi)) {
-          ensureSchemaValues(s);
-          gateHtml = schemaControlHtml(
-            cat.params[gatePi],
-            s.schemaValues[gatePi],
-            idx,
-            gatePi,
-            deps,
-          );
-        }
-        if (!slots.length && !gateHtml) {
+        if (!slots.length) {
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
         const rows = slots
@@ -4628,7 +4613,7 @@
             chInstSlotHtml(s, idx, slot, slot === 0 ? "In" : "Out", chs[slot]),
           )
           .join("");
-        return `<div class="multi-midi" title="Harmonica In / Out instrument · CV Gate">${rows}${gateHtml}</div>`;
+        return `<div class="multi-midi" title="Harmonica In / Out instrument">${rows}</div>`;
       }
       // Generic: multiple named MidiChannel params from catalog
       {
@@ -4896,15 +4881,6 @@
       params.forEach((p, i) => {
         if (!p) return;
         if (p.tag === "MidiOut" || p.tag === "Color") {
-          claimed.add(i);
-          return;
-        }
-        if (
-          row.app === "harmonica" &&
-          p.tag === "i32" &&
-          /gate\s*ms/i.test(String(p.value?.name || ""))
-        ) {
-          // Rendered in the CH column next to Out CH (CV→MIDI).
           claimed.add(i);
           return;
         }
