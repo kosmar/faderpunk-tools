@@ -5544,6 +5544,15 @@
         const jackI = cat.params.findIndex((p) => p?.value?.name === "Jack");
         if (jackI >= 0) order = [jackI, ...order.filter((i) => i !== jackI)];
       }
+      // Harmonica: keep I/O first, then CV Gate ms with the other app extras (not CH col).
+      if (s.app === "harmonica") {
+        const gateI = cat.params.findIndex(
+          (p) => p?.tag === "i32" && /gate\s*ms/i.test(String(p.value?.name || "")),
+        );
+        if (gateI >= 0) {
+          order = [0, gateI, ...order.filter((i) => i !== 0 && i !== gateI)];
+        }
+      }
       const pushBit = (pi) => {
         const p = cat.params[pi];
         if (!p || claimed.has(pi) || flagIdx.has(pi) || deps.hide.has(pi)) return;
