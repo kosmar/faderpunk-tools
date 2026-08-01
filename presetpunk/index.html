@@ -956,16 +956,13 @@
       width: max-content;
       max-width: 100%;
     }
-    /* Label | instrument | CH (Harmonica / Echolot) */
-    .multi-midi.multi-midi-inst {
-      grid-template-columns: auto minmax(6.5rem, 9rem) 4.75rem;
+    /* Harmonica / Echolot: instrument selects live in the Instrument column */
+    .multi-midi.multi-midi-inst-col select[data-k="chsInst"] {
+      width: 9rem;
     }
     .multi-midi .vm { color: var(--muted); font-size: 11px; min-width: 1.4rem; }
     .multi-midi select, .multi-midi input {
       width: 4.75rem; min-width: 0;
-    }
-    .multi-midi.multi-midi-inst select[data-k="chsInst"] {
-      width: 100%;
     }
     .multi-midi select[data-note] { width: 5.25rem; }
     .multi-midi select:not([data-note])[data-k="cc"] {
@@ -4550,31 +4547,53 @@
       return hits.length === 1 ? hits[0].id : "";
     }
 
-    function chInstSlotHtml(row, idx, slot, lab, ch) {
+    function harmonicaVisibleSlots(row) {
+      ensureHarmonicaMidi(row);
+      coerceParamDeps(row);
+      const deps = paramDeps(row);
+      const [inI, outI] = harmonicaMidiIndices(row);
+      const slots = [];
+      if (!deps.hide.has(inI)) slots.push({ slot: 0, lab: "In" });
+      if (!deps.hide.has(outI)) slots.push({ slot: 1, lab: "Out" });
+      return slots;
+    }
+
+    function echolotVisibleSlots(row) {
+      coerceParamDeps(row);
+      const deps = paramDeps(row);
+      const slots = deps.echolotChSlots || [0, 1, 2];
+      return slots.map((slot) => ({ slot, lab: echolotChLabel(row, slot) }));
+    }
+
+    function chSlotSelectHtml(idx, slot, lab, ch) {
       const chN = Math.max(1, Math.min(16, Number(ch) || 1));
-      const selected = resolveChInstId(row, slot, chN);
+      const chOpts = Array.from({ length: 16 }, (_, i) => {
+        const n = i + 1;
+        return `<option value="${n}" ${chN === n ? "selected" : ""}>${n}</option>`;
+      }).join("");
+      return `<span class="vm">${escapeHtml(lab)}</span>
+        <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(
+          t("midi.chLabel", { lab }) || lab,
+        )}">${chOpts}</select>`;
+    }
+
+    function instSlotSelectHtml(row, idx, slot, lab, ch) {
+      const selected = resolveChInstId(row, slot, ch);
       const opts = [`<option value="">${escapeHtml(t("inst.manual") || "Manual")}</option>`]
         .concat(
           instruments
             .slice()
             .reverse()
-            .map((inst) => {
-              return `<option value="${escapeAttr(inst.id)}" ${
-                inst.id === selected ? "selected" : ""
-              }>${escapeHtml(inst.name)}</option>`;
-            }),
+            .map(
+              (inst) =>
+                `<option value="${escapeAttr(inst.id)}" ${
+                  inst.id === selected ? "selected" : ""
+                }>${escapeHtml(inst.name)}</option>`,
+            ),
         )
         .join("");
-      const chOpts = Array.from({ length: 16 }, (_, i) => {
-        const n = i + 1;
-        return `<option value="${n}" ${chN === n ? "selected" : ""}>${n}</option>`;
-      }).join("");
-      // Instrument presets CH; CH stays independently editable (like row Instrument | CH).
       return `<span class="vm">${escapeHtml(lab)}</span>
-        <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>
-        <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(
-          t("midi.chLabel", { lab }) || lab,
-        )}">${chOpts}</select>`;
+        <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
     }
 
     function chCellHtml(s, idx) {
@@ -4603,36 +4622,26 @@
         return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesChTitle"))}">${rows}</div>`;
       }
       if (s.app === "echolot") {
-        coerceParamDeps(s);
-        const chs = echolotChs(s);
-        const deps = paramDeps(s);
-        const slots = deps.echolotChSlots || [0, 1, 2];
+        const slots = echolotVisibleSlots(s);
         if (!slots.length) {
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
+        const chs = echolotChs(s);
         const rows = slots
-          .map((slot) => chInstSlotHtml(s, idx, slot, echolotChLabel(s, slot), chs[slot]))
+          .map(({ slot, lab }) => chSlotSelectHtml(idx, slot, lab, chs[slot]))
           .join("");
-        return `<div class="multi-midi multi-midi-inst" title="${escapeAttr(t("midi.echolotChTitle"))}">${rows}</div>`;
+        return `<div class="multi-midi" title="${escapeAttr(t("midi.echolotChTitle"))}">${rows}</div>`;
       }
       if (s.app === "harmonica") {
-        ensureHarmonicaMidi(s);
-        coerceParamDeps(s);
-        const chs = harmonicaChs(s);
-        const deps = paramDeps(s);
-        const [inI, outI] = harmonicaMidiIndices(s);
-        const slots = [];
-        if (!deps.hide.has(inI)) slots.push(0); // In
-        if (!deps.hide.has(outI)) slots.push(1); // Out
+        const slots = harmonicaVisibleSlots(s);
         if (!slots.length) {
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
+        const chs = harmonicaChs(s);
         const rows = slots
-          .map((slot) =>
-            chInstSlotHtml(s, idx, slot, slot === 0 ? "In" : "Out", chs[slot]),
-          )
+          .map(({ slot, lab }) => chSlotSelectHtml(idx, slot, lab, chs[slot]))
           .join("");
-        return `<div class="multi-midi multi-midi-inst" title="Harmonica In / Out instrument">${rows}</div>`;
+        return `<div class="multi-midi" title="Harmonica In / Out CH">${rows}</div>`;
       }
       // Generic: multiple named MidiChannel params from catalog
       {
@@ -5843,9 +5852,18 @@
     }
 
     function instrumentSelectHtml(s, idx) {
-      // Harmonica / Echolot: per-slot Instrument|CH in the CH column — no duplicate.
+      // Harmonica / Echolot: one instrument select per In/Out(/Ping/Pong) in this column.
       if (s.app === "harmonica" || s.app === "echolot") {
-        return `<span class="led-muted" title="Set instruments per In/Out in the CH column">—</span>`;
+        const slots =
+          s.app === "harmonica" ? harmonicaVisibleSlots(s) : echolotVisibleSlots(s);
+        if (!slots.length) {
+          return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
+        }
+        const chs = s.app === "harmonica" ? harmonicaChs(s) : echolotChs(s);
+        const rows = slots
+          .map(({ slot, lab }) => instSlotSelectHtml(s, idx, slot, lab, chs[slot]))
+          .join("");
+        return `<div class="multi-midi multi-midi-inst-col">${rows}</div>`;
       }
       const opts = [`<option value="">${escapeHtml(t("inst.manual"))}</option>`]
         .concat(
