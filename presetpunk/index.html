@@ -3430,12 +3430,20 @@
       return { tag: "Color", value: { tag } };
     }
     /** App Color params only allow a subset — invalid tags fall back and can confuse Load */
-    const APP_PARAM_COLORS = new Set([
+    const APP_PARAM_COLOR_LIST = [
       "Blue", "Green", "Rose", "Orange", "Cyan", "Pink", "Violet", "Yellow",
-    ]);
+    ];
+    const APP_PARAM_COLORS = new Set(APP_PARAM_COLOR_LIST);
     function colorForApp(app, tag) {
       if (APP_PARAM_COLORS.has(tag)) return color(tag);
       return color("Orange");
+    }
+    function coerceAppParamColor(tag) {
+      if (APP_PARAM_COLORS.has(tag)) return tag;
+      if (!tag) return "Orange";
+      let hash = 0;
+      for (const c of String(tag)) hash = (hash * 31 + c.charCodeAt(0)) >>> 0;
+      return APP_PARAM_COLOR_LIST[hash % APP_PARAM_COLOR_LIST.length];
     }
     function curve(tag = "Linear") {
       return { tag: "Curve", value: { tag } };
@@ -3474,6 +3482,16 @@
         hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
       }
       return COLOR_TAGS[hash % COLOR_TAGS.length];
+    }
+
+    /** Instrument → app Color param (8-color subset used by firmware App Color). */
+    function instrumentAppColor(id) {
+      if (!id) return null;
+      let hash = 0;
+      for (const char of String(id)) {
+        hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+      }
+      return APP_PARAM_COLOR_LIST[hash % APP_PARAM_COLOR_LIST.length];
     }
 
     /** Fallback when no instrument: separate app roles (from catalog Color) */
@@ -3527,6 +3545,16 @@
       return COLOR_TAGS[idx % COLOR_TAGS.length];
     }
 
+    /** LED chip + Color dropdown — always the 8 app-param colors when the app has Color. */
+    function resolveFaderLedColor(row, idx = 0) {
+      if (!APPS_WITH_COLOR.has(row?.app)) return resolveColor(row, idx);
+      if (row.color && APP_PARAM_COLORS.has(row.color)) return row.color;
+      if (row.color) return coerceAppParamColor(row.color);
+      const fromInst = instrumentAppColor(row.instrumentId);
+      if (fromInst) return fromInst;
+      return coerceAppParamColor(APP_COLOR[row.app] || resolveColor(row, idx));
+    }
+
     function contrastOnLed(tag) {
       const hex = LED_CSS[tag] || "#888888";
       const h = hex.replace("#", "");
@@ -3545,22 +3573,17 @@
       if (!APPS_WITH_COLOR.has(s.app)) {
         return `<span class="fader-color-hook is-locked" aria-hidden="true"><span class="fader-color-tri"></span></span>`;
       }
-      const tag = resolveColor(s, idx);
-      const allowed = [...APP_PARAM_COLORS];
-      const cur = APP_PARAM_COLORS.has(tag)
-        ? tag
-        : colorForApp(s.instrumentId || s.app, tag).value.tag;
-      const opts = allowed
-        .map(
-          (c) =>
-            `<option value="${c}" ${c === cur ? "selected" : ""}>${c}</option>`,
-        )
-        .join("");
+      const cur = resolveFaderLedColor(s, idx);
+      const opts = APP_PARAM_COLOR_LIST.map((c) => {
+        const hex = LED_CSS[c] || "#888";
+        const fg = contrastOnLed(c);
+        return `<option value="${c}" ${c === cur ? "selected" : ""} style="background:${hex};color:${fg}">${c}</option>`;
+      }).join("");
       const hint =
         s.app === "lfo_plus"
           ? "LFO+: Color = CV-In-Taste (linker Fader). Die LFO-LED rechts folgt der Wellenform (Sine=Yellow, …)."
           : t("table.led");
-      return `<label class="fader-color-hook" title="${escapeAttr(hint)}">
+      return `<label class="fader-color-hook" title="${escapeAttr(hint)}" style="--led-swatch:${LED_CSS[cur] || "#888"}">
           <span class="fader-color-tri" aria-hidden="true"></span>
           <select data-i="${idx}" data-k="color" aria-label="${escapeAttr(t("table.led"))}">${opts}</select>
         </label>`;
@@ -3568,7 +3591,7 @@
 
     function faderCellHtml(s, { overflow = false } = {}) {
       const idx = s.index;
-      const tag = resolveColor(s, idx);
+      const tag = resolveFaderLedColor(s, idx);
       const bg = overflow ? "#3a3a3a" : LED_CSS[tag] || "#888";
       const fg = overflow ? "#c8c8c8" : contrastOnLed(tag);
       const icon = appIconName(s.app);
@@ -5000,6 +5023,10 @@
     function ensureSchemaValues(row, portKey) {
       const cat = catalogApp(row.app);
       if (!cat) return null;
+      // Keep row.color in the 8-color app subset so chip ↔ dropdown stay in sync.
+      if (APPS_WITH_COLOR.has(row.app) && row.color && !APP_PARAM_COLORS.has(row.color)) {
+        row.color = coerceAppParamColor(row.color);
+      }
       const n = cat.params.length;
       if (Array.isArray(row.schemaValues) && row.schemaValues.length === n) {
         return row.schemaValues;
@@ -6613,7 +6640,11 @@
             if (bools.length) row.bypassQ = !!bools[bools.length - 1].value;
           }
           if (APPS_WITH_MIDI_MODE.has(appKey)) row.midiMode = mode;
-          if (colorTag) row.color = colorTag;
+          if (colorTag) {
+            row.color = APPS_WITH_COLOR.has(appKey)
+              ? coerceAppParamColor(colorTag)
+              : colorTag;
+          }
           if (port) row.port = port;
           if (lfoSpeed != null) row.lfoSpeed = lfoSpeed;
           if (cvRange) row.cvRange = cvRange;
@@ -7499,7 +7530,7 @@
             const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
             if (!hit) rowRef.cc = inst.ccs[0].cc;
           }
-          rowRef.color = instrumentColor(inst.id) || rowRef.color;
+          rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
         }
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
@@ -7538,7 +7569,7 @@
               rowRef.chsInst = ids;
             }
             rowRef.instrumentId = rowRef.chsInst[0] || inst.id;
-            rowRef.color = instrumentColor(rowRef.instrumentId) || rowRef.color;
+            rowRef.color = instrumentAppColor(rowRef.instrumentId) || rowRef.color;
             ensureGroovesMidi(rowRef);
           } else if (rowRef.app === "harmonica") {
             chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
@@ -7546,7 +7577,7 @@
             rowRef.ch = chs[1];
             if (slot === harmonicaInstrumentSlot(rowRef)) {
               rowRef.instrumentId = inst.id;
-              rowRef.color = instrumentColor(inst.id) || rowRef.color;
+              rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
             }
             ensureSchemaValues(rowRef);
             const [inI, outI] = harmonicaMidiIndices(rowRef);
@@ -7559,11 +7590,11 @@
             rowRef.ch = chs[0];
             if (slot === 1) {
               rowRef.instrumentId = inst.id;
-              rowRef.color = instrumentColor(inst.id) || rowRef.color;
+              rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
             }
             ensureEcholotMidi(rowRef);
           } else if (slot === 1) {
-            rowRef.color = instrumentColor(inst.id) || rowRef.color;
+            rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
           }
           if (inst.ccs?.length && rowRef.kind !== "note" && slot === 1) {
             const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
@@ -7590,7 +7621,7 @@
           applyColumnOverlaysToSchema(rowRef, sc.port);
         }
       } else if (k === "color") {
-        rowRef.color = el.value;
+        rowRef.color = coerceAppParamColor(el.value);
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
