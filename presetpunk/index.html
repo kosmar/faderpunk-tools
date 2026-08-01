@@ -4878,14 +4878,16 @@
 
     function defaultValueForParam(param, row, portKey) {
       const tag = param?.tag;
-      if (tag === "Enum") return enumVal(0);
+      if (tag === "Enum") {
+        // Harmonica CV Gate: default 200 ms (index 3).
+        if (/^CV Gate$/i.test(String(param.value?.name || ""))) {
+          return enumVal(3);
+        }
+        return enumVal(0);
+      }
       if (tag === "i32") {
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
-        // Harmonica CV Gate ms: prefer pulse default over mid-scale (1000).
-        if (/gate\s*ms/i.test(String(param.value?.name || ""))) {
-          return i32(Math.max(min, Math.min(max, 200)));
-        }
         const mid = Math.round((min + max) / 2);
         return i32(Math.max(min, Math.min(max, mid)));
       }
@@ -5232,17 +5234,17 @@
         return out;
       }
 
-      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass, CV Gate ms
+      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass, CV Gate
       if (row.app === "harmonica") {
         const io = schemaEnumIndex(row, 0); // 0 MIDI→MIDI, 1 MIDI→CV, 2 CV→MIDI
         if (io === 0) {
           hide.add(1); // Range — no jack
           hide.add(7); // VoltPerOct
-          hide.add(9); // CV Gate ms
+          hide.add(9); // CV Gate
         }
         if (io === 1) {
           hide.add(6); // Out CH — CV only, no MIDI emit
-          hide.add(9); // CV Gate ms
+          hide.add(9); // CV Gate
         }
         if (io === 2) {
           hide.add(3); // MidiIn
@@ -5610,10 +5612,10 @@
         const jackI = cat.params.findIndex((p) => p?.value?.name === "Jack");
         if (jackI >= 0) order = [jackI, ...order.filter((i) => i !== jackI)];
       }
-      // Harmonica: keep I/O first, then CV Gate ms with the other app extras (not CH col).
+      // Harmonica: keep I/O first, then CV Gate with the other app extras (not CH col).
       if (s.app === "harmonica") {
         const gateI = cat.params.findIndex(
-          (p) => p?.tag === "i32" && /gate\s*ms/i.test(String(p.value?.name || "")),
+          (p) => /^CV Gate$/i.test(String(p?.value?.name || "")),
         );
         if (gateI >= 0) {
           order = [0, gateI, ...order.filter((i) => i !== 0 && i !== gateI)];

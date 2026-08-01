@@ -3334,11 +3334,21 @@
           }
         },
         {
-          "tag": "i32",
+          "tag": "Enum",
           "value": {
-            "name": "CV Gate ms",
-            "min": 0,
-            "max": 2000
+            "name": "CV Gate",
+            "variants": [
+              "Sustain",
+              "50 ms",
+              "100 ms",
+              "200 ms",
+              "500 ms",
+              "1/16",
+              "1/8",
+              "1/4",
+              "1/2",
+              "1"
+            ]
           }
         }
       ]
