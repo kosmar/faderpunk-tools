@@ -4569,7 +4569,22 @@
         const slots = [];
         if (!deps.hide.has(inI)) slots.push(0); // In CH
         if (!deps.hide.has(outI)) slots.push(1); // Out CH
-        if (!slots.length) {
+        const cat = catalogApp(s.app);
+        const gatePi = (cat?.params || []).findIndex(
+          (p) => p?.tag === "i32" && /gate\s*ms/i.test(String(p.value?.name || "")),
+        );
+        let gateHtml = "";
+        if (gatePi >= 0 && !deps.hide.has(gatePi)) {
+          ensureSchemaValues(s);
+          gateHtml = schemaControlHtml(
+            cat.params[gatePi],
+            s.schemaValues[gatePi],
+            idx,
+            gatePi,
+            deps,
+          );
+        }
+        if (!slots.length && !gateHtml) {
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
         const rows = slots
@@ -4583,7 +4598,7 @@
             <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
           })
           .join("");
-        return `<div class="multi-midi" title="Harmonica MIDI In / Out">${rows}</div>`;
+        return `<div class="multi-midi" title="Harmonica MIDI In / Out / CV Gate">${rows}${gateHtml}</div>`;
       }
       // Generic: multiple named MidiChannel params from catalog
       {
@@ -4786,6 +4801,10 @@
       if (tag === "i32") {
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
+        // Harmonica CV Gate ms: prefer pulse default over mid-scale (1000).
+        if (/gate\s*ms/i.test(String(param.value?.name || ""))) {
+          return i32(Math.max(min, Math.min(max, 200)));
+        }
         const mid = Math.round((min + max) / 2);
         return i32(Math.max(min, Math.min(max, mid)));
       }
@@ -4847,6 +4866,15 @@
       params.forEach((p, i) => {
         if (!p) return;
         if (p.tag === "MidiOut" || p.tag === "Color") {
+          claimed.add(i);
+          return;
+        }
+        if (
+          row.app === "harmonica" &&
+          p.tag === "i32" &&
+          /gate\s*ms/i.test(String(p.value?.name || ""))
+        ) {
+          // Rendered in the CH column next to Out CH (CV→MIDI).
           claimed.add(i);
           return;
         }
@@ -5132,15 +5160,17 @@
         return out;
       }
 
-      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass
+      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass, CV Gate ms
       if (row.app === "harmonica") {
         const io = schemaEnumIndex(row, 0); // 0 MIDI→MIDI, 1 MIDI→CV, 2 CV→MIDI
         if (io === 0) {
           hide.add(1); // Range — no jack
           hide.add(7); // VoltPerOct
+          hide.add(9); // CV Gate ms
         }
         if (io === 1) {
           hide.add(6); // Out CH — CV only, no MIDI emit
+          hide.add(9); // CV Gate ms
         }
         if (io === 2) {
           hide.add(3); // MidiIn

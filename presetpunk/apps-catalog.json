@@ -3245,7 +3245,7 @@
       "module": "harmonica",
       "channels": 1,
       "name": "Harmonica",
-      "description": "Monophonic MIDI/CV harmonizer",
+      "description": "One MIDI/CV root \u2192 chord out",
       "color": "Orange",
       "icon": "Note",
       "params": [
@@ -3331,6 +3331,14 @@
           "tag": "bool",
           "value": {
             "name": "Bypass quantizer"
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CV Gate ms",
+            "min": 0,
+            "max": 2000
           }
         }
       ]
