@@ -1090,13 +1090,16 @@
       pointer-events: none;
     }
     /* Row meteors are clickable — push all params for that slot. */
-    .row-meteor[data-row-meteor] {
+    .row-meteor[data-row-meteor],
+    .row-meteor[data-global-meteor] {
       pointer-events: auto;
       cursor: pointer;
       opacity: 0.42;
     }
     .row-meteor[data-row-meteor]:hover,
-    .row-meteor[data-row-meteor]:focus-visible {
+    .row-meteor[data-row-meteor]:focus-visible,
+    .row-meteor[data-global-meteor]:hover,
+    .row-meteor[data-global-meteor]:focus-visible {
       opacity: 0.9;
       outline: none;
     }
@@ -1712,7 +1715,11 @@
       width: 1.35rem;
       height: 1.35rem;
       flex: 0 0 auto;
-      opacity: 0.28;
+      opacity: 0.42;
+    }
+    .global-group-label .row-meteor:hover,
+    .global-group-label .row-meteor:focus-visible {
+      opacity: 0.9;
     }
     .global-group-label .row-meteor.is-pending,
     .global-group-label .row-meteor.is-spinning,
@@ -2273,7 +2280,7 @@
         <div class="global-group" role="group" aria-labelledby="gGroupQuant" data-global-section="quant">
           <div class="global-group-label" id="gGroupQuant">
             <span data-i18n="global.quantizer">Quantizer</span>
-            <span class="row-meteor" data-global-meteor="quant" aria-hidden="true" title="">
+            <span class="row-meteor" data-global-meteor="quant" role="button" tabindex="0" title="" data-i18n-title="global.meteorTitle" data-i18n-aria="global.meteorAria" aria-label="">
               <span class="row-meteor-face"></span>
             </span>
           </div>
@@ -2288,7 +2295,7 @@
         <div class="global-group clock" role="group" aria-labelledby="gGroupClock" data-global-section="clock">
           <div class="global-group-label" id="gGroupClock">
             <span data-i18n="global.clock">Clock</span>
-            <span class="row-meteor" data-global-meteor="clock" aria-hidden="true" title="">
+            <span class="row-meteor" data-global-meteor="clock" role="button" tabindex="0" title="" data-i18n-title="global.meteorTitle" data-i18n-aria="global.meteorAria" aria-label="">
               <span class="row-meteor-face"></span>
             </span>
           </div>
@@ -2321,7 +2328,7 @@
         <div class="global-group aux" role="group" aria-labelledby="gGroupAux" data-global-section="aux">
           <div class="global-group-label" id="gGroupAux">
             <span data-i18n="global.aux">AUX clocks</span>
-            <span class="row-meteor" data-global-meteor="aux" aria-hidden="true" title="">
+            <span class="row-meteor" data-global-meteor="aux" role="button" tabindex="0" title="" data-i18n-title="global.meteorTitle" data-i18n-aria="global.meteorAria" aria-label="">
               <span class="row-meteor-face"></span>
             </span>
           </div>
@@ -2366,7 +2373,7 @@
         <div class="global-group midi" role="group" aria-labelledby="gGroupMidi" data-global-section="midi">
           <div class="global-group-label" id="gGroupMidi">
             <span data-i18n="global.midi">MIDI Outs</span>
-            <span class="row-meteor" data-global-meteor="midi" aria-hidden="true" title="">
+            <span class="row-meteor" data-global-meteor="midi" role="button" tabindex="0" title="" data-i18n-title="global.meteorTitle" data-i18n-aria="global.meteorAria" aria-label="">
               <span class="row-meteor-face"></span>
             </span>
           </div>
@@ -8254,11 +8261,12 @@
     }
 
     /**
-     * Presettings (quant / clock / aux / midi) → SetGlobalConfig while Live is on.
+     * Presettings (quant / clock / aux / midi) → SetGlobalConfig.
      * @param {string} section
+     * @param {{ immediate?: boolean, force?: boolean }} [opts]
      */
-    function scheduleLiveGlobalPush(section) {
-      if (!livePushEnabled() || !section) return;
+    function scheduleLiveGlobalPush(section, { immediate = false, force = false } = {}) {
+      if ((!force && !livePushEnabled()) || !section) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
         return;
@@ -8270,19 +8278,24 @@
         return;
       }
       if (liveGlobalTimer) clearTimeout(liveGlobalTimer);
+      if (immediate) {
+        liveGlobalTimer = null;
+        flushLiveGlobalPush({ force });
+        return;
+      }
       liveGlobalTimer = setTimeout(() => {
         liveGlobalTimer = null;
-        flushLiveGlobalPush();
+        flushLiveGlobalPush({ force });
       }, 450);
     }
 
-    async function flushLiveGlobalPush() {
-      if (!livePushEnabled() || pushLive || livePushInFlight) return;
+    async function flushLiveGlobalPush({ force = false } = {}) {
+      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       if (liveStructureTimer || liveStructureOpts || livePendingRows.size || liveDebounceTimer) {
         if (liveGlobalSections.size) {
           liveGlobalTimer = setTimeout(() => {
             liveGlobalTimer = null;
-            flushLiveGlobalPush();
+            flushLiveGlobalPush({ force });
           }, 280);
         }
         return;
@@ -8745,6 +8758,21 @@
     document.getElementById("rows")?.addEventListener("keydown", onRowMeteorActivate);
     document.getElementById("rowsOverflow")?.addEventListener("click", onRowMeteorActivate);
     document.getElementById("rowsOverflow")?.addEventListener("keydown", onRowMeteorActivate);
+
+    function onGlobalMeteorActivate(ev) {
+      const el = ev.target.closest?.(".row-meteor[data-global-meteor]");
+      if (!el) return;
+      if (!document.querySelector(".global-cfg")?.contains(el)) return;
+      if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const section = el.dataset.globalMeteor;
+      if (!section) return;
+      // Click = push SetGlobalConfig now (works with Live off too).
+      scheduleLiveGlobalPush(section, { immediate: true, force: true });
+    }
+    document.querySelector(".global-cfg")?.addEventListener("click", onGlobalMeteorActivate);
+    document.querySelector(".global-cfg")?.addEventListener("keydown", onGlobalMeteorActivate);
     document.querySelector(".global-cfg")?.addEventListener("animationend", (ev) => {
       const el = ev.target.closest?.(".row-meteor[data-global-meteor]");
       if (!el) return;
