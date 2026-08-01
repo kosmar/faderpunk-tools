@@ -1177,6 +1177,10 @@
       .row-meteor.is-spinning { opacity: 1; }
       .row-meteor.is-spinning .row-meteor-face { background: #6e6e6e; }
     }
+    /* Live-sync affordance: hide meteors unless Live is on. */
+    html:not(.live-push-on) .row-meteor {
+      display: none !important;
+    }
     @media print {
       .row-meteor { display: none !important; }
     }
@@ -8179,8 +8183,10 @@
     }
 
     function syncFabLiveClass() {
+      const on = livePushEnabled();
       const wrap = document.getElementById("fabLiveWrap");
-      if (wrap) wrap.classList.toggle("is-on", livePushEnabled());
+      if (wrap) wrap.classList.toggle("is-on", on);
+      document.documentElement.classList.toggle("live-push-on", on);
     }
 
     function markLiveLayoutDirty() {
