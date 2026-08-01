@@ -3429,9 +3429,10 @@
     function color(tag = "Orange") {
       return { tag: "Color", value: { tag } };
     }
-    /** App Color params only allow a subset — invalid tags fall back and can confuse Load */
+    /** App Color params only allow a subset — invalid tags fall back and can confuse Load.
+     *  Order: spectral blue→red (LCH/HLS hue path). */
     const APP_PARAM_COLOR_LIST = [
-      "Blue", "Green", "Rose", "Orange", "Cyan", "Pink", "Violet", "Yellow",
+      "Blue", "Cyan", "Green", "Yellow", "Orange", "Rose", "Pink", "Violet",
     ];
     const APP_PARAM_COLORS = new Set(APP_PARAM_COLOR_LIST);
     function colorForApp(app, tag) {
