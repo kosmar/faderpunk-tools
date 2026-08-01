@@ -4199,8 +4199,12 @@
       for (const sc of bank) {
         for (let ri = 0; ri < (sc.rows || []).length; ri++) {
           const row = sc.rows[ri];
-          if (row.instrumentId !== instrumentId) continue;
           if (row.app === "harmonica") {
+            if (row.instrumentId !== instrumentId) {
+              const ids = Array.isArray(row.chsInst) ? row.chsInst : [];
+              const slot = harmonicaInstrumentSlot(row);
+              if (ids[slot] !== instrumentId) continue;
+            }
             ensureSchemaValues(row);
             const slot = harmonicaInstrumentSlot(row);
             const chs = harmonicaChs(row);
@@ -4210,15 +4214,36 @@
             row.ch = chs[1];
             ensureHarmonicaMidi(row);
           } else if (row.app === "grooves") {
-            const next = [ch, Math.min(16, ch + 1), Math.min(16, ch + 2)];
-            const cur = groovesChs(row);
-            if (cur[0] === next[0] && cur[1] === next[1] && cur[2] === next[2]) continue;
+            const ids = Array.isArray(row.chsInst) ? [...row.chsInst] : [];
+            while (ids.length < 3) ids.push("");
+            const legacy =
+              row.instrumentId === instrumentId &&
+              ids.every((id) => !id || id === instrumentId);
+            const kickLinked = ids[0] === instrumentId || (legacy && !ids[0]);
+            const chs = groovesChs(row);
+            let next = chs.slice();
+            let changed = false;
+            if (kickLinked) {
+              next = [ch, Math.min(16, ch + 1), Math.min(16, ch + 2)];
+              changed =
+                next[0] !== chs[0] || next[1] !== chs[1] || next[2] !== chs[2];
+            } else {
+              for (let s = 1; s < 3; s++) {
+                if (ids[s] === instrumentId && next[s] !== ch) {
+                  next[s] = ch;
+                  changed = true;
+                }
+              }
+            }
+            if (!changed) continue;
             row.chs = next;
             ensureGroovesMidi(row);
             if (catalogApp(row.app)) {
               ensureSchemaValues(row);
               applyColumnOverlaysToSchema(row, sc.port);
             }
+          } else if (row.instrumentId !== instrumentId) {
+            continue;
           } else if (Number(row.ch) === ch) {
             continue;
           } else {
@@ -4548,6 +4573,9 @@
       // Main instrument column mirrors In (MIDI→CV) or Out (other modes).
       if (!id && row.instrumentId && row.app === "harmonica") {
         if (slot === harmonicaInstrumentSlot(row)) id = row.instrumentId;
+      } else if (!id && row.app === "grooves" && row.instrumentId) {
+        // Legacy single-instrument rows → all three voices.
+        id = row.instrumentId;
       } else if (!id && slot === 1 && row.instrumentId) {
         id = row.instrumentId;
       }
@@ -5862,7 +5890,7 @@
     }
 
     function instrumentSelectHtml(s, idx) {
-      // Harmonica / Echolot: one instrument select per In/Out(/Ping/Pong) in this column.
+      // Harmonica / Echolot / Grooves: one instrument select per voice/slot.
       if (s.app === "harmonica" || s.app === "echolot") {
         const slots =
           s.app === "harmonica" ? harmonicaVisibleSlots(s) : echolotVisibleSlots(s);
@@ -5873,6 +5901,14 @@
         const rows = slots
           .map(({ slot, lab }) => instSlotSelectHtml(s, idx, slot, lab, chs[slot]))
           .join("");
+        return `<div class="multi-midi multi-midi-inst-col">${rows}</div>`;
+      }
+      if (s.app === "grooves") {
+        ensureGroovesMidi(s);
+        const chs = groovesChs(s);
+        const rows = GROOVES_VOICES.map((lab, slot) =>
+          instSlotSelectHtml(s, idx, slot, lab, chs[slot]),
+        ).join("");
         return `<div class="multi-midi multi-midi-inst-col">${rows}</div>`;
       }
       const opts = [`<option value="">${escapeHtml(t("inst.manual"))}</option>`]
@@ -7416,6 +7452,7 @@
               Math.min(16, base + 1),
               Math.min(16, base + 2),
             ];
+            rowRef.chsInst = [inst.id, inst.id, inst.id];
             ensureGroovesMidi(rowRef);
           }
           if (rowRef.app === "echolot") {
@@ -7464,11 +7501,31 @@
             ? echolotChs(rowRef)
             : rowRef.app === "harmonica"
               ? harmonicaChs(rowRef)
-              : null;
+              : rowRef.app === "grooves"
+                ? groovesChs(rowRef)
+                : null;
         if (chs && inst) {
-          chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
-          rowRef.chs = chs;
-          if (rowRef.app === "harmonica") {
+          if (rowRef.app === "grooves") {
+            const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+            if (slot === 0) {
+              // Kick = kit preset: same instrument on all voices, CH / +1 / +2.
+              rowRef.chs = [
+                base,
+                Math.min(16, base + 1),
+                Math.min(16, base + 2),
+              ];
+              rowRef.chsInst = [inst.id, inst.id, inst.id];
+            } else {
+              chs[slot] = base;
+              rowRef.chs = chs;
+              rowRef.chsInst = ids;
+            }
+            rowRef.instrumentId = rowRef.chsInst[0] || inst.id;
+            rowRef.color = instrumentColor(rowRef.instrumentId) || rowRef.color;
+            ensureGroovesMidi(rowRef);
+          } else if (rowRef.app === "harmonica") {
+            chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+            rowRef.chs = chs;
             rowRef.ch = chs[1];
             if (slot === harmonicaInstrumentSlot(rowRef)) {
               rowRef.instrumentId = inst.id;
@@ -7480,6 +7537,8 @@
             rowRef.schemaValues[outI] = ch(chs[1]);
             ensureHarmonicaMidi(rowRef);
           } else if (rowRef.app === "echolot") {
+            chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+            rowRef.chs = chs;
             rowRef.ch = chs[0];
             if (slot === 1) {
               rowRef.instrumentId = inst.id;
@@ -7496,10 +7555,16 @@
         } else if (chs && !el.value) {
           // Manual — keep channel; clear instrument link for this slot.
           rowRef.chs = chs;
-          const instSlot =
-            rowRef.app === "harmonica" ? harmonicaInstrumentSlot(rowRef) : 1;
-          if (slot === instSlot && rowRef.instrumentId) {
-            delete rowRef.instrumentId;
+          if (rowRef.app === "grooves") {
+            if (slot === 0) {
+              if (rowRef.instrumentId) delete rowRef.instrumentId;
+            }
+          } else {
+            const instSlot =
+              rowRef.app === "harmonica" ? harmonicaInstrumentSlot(rowRef) : 1;
+            if (slot === instSlot && rowRef.instrumentId) {
+              delete rowRef.instrumentId;
+            }
           }
         }
         delete rowRef.rawParams;
