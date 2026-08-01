@@ -4209,6 +4209,16 @@
             row.chs = chs;
             row.ch = chs[1];
             ensureHarmonicaMidi(row);
+          } else if (row.app === "grooves") {
+            const next = [ch, Math.min(16, ch + 1), Math.min(16, ch + 2)];
+            const cur = groovesChs(row);
+            if (cur[0] === next[0] && cur[1] === next[1] && cur[2] === next[2]) continue;
+            row.chs = next;
+            ensureGroovesMidi(row);
+            if (catalogApp(row.app)) {
+              ensureSchemaValues(row);
+              applyColumnOverlaysToSchema(row, sc.port);
+            }
           } else if (Number(row.ch) === ch) {
             continue;
           } else {
@@ -7400,7 +7410,12 @@
             ensureGridsMidi(rowRef);
           }
           if (rowRef.app === "grooves") {
-            rowRef.chs = [inst.midiCh, inst.midiCh, inst.midiCh];
+            const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+            rowRef.chs = [
+              base,
+              Math.min(16, base + 1),
+              Math.min(16, base + 2),
+            ];
             ensureGroovesMidi(rowRef);
           }
           if (rowRef.app === "echolot") {
