@@ -1089,6 +1089,17 @@
       opacity: 0.32;
       pointer-events: none;
     }
+    /* Row meteors are clickable — push all params for that slot. */
+    .row-meteor[data-row-meteor] {
+      pointer-events: auto;
+      cursor: pointer;
+      opacity: 0.42;
+    }
+    .row-meteor[data-row-meteor]:hover,
+    .row-meteor[data-row-meteor]:focus-visible {
+      opacity: 0.9;
+      outline: none;
+    }
     .row-meteor .row-meteor-face {
       position: absolute;
       inset: 0;
@@ -7088,7 +7099,7 @@
         <td class="port-cell">${portBitsHtml(s, i, sc.port)}</td>
         <td class="flags-cell">${flagsColHtml(s, i)}</td>
         <td class="row-x-cell">
-          <span class="row-meteor" data-row-meteor="${i}" aria-hidden="true" title="${escapeAttr(t("row.meteorTitle"))}">
+          <span class="row-meteor" data-row-meteor="${i}" role="button" tabindex="0" title="${escapeAttr(t("row.meteorTitle"))}" aria-label="${escapeAttr(t("row.meteorAria"))}">
             <span class="row-meteor-face"></span>
           </span>
           <button type="button" class="row-x" data-remove-row="${i}" title="${escapeAttr(t("row.remove"))}" aria-label="${escapeAttr(t("row.remove"))}"></button>
@@ -8381,8 +8392,8 @@
       }
     }
 
-    function scheduleLiveParamPush(rowIndex) {
-      if (!livePushEnabled()) return;
+    function scheduleLiveParamPush(rowIndex, { immediate = false, force = false } = {}) {
+      if (!force && !livePushEnabled()) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
         finishRowMeteorSpin([rowIndex], { ok: false });
@@ -8398,14 +8409,19 @@
         return;
       }
       if (liveDebounceTimer) clearTimeout(liveDebounceTimer);
+      if (immediate) {
+        liveDebounceTimer = null;
+        flushLiveParamPushes({ force });
+        return;
+      }
       liveDebounceTimer = setTimeout(() => {
         liveDebounceTimer = null;
-        flushLiveParamPushes();
+        flushLiveParamPushes({ force });
       }, 550);
     }
 
-    async function flushLiveParamPushes() {
-      if (!livePushEnabled() || pushLive || livePushInFlight) return;
+    async function flushLiveParamPushes({ force = false } = {}) {
+      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       if (liveStructureTimer || liveStructureOpts) return;
       const ids = [...livePendingRows];
       livePendingRows.clear();
@@ -8678,6 +8694,25 @@
         delete el.dataset.spinBack;
       }
     });
+
+    function onRowMeteorActivate(ev) {
+      const el = ev.target.closest?.(".row-meteor[data-row-meteor]");
+      if (!el) return;
+      const root = document.getElementById("rows");
+      const overflow = document.getElementById("rowsOverflow");
+      if (!root?.contains(el) && !overflow?.contains(el)) return;
+      if (ev.type === "keydown" && ev.key !== "Enter" && ev.key !== " ") return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const i = Number(el.dataset.rowMeteor);
+      if (!Number.isFinite(i)) return;
+      // Click = push all params for this slot now (works with Live off too).
+      scheduleLiveParamPush(i, { immediate: true, force: true });
+    }
+    document.getElementById("rows")?.addEventListener("click", onRowMeteorActivate);
+    document.getElementById("rows")?.addEventListener("keydown", onRowMeteorActivate);
+    document.getElementById("rowsOverflow")?.addEventListener("click", onRowMeteorActivate);
+    document.getElementById("rowsOverflow")?.addEventListener("keydown", onRowMeteorActivate);
     document.querySelector(".global-cfg")?.addEventListener("animationend", (ev) => {
       const el = ev.target.closest?.(".row-meteor[data-global-meteor]");
       if (!el) return;

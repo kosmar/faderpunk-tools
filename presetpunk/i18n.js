@@ -139,7 +139,8 @@
       "row.trimTitle":
         "Delete overflow rows from the end (push already ignores them)",
       "row.remove": "Remove row",
-      "row.meteorTitle": "Live push indicator",
+      "row.meteorTitle": "Click to push all params for this slot",
+      "row.meteorAria": "Push all parameters for this slot to the device",
       "row.drag": "Drag (also into/out of overflow)",
       "row.overflowPill":
         "Does not fit in 1–16 — drag up or shrink/remove the app",
@@ -480,7 +481,8 @@
       "row.trimTitle":
         "Overflow-Zeilen von hinten löschen (Push ignoriert sie ohnehin)",
       "row.remove": "Zeile entfernen",
-      "row.meteorTitle": "Live-Push-Anzeige",
+      "row.meteorTitle": "Klick: alle Params dieses Slots pushen",
+      "row.meteorAria": "Alle Parameter dieses Slots zum Gerät pushen",
       "row.drag": "Ziehen (auch in/aus Overflow)",
       "row.overflowPill":
         "Passt nicht in 1–16 — nach oben ziehen oder App verkleinern/entfernen",
@@ -838,7 +840,8 @@
       "row.trimTitle":
         "Supprimer les lignes overflow depuis la fin (le push les ignore déjà)",
       "row.remove": "Supprimer la ligne",
-      "row.meteorTitle": "Indicateur push live",
+      "row.meteorTitle": "Clic : envoyer tous les params de ce slot",
+      "row.meteorAria": "Envoyer tous les paramètres de ce slot vers l'appareil",
       "row.drag": "Glisser (aussi dans/hors overflow)",
       "row.overflowPill":
         "Ne tient pas dans 1–16 — glisser vers le haut ou réduire/supprimer l’app",
