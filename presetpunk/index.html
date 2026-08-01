@@ -694,7 +694,8 @@
     tbody tr[data-fader-hue] td.fader-cell .fader-app-select select[data-k="app"]:focus-visible {
       border-color: var(--fader-led, #888);
     }
-    td select[data-k="instrumentId"] { min-width: 0; width: 9rem; }
+    td select[data-k="instrumentId"],
+    td select[data-k="chsInst"] { min-width: 0; width: 9rem; }
     td select[data-k="port"] { min-width: 0; width: 5.5rem; }
     td.port-cell {
       width: 1%;
@@ -4514,6 +4515,49 @@
       row.kind = "note";
     }
 
+    /** Instrument linked to a multi-CH slot (Harmonica / Echolot In·Out·Pong). */
+    function resolveChInstId(row, slot, ch) {
+      const ids = Array.isArray(row.chsInst) ? row.chsInst : [];
+      let id = ids[slot] || "";
+      // Out (slot 1) also mirrors the row's main instrument column.
+      if (!id && slot === 1 && row.instrumentId) id = row.instrumentId;
+      if (id && Number(instById(id)?.midiCh) === Number(ch)) return id;
+      const hits = instruments.filter((i) => Number(i.midiCh) === Number(ch));
+      return hits.length === 1 ? hits[0].id : "";
+    }
+
+    function chInstSlotHtml(row, idx, slot, lab, ch) {
+      const chN = Math.max(1, Math.min(16, Number(ch) || 1));
+      const selected = resolveChInstId(row, slot, chN);
+      const manualLab = `${t("inst.manual") || "Manual"} · ${chN}`;
+      const opts = [`<option value="">${escapeHtml(manualLab)}</option>`]
+        .concat(
+          instruments
+            .slice()
+            .reverse()
+            .map((inst) => {
+              const labCh = `${inst.name} · ${inst.midiCh}`;
+              return `<option value="${escapeAttr(inst.id)}" ${
+                inst.id === selected ? "selected" : ""
+              }>${escapeHtml(labCh)}</option>`;
+            }),
+        )
+        .join("");
+      let html = `<span class="vm">${escapeHtml(lab)}</span>
+        <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
+      // Manual: still allow picking a bare MIDI channel.
+      if (!selected) {
+        const chOpts = Array.from({ length: 16 }, (_, i) => {
+          const n = i + 1;
+          return `<option value="${n}" ${chN === n ? "selected" : ""}>${n}</option>`;
+        }).join("");
+        html += `<select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(
+          t("midi.chLabel", { lab }) || lab,
+        )}">${chOpts}</select>`;
+      }
+      return html;
+    }
+
     function chCellHtml(s, idx) {
       if (s.app === "fp_grids") {
         const chs = gridsChs(s);
@@ -4548,15 +4592,7 @@
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
         const rows = slots
-          .map((slot) => {
-            const lab = echolotChLabel(s, slot);
-            const opts = Array.from({ length: 16 }, (_, i) => {
-              const n = i + 1;
-              return `<option value="${n}" ${chs[slot] === n ? "selected" : ""}>${n}</option>`;
-            }).join("");
-            return `<span class="vm">${lab}</span>
-            <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(t("midi.chLabel", { lab }))}">${opts}</select>`;
-          })
+          .map((slot) => chInstSlotHtml(s, idx, slot, echolotChLabel(s, slot), chs[slot]))
           .join("");
         return `<div class="multi-midi" title="${escapeAttr(t("midi.echolotChTitle"))}">${rows}</div>`;
       }
@@ -4567,8 +4603,8 @@
         const deps = paramDeps(s);
         const [inI, outI] = harmonicaMidiIndices(s);
         const slots = [];
-        if (!deps.hide.has(inI)) slots.push(0); // In CH
-        if (!deps.hide.has(outI)) slots.push(1); // Out CH
+        if (!deps.hide.has(inI)) slots.push(0); // In
+        if (!deps.hide.has(outI)) slots.push(1); // Out
         const cat = catalogApp(s.app);
         const gatePi = (cat?.params || []).findIndex(
           (p) => p?.tag === "i32" && /gate\s*ms/i.test(String(p.value?.name || "")),
@@ -4588,17 +4624,11 @@
           return `<span class="led-muted" title="No MIDI channel in this I/O mode">—</span>`;
         }
         const rows = slots
-          .map((slot) => {
-            const lab = slot === 0 ? "In CH" : "Out CH";
-            const opts = Array.from({ length: 16 }, (_, i) => {
-              const n = i + 1;
-              return `<option value="${n}" ${chs[slot] === n ? "selected" : ""}>${n}</option>`;
-            }).join("");
-            return `<span class="vm">${lab}</span>
-            <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
-          })
+          .map((slot) =>
+            chInstSlotHtml(s, idx, slot, slot === 0 ? "In" : "Out", chs[slot]),
+          )
           .join("");
-        return `<div class="multi-midi" title="Harmonica MIDI In / Out / CV Gate">${rows}${gateHtml}</div>`;
+        return `<div class="multi-midi" title="Harmonica In / Out instrument · CV Gate">${rows}${gateHtml}</div>`;
       }
       // Generic: multiple named MidiChannel params from catalog
       {
@@ -7353,6 +7383,7 @@
               inst.midiCh,
               Math.min(16, Number(inst.midiCh) + 1),
             ];
+            rowRef.chsInst = [inst.id, inst.id, rowRef.chsInst?.[2] || ""];
             ensureEcholotMidi(rowRef);
           }
           if (rowRef.app === "harmonica") {
@@ -7363,6 +7394,10 @@
               1;
             rowRef.chs = [inKeep, inst.midiCh];
             rowRef.ch = inst.midiCh;
+            const ids = Array.isArray(rowRef.chsInst) ? [...rowRef.chsInst] : [];
+            while (ids.length < 2) ids.push("");
+            ids[1] = inst.id;
+            rowRef.chsInst = ids;
             ensureHarmonicaMidi(rowRef);
           }
           if (inst.ccs?.length && rowRef.kind !== "note") {
@@ -7370,6 +7405,52 @@
             if (!hit) rowRef.cc = inst.ccs[0].cc;
           }
           rowRef.color = instrumentColor(inst.id) || rowRef.color;
+        }
+        delete rowRef.rawParams;
+        if (catalogApp(rowRef.app)) {
+          ensureSchemaValues(rowRef);
+          applyColumnOverlaysToSchema(rowRef, sc.port);
+        }
+      } else if (k === "chsInst") {
+        const slot = Number(el.dataset.slot);
+        const inst = instById(el.value);
+        const ids = Array.isArray(rowRef.chsInst) ? [...rowRef.chsInst] : [];
+        while (ids.length <= slot) ids.push("");
+        ids[slot] = el.value || "";
+        rowRef.chsInst = ids;
+        const chs =
+          rowRef.app === "echolot"
+            ? echolotChs(rowRef)
+            : rowRef.app === "harmonica"
+              ? harmonicaChs(rowRef)
+              : null;
+        if (chs && inst) {
+          chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+          rowRef.chs = chs;
+          if (rowRef.app === "harmonica") {
+            rowRef.ch = chs[1];
+            if (slot === 1) rowRef.instrumentId = inst.id;
+            ensureSchemaValues(rowRef);
+            const [inI, outI] = harmonicaMidiIndices(rowRef);
+            rowRef.schemaValues[inI] = ch(chs[0]);
+            rowRef.schemaValues[outI] = ch(chs[1]);
+            ensureHarmonicaMidi(rowRef);
+          } else if (rowRef.app === "echolot") {
+            rowRef.ch = chs[0];
+            if (slot === 1) rowRef.instrumentId = inst.id;
+            ensureEcholotMidi(rowRef);
+          }
+          if (inst.ccs?.length && rowRef.kind !== "note" && slot === 1) {
+            const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
+            if (!hit) rowRef.cc = inst.ccs[0].cc;
+          }
+          if (slot === 1) rowRef.color = instrumentColor(inst.id) || rowRef.color;
+        } else if (chs && !el.value) {
+          // Manual — keep channel; clear instrument link for this slot.
+          rowRef.chs = chs;
+          if (slot === 1 && rowRef.instrumentId && !instById(rowRef.instrumentId)) {
+            delete rowRef.instrumentId;
+          }
         }
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
@@ -7556,6 +7637,13 @@
         rowRef.chs = chs;
         // Harmonica: denormalized row.ch is Out; others use first voice/out.
         rowRef.ch = rowRef.app === "harmonica" ? chs[1] : chs[0];
+        // Manual CH edit clears the instrument link for this slot.
+        if (rowRef.app === "harmonica" || rowRef.app === "echolot") {
+          const ids = Array.isArray(rowRef.chsInst) ? [...rowRef.chsInst] : [];
+          while (ids.length <= slot) ids.push("");
+          ids[slot] = "";
+          rowRef.chsInst = ids;
+        }
         if (rowRef.app === "harmonica") {
           ensureSchemaValues(rowRef);
           const [inI, outI] = harmonicaMidiIndices(rowRef);
