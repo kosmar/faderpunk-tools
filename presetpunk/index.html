@@ -5284,7 +5284,8 @@
         return out;
       }
 
-      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct, Bypass, CV Gate
+      // Harmonica: I/O, Range, Color, MidiIn, In CH, MidiOut, Out CH, V/Oct,
+      // Bypass, CV Gate, Strum
       if (row.app === "harmonica") {
         const io = schemaEnumIndex(row, 0); // 0 MIDI→MIDI, 1 MIDI→CV, 2 CV→MIDI
         if (io === 0) {
@@ -5295,6 +5296,7 @@
         if (io === 1) {
           hide.add(6); // Out CH — CV only, no MIDI emit
           hide.add(9); // CV Gate
+          hide.add(10); // Strum — mono CV out has one voice
         }
         if (io === 2) {
           hide.add(3); // MidiIn

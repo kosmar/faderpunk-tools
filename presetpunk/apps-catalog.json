@@ -3350,6 +3350,21 @@
               "1"
             ]
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Strum",
+            "variants": [
+              "Off",
+              "10 ms",
+              "20 ms",
+              "30 ms",
+              "50 ms",
+              "80 ms",
+              "120 ms"
+            ]
+          }
         }
       ]
     }
