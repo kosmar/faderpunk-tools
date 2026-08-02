@@ -3352,18 +3352,11 @@
           }
         },
         {
-          "tag": "Enum",
+          "tag": "i32",
           "value": {
-            "name": "Strum",
-            "variants": [
-              "Off",
-              "10 ms",
-              "20 ms",
-              "30 ms",
-              "50 ms",
-              "80 ms",
-              "120 ms"
-            ]
+            "name": "Strum ms",
+            "min": 0,
+            "max": 200
           }
         }
       ]

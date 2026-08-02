@@ -4932,6 +4932,8 @@
         return enumVal(0);
       }
       if (tag === "i32") {
+        // Harmonica Strum: off by default — a midpoint would strum unasked.
+        if (/^Strum ms$/i.test(String(param.value?.name || ""))) return i32(0);
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
         const mid = Math.round((min + max) / 2);
