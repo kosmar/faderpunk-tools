@@ -2757,6 +2757,7 @@
       vamp: 4,
       hold_sam: 4,
       harmonica: 4,
+      loop_de_cay: 4,
     };
 
     /** Shared Note/CC column forced to "—" even when catalog has MidiNote/MidiCc. */
@@ -6460,7 +6461,19 @@
       const rows = data.layout
         .filter((x) => x.appId != null && Number(x.appId) > 0)
         .map((x, rowIndex) => {
-          const appKey = idToApp[x.appId] || "control";
+          // Never silently map unknown firmware ids to Control — that mislabels
+          // newer apps (e.g. loop_de_cay=38) when apps-catalog.json is stale.
+          const appKey = idToApp[x.appId];
+          if (!appKey) {
+            console.warn(
+              `applySetupToPreset: unknown appId ${x.appId} (catalog stale?)`,
+            );
+            return {
+              app: `app_${x.appId}`,
+              fader: (Number.isFinite(Number(x.startChannel)) ? Number(x.startChannel) + 1 : rowIndex + 1),
+              _unknownAppId: Number(x.appId),
+            };
+          }
           let channel = 1;
           let midiCc = null;
           let midiNote = null;

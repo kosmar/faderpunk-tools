@@ -3360,6 +3360,106 @@
           }
         }
       ]
+    },
+    {
+      "id": 38,
+      "slug": "loop_de_cay",
+      "module": "loop_de_cay",
+      "channels": 1,
+      "name": "Loop de Cay",
+      "description": "Additive overdub loop with level decay",
+      "color": "Violet",
+      "icon": "Sequence",
+      "params": [
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Mode",
+            "variants": [
+              "Pitch\u2192MIDI",
+              "Gate\u2192MIDI",
+              "MIDI\u2192MIDI",
+              "MIDI\u2192CV",
+              "Fader\u2192Both"
+            ]
+          }
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiIn"
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Span",
+            "min": 1,
+            "max": 120
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        }
+      ]
     }
   ]
 }
