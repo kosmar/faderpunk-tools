@@ -2,7 +2,9 @@ import { deserialize, serialize } from "@atov/fp-config";
 import { buildConfigFrame, parseConfigFrame, SYSEX_EOX, SYSEX_START } from "./sysex.js";
 
 const RECEIVE_TIMEOUT_MS = 2000;
-const PROBE_TIMEOUT_MS = 300;
+// The device can answer slowly while app tasks are spawning or immediately
+// after USB reconnect. 300 ms caused valid config ports to be rejected.
+const PROBE_TIMEOUT_MS = 1000;
 
 function attachConfigInput(input) {
   const rx = {
