@@ -369,12 +369,13 @@ async function applySetLayout(
 }
 
 /**
- * Full Push: apply the final layout once, then wait for every slot.
+ * Full Push: clear/reap old tasks, apply final layout once, then wait slots.
  *
  * Repeated growing SetLayout calls outrun firmware 1.11 task reaping and stall
  * reproducibly on the ninth layout generation. A single atomic SetLayout
- * creates only one generation; readiness polling follows firmware's channel
- * spawn order before parameters are written.
+ * creates only one new generation. The clear/reap phase prevents old and new
+ * static app pools from overlapping; readiness polling then follows firmware's
+ * channel spawn order before parameters are written.
  */
 async function applySetLayoutIncremental(
   config,
@@ -411,6 +412,26 @@ async function applySetLayoutIncremental(
   } catch {
     /* already released / older firmware */
   }
+
+  // SetLayout starts replacements before every old app task has necessarily
+  // returned its static Embassy pool slot. With a dense old layout this leaves
+  // later apps present in Layout but permanently without a param_handler.
+  // Clear first and give exit handlers a quiet reap window; keep probing so
+  // Web MIDI does not disappear during the pause.
+  cfg = await applySetLayout(
+    cfg,
+    [],
+    log,
+    LAYOUT_SETTLE_INCREMENTAL_MS,
+    deviceRef,
+    "SetLayout (clear old tasks)",
+    {
+      headStartMs: 1000,
+      pollBudgetMs: 4000,
+    },
+  );
+  log("  reap old app tasks 10s …");
+  await delayKeepalive(cfg, 10_000);
 
   cfg = await applySetLayout(
     cfg,
