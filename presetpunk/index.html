@@ -2461,6 +2461,7 @@
       <div class="dock-top">
         <div id="status" class="ok">Preset 1</div>
         <span class="dock-meta" id="pushMeta" data-i18n="dock.ready">ready</span>
+        <button type="button" class="secondary dock-toggle" id="btnCopyLog" data-i18n="dock.copyLog">Copy log</button>
         <button type="button" class="secondary dock-toggle" id="btnToggleLog" data-i18n="dock.logToggle" data-i18n-title="dock.logToggleTitle" title="">Log ▴</button>
       </div>
       <pre id="pushLog" data-i18n="dock.pushLogEmpty">No push yet. If something fails: check the Configurator Chrome window (Connect Device).</pre>
@@ -9171,6 +9172,11 @@
       document.getElementById("btnToggleLog").onclick = () => {
         const dock = document.getElementById("statusDock");
         setStatusDockExpanded(dock.classList.contains("collapsed"));
+      };
+      document.getElementById("btnCopyLog").onclick = async () => {
+        const log = document.getElementById("pushLog")?.textContent || "";
+        await navigator.clipboard.writeText(log);
+        setStatus("ok", t("dock.logCopied"));
       };
       syncDockPad();
       window.addEventListener("resize", syncDockPad);

@@ -114,6 +114,8 @@
       "global.midiSrcDin": "DIN",
 
       "dock.ready": "ready",
+      "dock.copyLog": "Copy log",
+      "dock.logCopied": "Push log copied",
       "dock.logToggle": "Log ▴",
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Expand / collapse push log",
@@ -458,6 +460,8 @@
       "global.midiSrcDin": "DIN",
 
       "dock.ready": "bereit",
+      "dock.copyLog": "Log kopieren",
+      "dock.logCopied": "Push-Log kopiert",
       "dock.logToggle": "Log ▴",
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Push-Log ein-/ausklappen",
@@ -819,6 +823,8 @@
       "global.midiSrcDin": "DIN",
 
       "dock.ready": "prêt",
+      "dock.copyLog": "Copier le log",
+      "dock.logCopied": "Journal push copié",
       "dock.logToggle": "Log ▴",
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Afficher / masquer le journal push",

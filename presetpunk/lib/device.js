@@ -12,6 +12,7 @@ function attachConfigInput(input) {
     collecting: false,
     queue: [],
     waiter: null,
+    appStates: new Map(),
   };
 
   input.onmidimessage = (event) => {
@@ -44,6 +45,13 @@ function attachConfigInput(input) {
         } catch (err) {
           console.error("Failed to deserialize config message:", err);
           continue;
+        }
+        if (msg?.tag === "AppState") {
+          const layoutId = Number(msg.value?.[0]);
+          const values = msg.value?.[1];
+          if (Number.isFinite(layoutId) && Array.isArray(values) && values.length > 0) {
+            rx.appStates.set(layoutId, msg);
+          }
         }
         if (rx.waiter) {
           const { resolve, timer } = rx.waiter;
@@ -178,6 +186,14 @@ export function drainConfigQueue(rx) {
     // #endregion
     rx.queue.length = 0;
   }
+}
+
+export function clearCachedAppStates(rx) {
+  rx?.appStates?.clear();
+}
+
+export function cachedAppState(rx, layoutId) {
+  return rx?.appStates?.get(Number(layoutId)) ?? null;
 }
 
 export async function sendAndReceive(config, msg) {

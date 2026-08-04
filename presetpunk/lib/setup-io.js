@@ -1,4 +1,6 @@
 import {
+  cachedAppState,
+  clearCachedAppStates,
   connectDevice,
   disconnectDevice,
   drainConfigQueue,
@@ -226,6 +228,15 @@ async function waitForSlotReady(
   let checkedLayout = false;
   while (Date.now() < deadline) {
     try {
+      const cached = cachedAppState(config.rx, id);
+      const cachedValues = cached?.value?.[1];
+      if (Array.isArray(cachedValues) && cachedValues.length > 0) {
+        // #region agent log
+        fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'post-fix',hypothesisId:'E,F',location:'setup-io.js:waitForSlotReady:cached',message:'slot readiness satisfied from cached AppState',data:{layoutId:id,paramCount:cachedValues.length,elapsedMs:Date.now()-startedAt},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        log(`  ✓ layoutId=${id} ready (${cachedValues.length} params · cached)`);
+        return config;
+      }
       drainConfigQueue(config.rx);
       // Host wait must exceed FW GetAppParams timeout under Hold (400ms) and
       // the non-hold 3s path — otherwise we desync SysEx and never recover.
@@ -449,6 +460,7 @@ async function applySetLayoutIncremental(
   log("  reap old app tasks 10s …");
   await delayKeepalive(cfg, 10_000);
 
+  clearCachedAppStates(cfg.rx);
   cfg = await applySetLayout(
     cfg,
     appLayout,
