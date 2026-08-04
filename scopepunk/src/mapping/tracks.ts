@@ -5,6 +5,7 @@ import {
   drainConfigQueue,
   receiveBatchMessages,
   sendAndReceive,
+  sendAndReceiveMatching,
   sendMessage,
   type ConfigPort,
   type DeviceBundle,
@@ -476,21 +477,18 @@ async function getAppParams(
         await new Promise((r) => setTimeout(r, 40 + attempt * 40));
       }
       drainConfigQueue(config.rx);
-      const paramsResponse = await sendAndReceive(config, {
-        tag: "GetAppParams",
-        value: { layout_id: layoutId },
-      });
-      if (paramsResponse.tag !== "AppState") {
-        if (attempt < 2) continue;
-        return null;
-      }
-      if (asU8(paramsResponse.value[0]) !== layoutId) {
-        console.warn(
-          `AppState layout_id mismatch: requested ${layoutId}, got ${paramsResponse.value[0]}`,
-        );
-        if (attempt < 2) continue;
-        return null;
-      }
+      const paramsResponse = await sendAndReceiveMatching(
+        config,
+        {
+          tag: "GetAppParams",
+          value: { layout_id: layoutId },
+        },
+        (response) =>
+          response.tag === "AppState" &&
+          asU8(response.value[0]) === layoutId,
+        12_000,
+      );
+      if (paramsResponse.tag !== "AppState") return null;
       const values = paramsResponse.value[1];
       if (!values.length) {
         if (attempt < 2) continue;

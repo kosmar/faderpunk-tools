@@ -291,6 +291,42 @@ export async function sendAndReceive(
   return receiveFromRx(config.rx, RECEIVE_TIMEOUT_MS);
 }
 
+/**
+ * Send once, then ignore delayed/unsolicited replies until the response for
+ * this request arrives. Dense layout spawning can answer GetAppParams several
+ * seconds late; retrying immediately otherwise leaves every request one slot
+ * behind.
+ */
+export async function sendAndReceiveMatching(
+  config: ConfigPort,
+  msg: ConfigMsgIn,
+  matches: (response: ConfigMsgOut) => boolean,
+  timeoutMs = 12_000,
+): Promise<ConfigMsgOut> {
+  sendFrame(config.output, msg);
+  const deadline = performance.now() + timeoutMs;
+  let last: ConfigMsgOut | null = null;
+  while (performance.now() < deadline) {
+    const remaining = Math.max(100, deadline - performance.now());
+    try {
+      const response = await receiveFromRx(
+        config.rx,
+        Math.min(RECEIVE_TIMEOUT_MS, remaining),
+      );
+      last = response;
+      if (matches(response)) return response;
+    } catch (err) {
+      // A short receive timeout is not the request deadline. Keep the waiter
+      // active in slices so late firmware replies can still be matched.
+      if (performance.now() >= deadline) throw err;
+    }
+  }
+  throw new Error(
+    `Timed out waiting for matching device response` +
+      (last ? ` (last ${last.tag})` : ""),
+  );
+}
+
 export async function receiveBatchMessages(
   config: ConfigPort,
   count: bigint,
