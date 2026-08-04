@@ -1137,10 +1137,14 @@
       transition: background-color 1.1s ease;
     }
     .row-meteor.is-ok .row-meteor-face {
-      background: color-mix(in srgb, #6d8 55%, var(--accent));
+      background: #43df78;
+      box-shadow: 0 0 9px color-mix(in srgb, #43df78 75%, transparent);
+      transition: none;
     }
     .row-meteor.is-err .row-meteor-face {
-      background: #c66;
+      background: #ef5d68;
+      box-shadow: 0 0 9px color-mix(in srgb, #ef5d68 75%, transparent);
+      transition: none;
     }
     /* Same axis as fab-spin-3d, tighter perspective so the tumble reads at ~30px. */
     @keyframes row-meteor-spin-3d {
@@ -8162,12 +8166,10 @@
         el.classList.add(ok ? "is-ok" : "is-err");
         el.classList.add("is-spun");
         el.dataset.spun = "1";
-        // Next frame so the spun pose sticks, then unwind like the FAB.
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (!liveSpinningRows.has(i)) rowMeteorSpinBack(el);
-          });
-        });
+        // Hold success/error long enough to read, then unwind like the FAB.
+        setTimeout(() => {
+          if (!liveSpinningRows.has(i)) rowMeteorSpinBack(el);
+        }, 750);
       }
     }
 
@@ -8275,11 +8277,9 @@
         el.classList.add(ok ? "is-ok" : "is-err");
         el.classList.add("is-spun");
         el.dataset.spun = "1";
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (!liveSpinningGlobals.has(s)) rowMeteorSpinBack(el);
-          });
-        });
+        setTimeout(() => {
+          if (!liveSpinningGlobals.has(s)) rowMeteorSpinBack(el);
+        }, 750);
       }
     }
 
