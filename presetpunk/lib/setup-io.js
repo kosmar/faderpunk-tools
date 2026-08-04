@@ -369,15 +369,12 @@ async function applySetLayout(
 }
 
 /**
- * Full Push: one app at a time, without a long HoldPerfMute.
+ * Full Push: apply the final layout once, then wait for every slot.
  *
- * Firmware 1.11 stalls spawning around the ninth task while HoldPerfMute stays
- * active across repeated SetLayout calls. It also needs no preliminary clear:
- * the first growing layout replaces the old layout, while avoiding an extra
- * stop/spawn storm.
- *
- * Addition order uses compareSpawnOrder (defer Chord Vamp / wide apps); wire
- * positions stay at startChannel so holes fill without reshuffling neighbors.
+ * Repeated growing SetLayout calls outrun firmware 1.11 task reaping and stall
+ * reproducibly on the ninth layout generation. A single atomic SetLayout
+ * creates only one generation; readiness polling follows firmware's channel
+ * spawn order before parameters are written.
  */
 async function applySetLayoutIncremental(
   config,
@@ -392,9 +389,9 @@ async function applySetLayoutIncremental(
     log("SetLayout (0 apps) …");
     return config;
   }
-  const ordered = [...activeSlots].sort(compareSpawnOrder);
+  const ordered = [...activeSlots].sort(compareChannelOrder);
   log(
-    `Incremental SetLayout (${n} apps, no persistent Hold): ${ordered
+    `Atomic SetLayout (${n} apps): ${ordered
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
       .join(" → ")}`,
   );
@@ -415,35 +412,30 @@ async function applySetLayoutIncremental(
     /* already released / older firmware */
   }
 
-  const growing = [];
-  for (let i = 0; i < ordered.length; i++) {
-    growing.push(ordered[i]);
-    const slot = ordered[i];
+  cfg = await applySetLayout(
+    cfg,
+    appLayout,
+    log,
+    LAYOUT_SETTLE_INCREMENTAL_MS,
+    deviceRef,
+    `SetLayout (final ${n} apps)`,
+    {
+      headStartMs: 1800,
+      pollBudgetMs: Math.max(10_000, n * 900),
+    },
+  );
+
+  log(`  wait ${n} slots in channel spawn order …`);
+  for (const slot of ordered) {
     const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
-    const heavy = isHeavySpawnSlot(slot, i, n);
-    cfg = await applySetLayout(
-      cfg,
-      growing,
-      log,
-      LAYOUT_SETTLE_INCREMENTAL_MS,
-      deviceRef,
-      `SetLayout (${i + 1}/${n}) ${label}`,
-      {
-        headStartMs: heavy ? 1200 : 700,
-        pollBudgetMs: heavy ? 5000 : 3000,
-      },
-    );
-    await waitForSlotReady(cfg, slot.id, log, heavy ? 60_000 : 45_000, {
+    await waitForSlotReady(cfg, slot.id, log, 90_000, {
       label,
       expectAppId: slot.app?.appId,
     });
-    await delay(heavy ? 600 : 350);
+    await delay(250);
   }
 
-  // Params in channel order (matches firmware / editor expectations).
-  const ids = [...ordered]
-    .sort(compareChannelOrder)
-    .map((s) => Number(s.id));
+  const ids = ordered.map((s) => Number(s.id));
   log("  SetAppParams (all) …");
   await applySetAppParams(cfg, paramsById, ids, log);
   return cfg;
