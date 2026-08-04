@@ -60,9 +60,6 @@ function attachConfigInput(input) {
           resolve(msg);
         } else {
           rx.queue.push(msg);
-          // #region agent log
-          if (msg?.tag === "AppState") fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix-queue',hypothesisId:'E,F',location:'device.js:attachConfigInput:queued',message:'unsolicited AppState queued',data:{layoutId:Number(msg.value?.[0]),paramCount:Array.isArray(msg.value?.[1])?msg.value[1].length:-1,queueLength:rx.queue.length},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         }
       }
     }
@@ -181,9 +178,6 @@ export function disconnectDevice(device) {
 /** Drop unmatched config replies so the next request/response pair stays aligned. */
 export function drainConfigQueue(rx) {
   if (rx?.queue) {
-    // #region agent log
-    if (rx.queue.length) fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix-queue',hypothesisId:'E,F',location:'device.js:drainConfigQueue',message:'queued MIDI replies discarded',data:{count:rx.queue.length,messages:rx.queue.slice(0,32).map(m=>({tag:m?.tag,layoutId:m?.tag==='AppState'?Number(m.value?.[0]):null,paramCount:m?.tag==='AppState'&&Array.isArray(m.value?.[1])?m.value[1].length:null}))},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     rx.queue.length = 0;
   }
 }

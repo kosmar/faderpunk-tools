@@ -218,10 +218,6 @@ async function waitForSlotReady(
   const label = opts.label ? ` ${opts.label}` : "";
   log(`  wait layoutId=${id}${label} ready (not muted / spawned) …`);
   const deadline = Date.now() + timeoutMs;
-  const startedAt = Date.now();
-  // #region agent log
-  fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,B,C',location:'setup-io.js:waitForSlotReady:start',message:'slot readiness wait started',data:{layoutId:id,label:opts.label||'',timeoutMs,inputState:config.input?.state,inputConnection:config.input?.connection,outputState:config.output?.state,outputConnection:config.output?.connection,queueLength:config.rx?.queue?.length??-1},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   let lastDetail = "no reply";
   let emptyStreak = 0;
   let warnedScope = false;
@@ -231,9 +227,6 @@ async function waitForSlotReady(
       const cached = cachedAppState(config.rx, id);
       const cachedValues = cached?.value?.[1];
       if (Array.isArray(cachedValues) && cachedValues.length > 0) {
-        // #region agent log
-        fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'post-fix',hypothesisId:'E,F',location:'setup-io.js:waitForSlotReady:cached',message:'slot readiness satisfied from cached AppState',data:{layoutId:id,paramCount:cachedValues.length,elapsedMs:Date.now()-startedAt},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         log(`  ✓ layoutId=${id} ready (${cachedValues.length} params · cached)`);
         return config;
       }
@@ -251,9 +244,6 @@ async function waitForSlotReady(
         : Array.isArray(response.value?.values)
           ? response.value.values.length
           : 0;
-      // #region agent log
-      fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,C',location:'setup-io.js:waitForSlotReady:response',message:'slot readiness response received',data:{layoutId:id,paramCount:n,elapsedMs:Date.now()-startedAt,emptyStreak,queueLength:config.rx?.queue?.length??-1},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (n > 0) {
         log(`  ✓ layoutId=${id} ready (${n} params)`);
         return config;
@@ -297,20 +287,11 @@ async function waitForSlotReady(
       continue;
     } catch (e) {
       lastDetail = e.message || String(e);
-      // #region agent log
-      fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,B,C',location:'setup-io.js:waitForSlotReady:error',message:'slot readiness request failed',data:{layoutId:id,elapsedMs:Date.now()-startedAt,lastDetail,emptyStreak,inputState:config.input?.state,inputConnection:config.input?.connection,outputState:config.output?.state,outputConnection:config.output?.connection,queueLength:config.rx?.queue?.length??-1},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       if (String(lastDetail).includes("missing from device")) throw e;
       // Resync probe — if Version works, keep polling; if not, surface cable death.
       try {
         await probeConfigCable(config);
-        // #region agent log
-        fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,C',location:'setup-io.js:waitForSlotReady:probe-ok',message:'config cable probe recovered',data:{layoutId:id,elapsedMs:Date.now()-startedAt},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       } catch (cableErr) {
-        // #region agent log
-        fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,B,D',location:'setup-io.js:waitForSlotReady:probe-failed',message:'config cable probe failed after slot timeout',data:{layoutId:id,elapsedMs:Date.now()-startedAt,error:cableErr.message||String(cableErr),inputState:config.input?.state,inputConnection:config.input?.connection,outputState:config.output?.state,outputConnection:config.output?.connection},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         throw new Error(
           `layoutId=${id} not ready; config cable quiet (${cableErr.message || cableErr}). Close Scopepunk / Configurator, then retry.`,
         );
@@ -473,9 +454,6 @@ async function applySetLayoutIncremental(
       pollBudgetMs: Math.max(10_000, n * 900),
     },
   );
-  // #region agent log
-  fetch('http://127.0.0.1:7576/ingest/41b51123-b6e7-4b40-9f7e-a932ea3db83f',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'0439c1'},body:JSON.stringify({sessionId:'0439c1',runId:'pre-fix',hypothesisId:'A,B,D',location:'setup-io.js:applySetLayoutIncremental:final-settled',message:'final layout settle completed',data:{slotCount:n,ordered:ordered.map(s=>({id:Number(s.id),appId:s.app?.appId,startChannel:Number(s.startChannel)})),inputState:cfg.input?.state,inputConnection:cfg.input?.connection,outputState:cfg.output?.state,outputConnection:cfg.output?.connection,queueLength:cfg.rx?.queue?.length??-1},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
 
   log(`  wait ${n} slots in channel spawn order …`);
   for (const slot of ordered) {
