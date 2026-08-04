@@ -369,10 +369,12 @@ async function applySetLayout(
 }
 
 /**
- * Full Push under HoldPerfMute — true one-app-at-a-time SetLayout.
+ * Full Push: one app at a time, without a long HoldPerfMute.
  *
- * Hold → clear → for each app: SetLayout(prefix) + wait slot → SetAppParams
- * → Release (FW store + unmute). Never kicks a deferred multi-app spawn burst.
+ * Firmware 1.11 stalls spawning around the ninth task while HoldPerfMute stays
+ * active across repeated SetLayout calls. It also needs no preliminary clear:
+ * the first growing layout replaces the old layout, while avoiding an extra
+ * stop/spawn storm.
  *
  * Addition order uses compareSpawnOrder (defer Chord Vamp / wide apps); wire
  * positions stay at startChannel so holes fill without reshuffling neighbors.
@@ -392,132 +394,59 @@ async function applySetLayoutIncremental(
   }
   const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
-    `Incremental SetLayout under Hold (${n} apps): ${ordered
+    `Incremental SetLayout (${n} apps, no persistent Hold): ${ordered
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
       .join(" → ")}`,
   );
   let cfg = config;
-  let holdingMute = false;
 
+  // Aborted older Pushes may have left the device held. Release once, then
+  // leave it released so Embassy can reap old tasks between SetLayout calls.
   try {
-    // Aborted Push can leave the device in Hold (parked apps / empty AppState).
-    try {
-      await sendAndReceiveExpect(
-        cfg,
-        { tag: "ReleasePerfMute" },
-        "Pong",
-        { timeoutMs: 1500, attempts: 1 },
-      );
-      log("  ReleasePerfMute (clear stale Hold from prior Push)");
-      await delay(400);
-    } catch {
-      /* not held — fine */
-    }
-
-    await sendAndReceiveExpect(
-      cfg,
-      { tag: "HoldPerfMute" },
-      "Pong",
-      { onLog: log, timeoutMs: 2500, attempts: 3 },
-    );
-    holdingMute = true;
-    log("  HoldPerfMute (mute Local MIDI; spawn per SetLayout)");
-
-    cfg = await applySetLayout(
-      cfg,
-      [],
-      log,
-      LAYOUT_SETTLE_INCREMENTAL_MS,
-      deviceRef,
-      "SetLayout (clear)",
-      { headStartMs: 300, pollBudgetMs: 1500 },
-    );
-
-    const growing = [];
-    for (let i = 0; i < ordered.length; i++) {
-      growing.push(ordered[i]);
-      const slot = ordered[i];
-      const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
-      const heavy = isHeavySpawnSlot(slot, i, n);
-      const settleOpts = {
-        headStartMs: heavy ? 900 : 400,
-        pollBudgetMs: heavy ? 4000 : 2500,
-      };
-      const waitMs = heavy ? 45_000 : 35_000;
-      const stepLabel = `SetLayout (${i + 1}/${n}) ${label}`;
-
-      cfg = await applySetLayout(
-        cfg,
-        growing,
-        log,
-        LAYOUT_SETTLE_INCREMENTAL_MS,
-        deviceRef,
-        stepLabel,
-        settleOpts,
-      );
-      if (heavy) await delay(600);
-
-      const waitOpts = {
-        label,
-        expectAppId: slot.app?.appId,
-      };
-      try {
-        cfg = await waitForSlotReady(cfg, slot.id, log, waitMs, waitOpts);
-      } catch (waitErr) {
-        // One re-SetLayout — spawn sometimes misses under pool pressure.
-        log(
-          `  ⚠ ${waitErr.message || waitErr} — re-SetLayout + retry wait`,
-        );
-        cfg = await applySetLayout(
-          cfg,
-          growing,
-          log,
-          LAYOUT_SETTLE_INCREMENTAL_MS,
-          deviceRef,
-          `${stepLabel} (retry)`,
-          {
-            headStartMs: 1200,
-            pollBudgetMs: 5000,
-          },
-        );
-        await delay(800);
-        cfg = await waitForSlotReady(cfg, slot.id, log, waitMs, waitOpts);
-      }
-      await delay(heavy ? 400 : 250);
-    }
-
-    // Params in channel order (matches firmware / editor expectations).
-    const ids = [...ordered]
-      .sort(compareChannelOrder)
-      .map((s) => Number(s.id));
-    log("  SetAppParams (all) …");
-    await applySetAppParams(cfg, paramsById, ids, log);
-
     await sendAndReceiveExpect(
       cfg,
       { tag: "ReleasePerfMute" },
       "Pong",
-      { onLog: log, timeoutMs: 5000, attempts: 3 },
+      { timeoutMs: 1500, attempts: 1 },
     );
-    holdingMute = false;
-    log("  ReleasePerfMute (store + unmute)");
-    return cfg;
-  } catch (e) {
-    if (holdingMute) {
-      try {
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "ReleasePerfMute" },
-          "Pong",
-          { timeoutMs: 5000, attempts: 1 },
-        );
-        log("  ReleasePerfMute (after error)");
-      } catch {
-        /* ignore */
-      }
-    }
-    throw e;
+    log("  ReleasePerfMute (ensure task reaping is active)");
+    await delay(500);
+  } catch {
+    /* already released / older firmware */
   }
+
+  const growing = [];
+  for (let i = 0; i < ordered.length; i++) {
+    growing.push(ordered[i]);
+    const slot = ordered[i];
+    const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
+    const heavy = isHeavySpawnSlot(slot, i, n);
+    cfg = await applySetLayout(
+      cfg,
+      growing,
+      log,
+      LAYOUT_SETTLE_INCREMENTAL_MS,
+      deviceRef,
+      `SetLayout (${i + 1}/${n}) ${label}`,
+      {
+        headStartMs: heavy ? 1200 : 700,
+        pollBudgetMs: heavy ? 5000 : 3000,
+      },
+    );
+    await waitForSlotReady(cfg, slot.id, log, heavy ? 60_000 : 45_000, {
+      label,
+      expectAppId: slot.app?.appId,
+    });
+    await delay(heavy ? 600 : 350);
+  }
+
+  // Params in channel order (matches firmware / editor expectations).
+  const ids = [...ordered]
+    .sort(compareChannelOrder)
+    .map((s) => Number(s.id));
+  log("  SetAppParams (all) …");
+  await applySetAppParams(cfg, paramsById, ids, log);
+  return cfg;
 }
 
 /** Poll GetAppParams until every layoutId has a live param_handler. */
@@ -637,6 +566,12 @@ async function applySetAppParams(config, paramsById, layoutIds, log) {
       log(`  ⚠ skip layoutId=${id}: no params in setup`);
       return;
     }
+    // SetLayout ACK and GetVersion only prove transport health. Dense layouts
+    // continue spawning AppStates for many seconds (often IDs 9→14). Do not
+    // spend SetAppParams retries while the requested slot does not exist yet.
+    await waitForSlotReady(config, id, log, 75_000, {
+      label: "before params",
+    });
     let lastErr = null;
     for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
       try {
