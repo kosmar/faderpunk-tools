@@ -3361,9 +3361,11 @@
         }
         if (p.tag === "i32" && row.app === "super_lfo") {
           if (i32i === 0 && row.mixBalance != null) {
-            p.value = Math.max(0, Math.min(100, Number(row.mixBalance) || 50));
+            const n = Number(row.mixBalance);
+            p.value = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50));
           } else if (i32i === 1 && row.rateModDepth != null) {
-            p.value = Math.max(0, Math.min(100, Number(row.rateModDepth) || 50));
+            const n = Number(row.rateModDepth);
+            p.value = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50));
           }
           i32i++;
         }
@@ -3539,7 +3541,8 @@
     }
 
     function rowCcNum(row) {
-      return Math.max(0, Math.min(127, Number(row?.cc) || 32));
+      const n = Number(row?.cc);
+      return Math.max(0, Math.min(127, Number.isFinite(n) ? n : 32));
     }
 
     function ensureNoteAndCc(row) {
@@ -5055,6 +5058,29 @@
         return row.schemaValues;
       }
       row.schemaValues = cat.params.map((p) => defaultValueForParam(p, row, portKey));
+      if (row.app === "super_lfo") {
+        // Only seed a newly-created schema from legacy fields. Once present,
+        // schemaValues is canonical and must never be overlaid before sending.
+        const sv = row.schemaValues;
+        const setEnum = (i, raw, min, max) => {
+          const n = Number(raw);
+          if (sv[i]?.tag === "Enum" && Number.isFinite(n)) {
+            sv[i] = enumVal(Math.max(min, Math.min(max, n)));
+          }
+        };
+        const setI32 = (i, raw, fallback) => {
+          const n = Number(raw);
+          if (sv[i]?.tag === "i32" && raw != null) {
+            sv[i] = i32(Math.max(0, Math.min(100, Number.isFinite(n) ? n : fallback)));
+          }
+        };
+        setEnum(0, row.lfoSpeed, 0, Number.MAX_SAFE_INTEGER);
+        setEnum(8, row.mixMode, 0, 3);
+        setEnum(9, row.oscB, 0, 1);
+        setI32(10, row.mixBalance, 50);
+        setI32(11, row.rateModDepth, 50);
+        setEnum(12, row.cvDest, 0, 8);
+      }
       // Overlay denormalized column fields onto matching slots
       applyColumnOverlaysToSchema(row, portKey);
       if (row.app === "vamp") {
@@ -5137,26 +5163,13 @@
           sv[11] = enumVal(Math.max(0, Math.min(3, Number(row.gateMode) || 0)));
         }
       }
-      if (APPS_WITH_SPEED.has(row.app) && row.lfoSpeed != null && sv[0]?.tag === "Enum") {
+      if (
+        row.app !== "super_lfo" &&
+        APPS_WITH_SPEED.has(row.app) &&
+        row.lfoSpeed != null &&
+        sv[0]?.tag === "Enum"
+      ) {
         sv[0] = enumVal(Number(row.lfoSpeed));
-      }
-      if (row.app === "super_lfo") {
-        // 8 Mix Mode, 9 Osc B, 10 Mix balance, 11 Rate-mod depth, 12 CV Dest
-        if (sv[8]?.tag === "Enum" && row.mixMode != null) {
-          sv[8] = enumVal(Math.max(0, Math.min(3, Number(row.mixMode) || 0)));
-        }
-        if (sv[9]?.tag === "Enum" && row.oscB != null) {
-          sv[9] = enumVal(Math.max(0, Math.min(1, Number(row.oscB) || 0)));
-        }
-        if (sv[10]?.tag === "i32" && row.mixBalance != null) {
-          sv[10] = i32(Math.max(0, Math.min(100, Number(row.mixBalance) || 50)));
-        }
-        if (sv[11]?.tag === "i32" && row.rateModDepth != null) {
-          sv[11] = i32(Math.max(0, Math.min(100, Number(row.rateModDepth) || 50)));
-        }
-        if (sv[12]?.tag === "Enum" && row.cvDest != null) {
-          sv[12] = enumVal(Math.max(0, Math.min(8, Number(row.cvDest) || 0)));
-        }
       }
       const wantPort = row.port || portKey;
       const col = resolveColor(row, 0);
@@ -5482,6 +5495,17 @@
       }
       if (p.tag === "bool" && /bypass|quant/i.test(p.value?.name || "")) {
         row.bypassQ = !!value.value;
+      }
+      if (row.app === "super_lfo") {
+        const n = Number(Array.isArray(value?.value) ? value.value[0] : value?.value);
+        if (Number.isFinite(n)) {
+          if (pi === 0) row.lfoSpeed = n;
+          else if (pi === 8) row.mixMode = Math.max(0, Math.min(3, n));
+          else if (pi === 9) row.oscB = Math.max(0, Math.min(1, n));
+          else if (pi === 10) row.mixBalance = Math.max(0, Math.min(100, n));
+          else if (pi === 11) row.rateModDepth = Math.max(0, Math.min(100, n));
+          else if (pi === 12) row.cvDest = Math.max(0, Math.min(8, n));
+        }
       }
       if (p.tag === "Enum" && row.app === "fibonacci_gate") {
         if (/^Mode$/i.test(p.value?.name || "")) {
@@ -6504,7 +6528,8 @@
               allChs.push(chN);
             }
             if (val?.tag === "MidiCc") {
-              midiCc = Number(Array.isArray(val.value) ? val.value[0] : val.value) || 32;
+              const n = Number(Array.isArray(val.value) ? val.value[0] : val.value);
+              midiCc = Number.isFinite(n) ? n : 32;
             }
             if (val?.tag === "MidiNote") {
               const nn = Number(Array.isArray(val.value) ? val.value[0] : val.value);
@@ -7712,7 +7737,8 @@
           }
         }
       } else if (k === "mixBalance") {
-        rowRef.mixBalance = Math.max(0, Math.min(100, Number(el.value) || 50));
+        const n = Number(el.value);
+        rowRef.mixBalance = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50));
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
@@ -7721,7 +7747,8 @@
           }
         }
       } else if (k === "rateModDepth") {
-        rowRef.rateModDepth = Math.max(0, Math.min(100, Number(el.value) || 50));
+        const n = Number(el.value);
+        rowRef.rateModDepth = Math.max(0, Math.min(100, Number.isFinite(n) ? n : 50));
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
