@@ -1089,7 +1089,7 @@
       opacity: 0.32;
       pointer-events: none;
     }
-    /* Row meteors are clickable — push all params for that slot. */
+    /* Row meteors are clickable — SetLayout + params for that slot. */
     .row-meteor[data-row-meteor],
     .row-meteor[data-global-meteor] {
       pointer-events: auto;
@@ -8372,11 +8372,18 @@
     }
 
     /**
-     * App swap / add / remove / reorder → SetLayout + SetAppParams.
-     * @param {{ rowIndexes?: number[], allParams?: boolean }} opts
+     * App swap / add / remove / reorder / row-meteor → SetLayout + SetAppParams.
+     * @param {{
+     *   rowIndexes?: number[],
+     *   allParams?: boolean,
+     *   immediate?: boolean,
+     *   force?: boolean,
+     * }} opts
      */
     function scheduleLiveStructurePush(opts = {}) {
-      if (!livePushEnabled()) {
+      const force = !!opts.force;
+      const immediate = !!opts.immediate;
+      if (!force && !livePushEnabled()) {
         markLiveLayoutDirty();
         return;
       }
@@ -8385,8 +8392,11 @@
         return;
       }
       // Merge pending structure work
-      if (!liveStructureOpts) liveStructureOpts = { rowIndexes: [], allParams: false };
+      if (!liveStructureOpts) {
+        liveStructureOpts = { rowIndexes: [], allParams: false, force: false };
+      }
       if (opts.allParams) liveStructureOpts.allParams = true;
+      if (force) liveStructureOpts.force = true;
       for (const ri of opts.rowIndexes || []) liveStructureOpts.rowIndexes.push(ri);
       if (liveStructureOpts.allParams) {
         markRowMeteorPending(preset().rows.map((_, i) => i));
@@ -8398,14 +8408,19 @@
         return;
       }
       if (liveStructureTimer) clearTimeout(liveStructureTimer);
+      if (immediate) {
+        liveStructureTimer = null;
+        flushLiveStructurePush({ force: liveStructureOpts.force });
+        return;
+      }
       liveStructureTimer = setTimeout(() => {
         liveStructureTimer = null;
-        flushLiveStructurePush();
+        flushLiveStructurePush({ force: !!liveStructureOpts?.force });
       }, 700);
     }
 
-    async function flushLiveStructurePush() {
-      if (!livePushEnabled() || pushLive || livePushInFlight) return;
+    async function flushLiveStructurePush({ force = false } = {}) {
+      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       const opts = liveStructureOpts;
       liveStructureOpts = null;
       if (!opts) return;
@@ -8429,17 +8444,20 @@
         }
         let paramLayoutIds = null;
         if (!opts.allParams) {
-          paramLayoutIds = [];
+          const lids = [];
           for (const rowIndex of opts.rowIndexes || []) {
             const lid = layoutIdForRowIndex(sc, rowIndex);
-            if (lid != null) paramLayoutIds.push(lid);
+            if (lid != null) lids.push(lid);
           }
-          if (paramLayoutIds.length !== 1) paramLayoutIds = null;
+          // Specific slots only — empty means SetLayout with no param write.
+          paramLayoutIds = [...new Set(lids)];
         }
         appendPushLog(
-          paramLayoutIds
-            ? `→ Live structure · SetLayout + params [${paramLayoutIds.join(",")}]`
-            : "→ Live structure · SetLayout + all params",
+          paramLayoutIds == null
+            ? "→ Live structure · SetLayout + all params"
+            : paramLayoutIds.length
+              ? `→ Live structure · SetLayout + params [${paramLayoutIds.join(",")}]`
+              : "→ Live structure · SetLayout only",
         );
         await midi.pushLiveStructureToDevice(setup, {
           paramLayoutIds,
@@ -8774,8 +8792,13 @@
       ev.stopPropagation();
       const i = Number(el.dataset.rowMeteor);
       if (!Number.isFinite(i)) return;
-      // Click = push all params for this slot now (works with Live off too).
-      scheduleLiveParamPush(i, { immediate: true, force: true });
+      // Click = SetLayout (full editor map) + SetAppParams for this slot
+      // (works with Live off too — fixes "layout out of sync" after app swap).
+      scheduleLiveStructurePush({
+        rowIndexes: [i],
+        immediate: true,
+        force: true,
+      });
     }
     document.getElementById("rows")?.addEventListener("click", onRowMeteorActivate);
     document.getElementById("rows")?.addEventListener("keydown", onRowMeteorActivate);

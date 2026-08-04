@@ -51,9 +51,40 @@ function settleMsForLayout(appCount, baseMs, { capMs = null } = {}) {
   return ms;
 }
 
-/** Stable log / params order: channel ascending. Firmware spawns by channel. */
+/** Stable log / params order: channel ascending. Firmware places by channel. */
 function compareChannelOrder(a, b) {
   return (Number(a.startChannel) || 0) - (Number(b.startChannel) || 0);
+}
+
+/**
+ * Apps that stall Embassy spawn when introduced early in an incremental Hold
+ * push. Wire layout still uses startChannel; only *addition* order is deferred
+ * (see tools/push-playground.mjs — Chord Vamp last).
+ */
+const SPAWN_DEFER_APP_IDS = new Set([
+  35, // vamp / Chord Vamp
+]);
+
+/**
+ * Incremental spawn order: light apps first, deferred/heavy last.
+ * Final positions remain startChannel via buildSendLayout.
+ */
+export function compareSpawnOrder(a, b) {
+  const aDefer = SPAWN_DEFER_APP_IDS.has(Number(a.app?.appId)) ? 1 : 0;
+  const bDefer = SPAWN_DEFER_APP_IDS.has(Number(b.app?.appId)) ? 1 : 0;
+  if (aDefer !== bDefer) return aDefer - bDefer;
+  const aWide = Number(a.app?.channels) > 1 ? 1 : 0;
+  const bWide = Number(b.app?.channels) > 1 ? 1 : 0;
+  if (aWide !== bWide) return aWide - bWide;
+  return compareChannelOrder(a, b);
+}
+
+function isHeavySpawnSlot(slot, index, total) {
+  const channels = Number(slot.app?.channels) || 1;
+  if (channels > 1) return true;
+  if (SPAWN_DEFER_APP_IDS.has(Number(slot.app?.appId))) return true;
+  // Dense tail: last stretch of a packed layout (pool pressure).
+  return index >= Math.max(6, total - 5);
 }
 
 /** Place apps at final startChannel (holes OK). Falls back to packed order. */
@@ -172,14 +203,23 @@ async function probeConfigCable(config) {
 /**
  * GetVersion works during LAYOUT_USB_MIDI_MUTE; SetAppParams does not (empty
  * AppState). Poll GetAppParams until the slot actually has a param_handler.
+ * @param {{ label?: string }} [opts]
  */
-async function waitForSlotReady(config, layoutId, log, timeoutMs = 12000) {
+async function waitForSlotReady(
+  config,
+  layoutId,
+  log,
+  timeoutMs = 12000,
+  opts = {},
+) {
   const id = Number(layoutId);
-  log(`  wait layoutId=${id} ready (not muted / spawned) …`);
+  const label = opts.label ? ` ${opts.label}` : "";
+  log(`  wait layoutId=${id}${label} ready (not muted / spawned) …`);
   const deadline = Date.now() + timeoutMs;
   let lastDetail = "no reply";
   let emptyStreak = 0;
   let warnedScope = false;
+  let checkedLayout = false;
   while (Date.now() < deadline) {
     try {
       drainConfigQueue(config.rx);
@@ -202,6 +242,31 @@ async function waitForSlotReady(config, layoutId, log, timeoutMs = 12000) {
       }
       emptyStreak++;
       lastDetail = "empty AppState (mute or not spawned)";
+      // Once: confirm the layoutId is actually on the device (not a phantom wait).
+      if (emptyStreak >= 3 && !checkedLayout) {
+        checkedLayout = true;
+        try {
+          drainConfigQueue(config.rx);
+          const lay = await sendAndReceiveExpect(
+            config,
+            { tag: "GetLayout" },
+            "Layout",
+            { timeoutMs: 3000, attempts: 2 },
+          );
+          const check = verifyLayoutSlot(lay.value, id, opts.expectAppId ?? null);
+          if (!check.ok) {
+            throw new Error(
+              `layoutId=${id} missing from device after SetLayout (${check.reason})`,
+            );
+          }
+          log(
+            `  · layout ok (ch${check.found.ch} app=${check.found.appId}) — still spawning …`,
+          );
+        } catch (le) {
+          if (String(le.message || le).includes("missing from device")) throw le;
+          log(`  ⚠ GetLayout check: ${le.message || le}`);
+        }
+      }
       // Scopepunk soft-poll / GetAllAppParams often injects empty AppStates
       // mid-spawn — back off so our next GetAppParams can land.
       if (emptyStreak >= 6 && !warnedScope) {
@@ -214,6 +279,7 @@ async function waitForSlotReady(config, layoutId, log, timeoutMs = 12000) {
       continue;
     } catch (e) {
       lastDetail = e.message || String(e);
+      if (String(lastDetail).includes("missing from device")) throw e;
       // Resync probe — if Version works, keep polling; if not, surface cable death.
       try {
         await probeConfigCable(config);
@@ -226,7 +292,8 @@ async function waitForSlotReady(config, layoutId, log, timeoutMs = 12000) {
     await delay(250);
   }
   throw new Error(
-    `layoutId=${id} not ready after SetLayout (${lastDetail}). Close Scopepunk / other config-MIDI tabs, Release mute, retry Push.`,
+    `layoutId=${id}${label} not ready after SetLayout (${lastDetail}). ` +
+      `Close Scopepunk / other config-MIDI tabs; if a prior Push aborted, LEDs may stay muted — retry Push (auto-releases Hold).`,
   );
 }
 
@@ -306,6 +373,9 @@ async function applySetLayout(
  *
  * Hold → clear → for each app: SetLayout(prefix) + wait slot → SetAppParams
  * → Release (FW store + unmute). Never kicks a deferred multi-app spawn burst.
+ *
+ * Addition order uses compareSpawnOrder (defer Chord Vamp / wide apps); wire
+ * positions stay at startChannel so holes fill without reshuffling neighbors.
  */
 async function applySetLayoutIncremental(
   config,
@@ -320,7 +390,7 @@ async function applySetLayoutIncremental(
     log("SetLayout (0 apps) …");
     return config;
   }
-  const ordered = [...activeSlots].sort(compareChannelOrder);
+  const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
     `Incremental SetLayout under Hold (${n} apps): ${ordered
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
@@ -330,6 +400,20 @@ async function applySetLayoutIncremental(
   let holdingMute = false;
 
   try {
+    // Aborted Push can leave the device in Hold (parked apps / empty AppState).
+    try {
+      await sendAndReceiveExpect(
+        cfg,
+        { tag: "ReleasePerfMute" },
+        "Pong",
+        { timeoutMs: 1500, attempts: 1 },
+      );
+      log("  ReleasePerfMute (clear stale Hold from prior Push)");
+      await delay(400);
+    } catch {
+      /* not held — fine */
+    }
+
     await sendAndReceiveExpect(
       cfg,
       { tag: "HoldPerfMute" },
@@ -354,28 +438,58 @@ async function applySetLayoutIncremental(
       growing.push(ordered[i]);
       const slot = ordered[i];
       const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
-      // Dense tail (many live tasks): longer settle so param_handler is up
-      // before we poll — Control ×5 at the end is the usual failure window.
-      const denseTail = i >= 7;
+      const heavy = isHeavySpawnSlot(slot, i, n);
+      const settleOpts = {
+        headStartMs: heavy ? 900 : 400,
+        pollBudgetMs: heavy ? 4000 : 2500,
+      };
+      const waitMs = heavy ? 45_000 : 35_000;
+      const stepLabel = `SetLayout (${i + 1}/${n}) ${label}`;
+
       cfg = await applySetLayout(
         cfg,
         growing,
         log,
         LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
-        `SetLayout (${i + 1}/${n}) ${label}`,
-        {
-          headStartMs: denseTail ? 900 : 400,
-          pollBudgetMs: denseTail ? 4000 : 2500,
-        },
+        stepLabel,
+        settleOpts,
       );
-      if (denseTail) await delay(600);
-      // Confirm this slot's param_handler is up before adding the next app.
-      cfg = await waitForSlotReady(cfg, slot.id, log, denseTail ? 45_000 : 35_000);
-      await delay(denseTail ? 400 : 250);
+      if (heavy) await delay(600);
+
+      const waitOpts = {
+        label,
+        expectAppId: slot.app?.appId,
+      };
+      try {
+        cfg = await waitForSlotReady(cfg, slot.id, log, waitMs, waitOpts);
+      } catch (waitErr) {
+        // One re-SetLayout — spawn sometimes misses under pool pressure.
+        log(
+          `  ⚠ ${waitErr.message || waitErr} — re-SetLayout + retry wait`,
+        );
+        cfg = await applySetLayout(
+          cfg,
+          growing,
+          log,
+          LAYOUT_SETTLE_INCREMENTAL_MS,
+          deviceRef,
+          `${stepLabel} (retry)`,
+          {
+            headStartMs: 1200,
+            pollBudgetMs: 5000,
+          },
+        );
+        await delay(800);
+        cfg = await waitForSlotReady(cfg, slot.id, log, waitMs, waitOpts);
+      }
+      await delay(heavy ? 400 : 250);
     }
 
-    const ids = ordered.map((s) => Number(s.id));
+    // Params in channel order (matches firmware / editor expectations).
+    const ids = [...ordered]
+      .sort(compareChannelOrder)
+      .map((s) => Number(s.id));
     log("  SetAppParams (all) …");
     await applySetAppParams(cfg, paramsById, ids, log);
 
@@ -397,6 +511,7 @@ async function applySetLayoutIncremental(
           "Pong",
           { timeoutMs: 5000, attempts: 1 },
         );
+        log("  ReleasePerfMute (after error)");
       } catch {
         /* ignore */
       }

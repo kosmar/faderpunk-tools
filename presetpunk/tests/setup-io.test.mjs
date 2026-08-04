@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildSendLayout,
+  compareSpawnOrder,
   normalizeValueForWire,
   padParams,
   verifyLayoutSlot,
@@ -153,6 +154,51 @@ test("buildSendLayout: out-of-range startChannel is skipped", () => {
   ]);
   assert.deepEqual(layout[0][15], [ECHOLOT, 1, 1]);
   assert.ok(layout[0].slice(0, 15).every((s) => s === undefined));
+});
+
+// ---- compareSpawnOrder (incremental Full Push) -------------------------------
+
+const VAMP = 35;
+const SUPER_LFO = 32;
+
+test("compareSpawnOrder: defers Chord Vamp to the end", () => {
+  const slots = [
+    { id: 3, app: { appId: VAMP, channels: 1, name: "Chord Vamp" }, startChannel: 3 },
+    { id: 0, app: { appId: GROOVES, channels: 1, name: "Grooves" }, startChannel: 0 },
+    { id: 5, app: { appId: ECHOLOT, channels: 1, name: "Echolot" }, startChannel: 5 },
+  ];
+  const ordered = [...slots].sort(compareSpawnOrder);
+  assert.equal(ordered[0].app.appId, GROOVES);
+  assert.equal(ordered[1].app.appId, ECHOLOT);
+  assert.equal(ordered[2].app.appId, VAMP);
+});
+
+test("compareSpawnOrder: multi-channel after 1ch, before deferred vamp", () => {
+  const slots = [
+    { id: 3, app: { appId: VAMP, channels: 1 }, startChannel: 3 },
+    { id: 6, app: { appId: SUPER_LFO, channels: 2 }, startChannel: 6 },
+    { id: 0, app: { appId: GROOVES, channels: 1 }, startChannel: 0 },
+  ];
+  const ordered = [...slots].sort(compareSpawnOrder);
+  assert.deepEqual(
+    ordered.map((s) => s.app.appId),
+    [GROOVES, SUPER_LFO, VAMP],
+  );
+});
+
+test("compareSpawnOrder: wire layout still places vamp at its startChannel", () => {
+  // Addition order ≠ channel order; buildSendLayout must keep holes.
+  const growing = [
+    { id: 0, app: { appId: GROOVES, channels: 1 }, startChannel: 0 },
+    { id: 5, app: { appId: ECHOLOT, channels: 1 }, startChannel: 5 },
+    { id: 3, app: { appId: VAMP, channels: 1 }, startChannel: 3 },
+  ];
+  const lay = buildSendLayout(growing);
+  assert.deepEqual(lay[0][0], [GROOVES, 1, 0]);
+  assert.equal(lay[0][1], undefined);
+  assert.equal(lay[0][2], undefined);
+  assert.deepEqual(lay[0][3], [VAMP, 1, 3]);
+  assert.deepEqual(lay[0][5], [ECHOLOT, 1, 5]);
 });
 
 // ---- wire regression: SetAppParams must serialize ----------------------------
