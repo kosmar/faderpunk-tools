@@ -4933,22 +4933,40 @@
 
     function defaultValueForParam(param, row, portKey) {
       const tag = param?.tag;
+      const pname = String(param.value?.name || "");
       if (tag === "Enum") {
         // Harmonica CV Gate: default 200 ms (index 3).
-        if (/^CV Gate$/i.test(String(param.value?.name || ""))) {
+        if (/^CV Gate$/i.test(pname)) {
+          return enumVal(3);
+        }
+        // Control Issues MIDI Rate: 100 Hz (index 3 of 10/25/50/100/250).
+        if (/^MIDI Rate$/i.test(pname)) {
           return enumVal(3);
         }
         return enumVal(0);
       }
       if (tag === "i32") {
         // Harmonica Strum: off by default — a midpoint would strum unasked.
-        if (/^Strum ms$/i.test(String(param.value?.name || ""))) return i32(0);
+        if (/^Strum ms$/i.test(pname)) return i32(0);
+        // Control Issues / CC windows: mid defaults clamp the signal flat.
+        if (/^Steps$/i.test(pname)) return i32(0);
+        if (/^Output Min$/i.test(pname)) {
+          return i32(Number(param.value?.min) || 0);
+        }
+        if (/^Output Max$/i.test(pname)) {
+          const max = Number(param.value?.max);
+          return i32(Number.isFinite(max) ? max : 127);
+        }
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
         const mid = Math.round((min + max) / 2);
         return i32(Math.max(min, Math.min(max, mid)));
       }
       if (tag === "f32") {
+        // Control Issues Gate Threshold firmware default is 2 V.
+        if (/^Gate Threshold$/i.test(pname)) {
+          return { tag: "f32", value: 2.0 };
+        }
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
         return { tag: "f32", value: (min + max) / 2 };
