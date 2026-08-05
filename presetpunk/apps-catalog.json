@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "/Users/kosmar/Projects/faderpunk-playground/faderpunk/src/apps CONFIG (tools/gen-apps-catalog.py)",
+  "source": "/Users/kosmar/Projects/faderpunk/faderpunk/src/apps CONFIG (tools/gen-apps-catalog.py)",
   "apps": [
     {
       "id": 1,
@@ -2139,11 +2139,11 @@
     },
     {
       "id": 29,
-      "slug": "heat_pump",
+      "slug": "house_pump",
       "module": "heat_pump",
       "channels": 1,
       "name": "Heat Pump",
-      "description": "Clock-synced sidechain ducking: hold + log release",
+      "description": "Clock-synced sidechain ducking envelope",
       "color": "Pink",
       "icon": "AdEnv",
       "params": [
@@ -2248,7 +2248,7 @@
       "module": "grooves",
       "channels": 1,
       "name": "Grooves",
-      "description": "Multi-genre MIDI drum grooves with feel",
+      "description": "Multi-genre MIDI drum grooves with swing",
       "color": "Orange",
       "icon": "Die",
       "params": [
@@ -2295,11 +2295,10 @@
             "variants": [
               "Dub",
               "Disco",
+              "Hip-Hop",
               "House",
               "Techno",
               "Trip-Hop",
-              "Hip-Hop",
-              "Jungle",
               "UK Garage",
               "Dubstep"
             ]
@@ -2319,6 +2318,38 @@
             "name": "GATE %",
             "min": 1,
             "max": 100
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Yellow"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Rose"
+              }
+            ]
           }
         },
         {
@@ -2354,7 +2385,7 @@
             "name": "CV Dest",
             "variants": [
               "Density",
-              "Feel",
+              "Swing",
               "Reset"
             ]
           }
@@ -2990,11 +3021,10 @@
             "variants": [
               "Dub",
               "Disco",
+              "Hip-Hop",
               "House",
               "Techno",
               "Trip-Hop",
-              "Hip-Hop",
-              "Jungle",
               "UK Garage",
               "Dubstep"
             ]
@@ -3352,12 +3382,7 @@
           }
         },
         {
-          "tag": "i32",
-          "value": {
-            "name": "Strum ms",
-            "min": 0,
-            "max": 200
-          }
+          "tag": "None"
         }
       ]
     },
@@ -3458,6 +3483,165 @@
         },
         {
           "tag": "VoltPerOct"
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "slug": "control_issues",
+      "module": "control_issues",
+      "channels": 1,
+      "name": "Control Issues",
+      "description": "Shape CV and send it as MIDI control",
+      "color": "Pink",
+      "icon": "Attenuate",
+      "params": [
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Input Mode",
+            "variants": [
+              "Continuous",
+              "Gate"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_0_5V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Transfer",
+            "variants": [
+              "Linear",
+              "Logarithmic",
+              "Exponential",
+              "S-Curve",
+              "Rectify",
+              "Fold"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Slew Mode",
+            "variants": [
+              "Both",
+              "Rise",
+              "Fall"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Steps",
+            "min": 0,
+            "max": 128
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Output Min",
+            "min": 0,
+            "max": 127
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Output Max",
+            "min": 0,
+            "max": 127
+          }
+        },
+        {
+          "tag": "f32",
+          "value": {
+            "name": "Gate Threshold",
+            "min": 0.0,
+            "max": 10.0
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "MIDI Rate",
+            "variants": [
+              "10 Hz",
+              "25 Hz",
+              "50 Hz",
+              "100 Hz",
+              "250 Hz"
+            ]
+          }
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiNrpn"
+        },
+        {
+          "tag": "MidiOut"
         }
       ]
     }
