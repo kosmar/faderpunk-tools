@@ -3298,19 +3298,20 @@
       let sawMidiIn = false;
       let sawMidiOut = false;
       let stampedOutCh = false;
-      let stampedLoneCh = false;
       for (const p of out) {
         if (!p || typeof p !== "object") continue;
         if (p.tag === "MidiIn") sawMidiIn = true;
         if (p.tag === "MidiOut") sawMidiOut = true;
         if (p.tag === "MidiChannel") {
+          // Keep in sync with lib/midi-channel-overlay.js shouldStampMidiChannelFromRowCh.
           const n = Math.max(1, Math.min(16, Number(row.ch) || 1));
+          const name = String(p.value?.name || "");
           if (sawMidiOut && !stampedOutCh) {
             p.value = [n];
             stampedOutCh = true;
-          } else if (!sawMidiIn && !stampedLoneCh) {
+          } else if (!sawMidiIn && !/\bin\b/i.test(name)) {
+            // Control: stamp MIDI Channel AND Button Channel (not only first).
             p.value = [n];
-            stampedLoneCh = true;
           }
         }
         if (row.kind === "both" || APPS_WITH_NOTE_AND_CC.has(row.app)) {
@@ -4026,7 +4027,6 @@
       let sawMidiIn = false;
       let sawMidiOut = false;
       let stampedOutCh = false;
-      let stampedLoneCh = false;
       let firstCc = false;
       let firstNote = false;
       const wantColor = colorForApp(
@@ -4039,12 +4039,14 @@
         if (p.tag === "MidiIn") sawMidiIn = true;
         if (p.tag === "MidiOut") sawMidiOut = true;
         if (p.tag === "MidiChannel") {
+          // Keep in sync with lib/midi-channel-overlay.js shouldStampMidiChannelFromRowCh.
+          const name = String(p.value?.name || "");
           if (sawMidiOut && !stampedOutCh) {
             p.value = [chNum];
             stampedOutCh = true;
-          } else if (!sawMidiIn && !stampedLoneCh) {
+          } else if (!sawMidiIn && !/\bin\b/i.test(name)) {
+            // Control: stamp MIDI Channel AND Button Channel (not only first).
             p.value = [chNum];
-            stampedLoneCh = true;
           }
         }
         if (p.tag === "MidiMode" && APPS_WITH_MIDI_MODE.has(row.app)) {
@@ -5210,7 +5212,6 @@
           : row.app === "grooves"
             ? groovesNotes(row)
             : null;
-      const midiChCount = cat.params.filter((p) => p?.tag === "MidiChannel").length;
       cat.params.forEach((p, i) => {
         const v = row.schemaValues[i];
         if (!v || !p) return;
@@ -5222,15 +5223,21 @@
         if (p.tag === "Range" && row.cvRange) v.value = { tag: row.cvRange };
         if (p.tag === "MidiMode") v.value = { tag: rowMidiMode(row) };
         if (p.tag === "MidiChannel") {
+          // Keep in sync with lib/midi-channel-overlay.js (unit-tested).
           if (chs && ci < chs.length) {
             v.value = [chs[ci++]];
-          } else if (midiChCount === 1 && ci === 0) {
-            // Single-CH apps: denormalized row.ch owns the only MidiChannel.
-            v.value = [Math.max(1, Math.min(16, Number(row.ch) || 1))];
+          } else if (!chs) {
+            // No per-slot chs: stamp non-In channels from row.ch.
+            // Control has MIDI Channel + Button Channel — both must follow
+            // instrument select (old midiChCount===1 guard wrongly skipped them).
+            // Named "… In …" stays untouched (Harmonica/Echolot defensive).
+            const name = String(p.value?.name || "");
+            if (!/\bin\b/i.test(name)) {
+              v.value = [Math.max(1, Math.min(16, Number(row.ch) || 1))];
+            }
             ci++;
           } else {
-            // In+Out (Harmonica, Echolot-style): keep per-slot schemaValues —
-            // never clobber MIDI In CH with row.ch (often the Out/instrument CH).
+            // chs present but exhausted — keep schema
             ci++;
           }
         }
