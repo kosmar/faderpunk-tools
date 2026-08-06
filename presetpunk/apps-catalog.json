@@ -3644,6 +3644,103 @@
           "tag": "MidiOut"
         }
       ]
+    },
+    {
+      "id": 40,
+      "slug": "venn",
+      "module": "venn",
+      "channels": 2,
+      "name": "Venn",
+      "description": "Dual Euclidean layers with boolean logic (OR/AND/XOR/Accnt)",
+      "color": "Cyan",
+      "icon": "Euclid",
+      "params": [
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note A"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note B"
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Division",
+            "min": 1,
+            "max": 12
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "GATE %",
+            "min": 1,
+            "max": 100
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Prob %",
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Vel %",
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        }
+      ]
     }
   ]
 }

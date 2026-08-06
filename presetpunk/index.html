@@ -5063,6 +5063,31 @@
       return claimed;
     }
 
+    /**
+     * Control Issues: classic Presetpunk mid-default Output Min=Max=64 freezes
+     * the CC and kills the button downbeat blink (firmware needs out > out_lo).
+     * Keep in sync with lib/control-issues-defaults.js (unit-tested).
+     */
+    function healControlIssuesSchemaValues(row, cat) {
+      if (row?.app !== "control_issues" || !Array.isArray(row.schemaValues)) return;
+      const params = cat?.params || [];
+      let minI = -1;
+      let maxI = -1;
+      params.forEach((p, i) => {
+        if (p?.tag !== "i32") return;
+        const name = String(p.value?.name || "");
+        if (/^Output Min$/i.test(name)) minI = i;
+        if (/^Output Max$/i.test(name)) maxI = i;
+      });
+      if (minI < 0 || maxI < 0) return;
+      const minV = Number(row.schemaValues[minI]?.value);
+      const maxV = Number(row.schemaValues[maxI]?.value);
+      if (minV === 64 && maxV === 64) {
+        row.schemaValues[minI] = i32(0);
+        row.schemaValues[maxI] = i32(127);
+      }
+    }
+
     function ensureSchemaValues(row, portKey) {
       const cat = catalogApp(row.app);
       if (!cat) return null;
@@ -5072,10 +5097,12 @@
       }
       const n = cat.params.length;
       if (Array.isArray(row.schemaValues) && row.schemaValues.length === n) {
+        healControlIssuesSchemaValues(row, cat);
         return row.schemaValues;
       }
       if (Array.isArray(row.rawParams) && row.rawParams.length === n) {
         row.schemaValues = structuredClone(row.rawParams);
+        healControlIssuesSchemaValues(row, cat);
         return row.schemaValues;
       }
       row.schemaValues = cat.params.map((p) => defaultValueForParam(p, row, portKey));
@@ -5139,6 +5166,7 @@
           if (!Number.isFinite(v) || v === 64) sv[i32I] = i32(100);
         }
       }
+      healControlIssuesSchemaValues(row, cat);
       return row.schemaValues;
     }
 
