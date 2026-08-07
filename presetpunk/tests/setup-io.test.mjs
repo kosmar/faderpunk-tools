@@ -164,7 +164,7 @@ const VAMP = 35;
 const SUPER_LFO = 32;
 const HOLD_SAM = 36;
 
-test("spawnWeight: multi-channel and large param vectors cost more", () => {
+test("spawnWeight: large param vectors cost more; multi-ch flagged heavy", () => {
   assert.equal(
     spawnWeight({ app: { appId: 1, channels: 1, paramCount: 6 } }),
     1,
@@ -179,7 +179,7 @@ test("spawnWeight: multi-channel and large param vectors cost more", () => {
   );
   assert.equal(
     spawnWeight({ app: { appId: SUPER_LFO, channels: 2, paramCount: 9 } }),
-    4,
+    3,
   );
 });
 
@@ -196,33 +196,33 @@ test("partitionBySpawnWeight: heavies are multi-ch / large params, not named app
     [HOLD_SAM, BERNOULLI],
   );
   assert.deepEqual(
-    heavy.map((s) => s.app.appId),
-    [GROOVES, SUPER_LFO],
+    heavy.map((s) => s.app.appId).sort((a, b) => a - b),
+    [GROOVES, SUPER_LFO].sort((a, b) => a - b),
   );
 });
 
-test("compareSpawnOrder: lighter weight before heavier", () => {
+test("compareSpawnOrder: multi-channel before 1ch (quiet bus first)", () => {
   const slots = [
     { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16, name: "Chord Vamp" }, startChannel: 3 },
     { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8, name: "Grooves" }, startChannel: 0 },
-    { id: 5, app: { appId: ECHOLOT, channels: 1, paramCount: 8, name: "Echolot" }, startChannel: 5 },
+    { id: 6, app: { appId: SUPER_LFO, channels: 2, paramCount: 9, name: "Super LFO" }, startChannel: 6 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
-  assert.equal(ordered[0].app.appId, GROOVES);
-  assert.equal(ordered[1].app.appId, ECHOLOT);
+  assert.equal(ordered[0].app.appId, SUPER_LFO);
+  assert.equal(ordered[1].app.appId, GROOVES);
   assert.equal(ordered[2].app.appId, VAMP);
 });
 
-test("compareSpawnOrder: multi-channel after 1ch light, before heavy params", () => {
+test("compareSpawnOrder: among 1ch, fewer params first", () => {
   const slots = [
     { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16 }, startChannel: 3 },
-    { id: 6, app: { appId: SUPER_LFO, channels: 2, paramCount: 9 }, startChannel: 6 },
     { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8 }, startChannel: 0 },
+    { id: 5, app: { appId: ECHOLOT, channels: 1, paramCount: 8 }, startChannel: 5 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.appId),
-    [GROOVES, VAMP, SUPER_LFO],
+    [GROOVES, ECHOLOT, VAMP],
   );
 });
 

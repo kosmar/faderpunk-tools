@@ -106,21 +106,21 @@ function compareChannelOrder(a, b) {
 
 /**
  * Spawn cost heuristic (no per-app special cases).
- * Higher weight → later wave under dense Hold pushes.
- * Signals: channel footprint, multi-channel, large param vectors.
+ * Higher weight → later in incremental Full Push.
+ * Multi-channel is sorted separately (early) — see compareSpawnOrder.
  */
 export function spawnWeight(slot) {
   if (!slot?.app) return 0;
   const channels = Math.max(1, Number(slot.app.channels) || 1);
   const params = Number(slot.app.paramCount) || 0;
-  let w = channels;
-  if (channels > 1) w += 2;
+  let w = 1;
   if (params >= 14) w += 2;
   else if (params >= 11) w += 1;
+  if (channels > 1) w += 2; // still "heavy" for settle/pause sizing
   return w;
 }
 
-/** Minimum weight to ride in the heavy wave (multi-ch or large param apps). */
+/** Minimum weight for "heavy" settle/pause (large params or multi-ch). */
 const HEAVY_SPAWN_WEIGHT = 3;
 
 /**
@@ -184,18 +184,25 @@ function estimateAtomicSpawnMs(appCount) {
 }
 
 /**
- * Incremental / wave order: lighter spawnWeight first, then channel.
+ * Incremental Full Push order:
+ *   1) multi-channel first (while the bus is still quiet),
+ *   2) then lighter param vectors,
+ *   3) channel as tie-break.
  * Final wire positions remain startChannel via buildSendLayout.
  */
 export function compareSpawnOrder(a, b) {
-  const dw = spawnWeight(a) - spawnWeight(b);
-  if (dw) return dw;
+  const aWide = Number(a.app?.channels) > 1 ? 0 : 1;
+  const bWide = Number(b.app?.channels) > 1 ? 0 : 1;
+  if (aWide !== bWide) return aWide - bWide;
+  const aParams = Number(a.app?.paramCount) || 0;
+  const bParams = Number(b.app?.paramCount) || 0;
+  if (aParams !== bParams) return aParams - bParams;
   return compareChannelOrder(a, b);
 }
 
 function isHeavySpawnSlot(slot, index, total) {
+  if (Number(slot.app?.channels) > 1) return true;
   if (spawnWeight(slot) >= HEAVY_SPAWN_WEIGHT) return true;
-  // Dense tail: last stretch of a packed layout (pool pressure).
   return index >= Math.max(6, total - 5);
 }
 
@@ -501,6 +508,15 @@ async function applySetLayout(
     throw new Error(`SetLayout failed: ${layoutAck.tag}`);
   }
 
+  const quietMs = Math.max(0, Number(settleOpts.quietMs) || 0);
+  if (quietMs > 0) {
+    // Configurator-style AddApp path: do not stack GetVersion requests while
+    // the firmware is spawning apps. SetAppParams is the next cable check.
+    log(`  quiet settle ${quietMs}ms (no cable polling) …`);
+    await delay(quietMs);
+    return config;
+  }
+
   const headStart = settleOpts.headStartMs ?? 800;
   const pollBudget =
     settleOpts.pollBudgetMs ??
@@ -546,12 +562,12 @@ async function applySetLayout(
 
 /**
  * Full Push — Configurator AddApp loop, not one giant Recall:
- *   Release → for each app: SetLayout(growing) → short pause → SetAppParams(that id).
+ *   for each app: [Hold if multi-ch / dense-tail] → SetLayout(growing) →
+ *   pause → SetAppParams → [Release].
  *
- * A single 13-app SetLayout wedges the config cable within ~3s on dense WIP
- * presets (soft-mute expires / spawn storm). Configurator rarely does that;
- * it adds apps one SetLayout at a time (500ms). Gen-9 stall was Hold+repeated
- * SetLayout — without Hold, one-new-app-per-layout reaps cleanly.
+ * Order: multi-channel first (quiet bus), then light params → heavy params.
+ * Gen-9 stall was Hold+every SetLayout; late multi-ch (Venn as 11/13) needs
+ * a brief Hold — early multi-ch and plain 1ch adds stay unmuted.
  */
 async function applySetLayoutIncremental(
   config,
@@ -566,10 +582,10 @@ async function applySetLayoutIncremental(
     log("SetLayout (0 apps) …");
     return config;
   }
-  // Light apps first reduces early USB stress; wire positions stay startChannel.
+  // Multi-ch first, then light params; wire positions stay startChannel.
   const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
-    `Incremental SetLayout (${n} apps, no Hold): ${ordered
+    `Incremental SetLayout (${n} apps): ${ordered
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
       .join(" → ")}`,
   );
@@ -596,47 +612,83 @@ async function applySetLayoutIncremental(
     growing.push(slot);
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
+    const channels = Number(slot.app?.channels) || 1;
     const heavy = isHeavySpawnSlot(slot, i, n);
-    const pauseMs = heavy || i >= 8 ? 700 : 500;
+    const multiCh = channels > 1;
+    // Late dense adds (esp. multi-ch) need Local MIDI held or the SetLayout
+    // spawn wedges the config cable — seen at Venn as 11/13.
+    const stepHold = multiCh || (heavy && i >= 8);
+    const pauseMs = multiCh ? 1200 : heavy || i >= 8 ? 800 : 500;
+    let stepHeld = false;
 
-    cfg = await applySetLayout(
-      cfg,
-      growing,
-      log,
-      LAYOUT_SETTLE_INCREMENTAL_MS,
-      deviceRef,
-      `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
-      {
-        headStartMs: heavy ? 900 : 500,
-        pollBudgetMs: heavy || i >= 8 ? 4500 : 2800,
-      },
-    );
+    if (stepHold) {
+      try {
+        await sendAndReceiveExpect(
+          cfg,
+          { tag: "HoldPerfMute" },
+          "Pong",
+          { timeoutMs: 2000, attempts: 2 },
+        );
+        stepHeld = true;
+        log(
+          `  HoldPerfMute (${multiCh ? "multi-channel" : "dense-tail"} add)`,
+        );
+        await delay(400);
+      } catch {
+        log("  ⚠ HoldPerfMute unavailable for this step");
+      }
+    }
 
-    // Configurator AddApp: delay(500) then touch params — stay in soft-mute.
-    log(`  pause ${pauseMs}ms …`);
-    await delay(pauseMs);
-
-    const id = Number(slot.id);
     try {
-      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+      cfg = await applySetLayout(
+        cfg,
+        growing,
+        log,
+        LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
-        underHold: false,
-        skipReadyWait: true,
-      });
-    } catch (e) {
-      log(`  ⚠ SetAppParams(${id}): ${e.message || e}`);
-      if (!deviceRef) throw e;
-      log("  retry: reconnect + SetAppParams …");
-      disconnectDevice(deviceRef.device);
-      await delay(1000);
-      deviceRef.device = await connectDevice();
-      cfg = deviceRef.device.config;
-      log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
-      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-        deviceRef,
-        underHold: false,
-        skipReadyWait: true,
-      });
+        `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+        {
+          quietMs: pauseMs,
+        },
+      );
+
+      const id = Number(slot.id);
+      try {
+        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+          deviceRef,
+          underHold: stepHeld,
+          skipReadyWait: true,
+        });
+      } catch (e) {
+        log(`  ⚠ SetAppParams(${id}): ${e.message || e}`);
+        if (!deviceRef) throw e;
+        log("  retry: reconnect + SetAppParams …");
+        disconnectDevice(deviceRef.device);
+        await delay(1000);
+        deviceRef.device = await connectDevice();
+        cfg = deviceRef.device.config;
+        log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+          deviceRef,
+          underHold: false,
+          skipReadyWait: true,
+        });
+      }
+    } finally {
+      if (stepHeld) {
+        try {
+          await sendAndReceiveExpect(
+            cfg,
+            { tag: "ReleasePerfMute" },
+            "Pong",
+            { timeoutMs: 4000, attempts: 2 },
+          );
+          log("  ReleasePerfMute");
+          await delay(400);
+        } catch (e) {
+          log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+        }
+      }
     }
   }
 
