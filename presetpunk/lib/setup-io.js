@@ -562,12 +562,11 @@ async function applySetLayout(
 
 /**
  * Full Push — Configurator AddApp loop, not one giant Recall:
- *   for each app: [Hold if multi-ch / dense-tail] → SetLayout(growing) →
- *   pause → SetAppParams → [Release].
+ *   for each app: SetLayout(growing) → quiet pause → SetAppParams.
  *
  * Order: multi-channel first (quiet bus), then light params → heavy params.
- * Gen-9 stall was Hold+every SetLayout; late multi-ch (Venn as 11/13) needs
- * a brief Hold — early multi-ch and plain 1ch adds stay unmuted.
+ * HoldPerfMute must not wrap a step: firmware parks the new app under Hold,
+ * so SetAppParams receives an empty AppState and subsequent retries wedge USB.
  */
 async function applySetLayoutIncremental(
   config,
@@ -615,80 +614,55 @@ async function applySetLayoutIncremental(
     const channels = Number(slot.app?.channels) || 1;
     const heavy = isHeavySpawnSlot(slot, i, n);
     const multiCh = channels > 1;
-    // Late dense adds (esp. multi-ch) need Local MIDI held or the SetLayout
-    // spawn wedges the config cable — seen at Venn as 11/13.
-    const stepHold = multiCh || (heavy && i >= 8);
     const pauseMs = multiCh ? 1200 : heavy || i >= 8 ? 800 : 500;
-    let stepHeld = false;
 
-    if (stepHold) {
-      try {
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "HoldPerfMute" },
-          "Pong",
-          { timeoutMs: 2000, attempts: 2 },
-        );
-        stepHeld = true;
-        log(
-          `  HoldPerfMute (${multiCh ? "multi-channel" : "dense-tail"} add)`,
-        );
-        await delay(400);
-      } catch {
-        log("  ⚠ HoldPerfMute unavailable for this step");
-      }
-    }
+    cfg = await applySetLayout(
+      cfg,
+      growing,
+      log,
+      LAYOUT_SETTLE_INCREMENTAL_MS,
+      deviceRef,
+      `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+      {
+        quietMs: pauseMs,
+      },
+    );
 
+    const id = Number(slot.id);
     try {
-      cfg = await applySetLayout(
-        cfg,
-        growing,
-        log,
-        LAYOUT_SETTLE_INCREMENTAL_MS,
+      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
         deviceRef,
-        `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
-        {
-          quietMs: pauseMs,
-        },
-      );
-
-      const id = Number(slot.id);
-      try {
-        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-          deviceRef,
-          underHold: stepHeld,
-          skipReadyWait: true,
-        });
-      } catch (e) {
-        log(`  ⚠ SetAppParams(${id}): ${e.message || e}`);
-        if (!deviceRef) throw e;
-        log("  retry: reconnect + SetAppParams …");
-        disconnectDevice(deviceRef.device);
-        await delay(1000);
-        deviceRef.device = await connectDevice();
-        cfg = deviceRef.device.config;
-        log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+        underHold: false,
+        skipReadyWait: true,
+        maxAttempts: 1,
+      });
+    } catch (e) {
+      const message = String(e.message || e);
+      log(`  ⚠ SetAppParams(${id}): ${message}`);
+      if (message.includes("empty AppState")) {
+        log("  slot still spawning — quiet wait 1500ms, then one retry …");
+        await delay(1500);
         cfg = await applySetAppParams(cfg, paramsById, [id], log, {
           deviceRef,
           underHold: false,
           skipReadyWait: true,
+          maxAttempts: 1,
         });
+        continue;
       }
-    } finally {
-      if (stepHeld) {
-        try {
-          await sendAndReceiveExpect(
-            cfg,
-            { tag: "ReleasePerfMute" },
-            "Pong",
-            { timeoutMs: 4000, attempts: 2 },
-          );
-          log("  ReleasePerfMute");
-          await delay(400);
-        } catch (e) {
-          log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
-        }
-      }
+      if (!deviceRef) throw e;
+      log("  retry: reconnect + SetAppParams …");
+      disconnectDevice(deviceRef.device);
+      await delay(1000);
+      deviceRef.device = await connectDevice();
+      cfg = deviceRef.device.config;
+      log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+        deviceRef,
+        underHold: false,
+        skipReadyWait: true,
+        maxAttempts: 1,
+      });
     }
   }
 
@@ -805,6 +779,10 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
   const deviceRef = opts.deviceRef || null;
   const underHold = !!opts.underHold;
   const skipReadyWait = !!opts.skipReadyWait;
+  const maxAttempts = Math.max(
+    1,
+    Number(opts.maxAttempts) || SET_PARAMS_RETRIES,
+  );
   const ids =
     layoutIds == null
       ? [...paramsById.keys()].map(Number)
@@ -827,7 +805,7 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
       });
     }
     let lastErr = null;
-    for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         drainConfigQueue(cfg.rx);
         const response = await sendAndReceiveExpect(
@@ -856,12 +834,14 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
       } catch (e) {
         lastErr = e;
         log(
-          `  ⚠ SetAppParams(${id}) attempt ${attempt + 1}/${SET_PARAMS_RETRIES}: ${e.message || e}`,
+          `  ⚠ SetAppParams(${id}) attempt ${attempt + 1}/${maxAttempts}: ${e.message || e}`,
         );
-        const wait = String(e.message || e).includes("empty AppState")
-          ? 2500
-          : 1000 + attempt * 600;
-        await delay(wait);
+        if (attempt + 1 < maxAttempts) {
+          const wait = String(e.message || e).includes("empty AppState")
+            ? 2500
+            : 1000 + attempt * 600;
+          await delay(wait);
+        }
       }
     }
     if (lastErr) {
