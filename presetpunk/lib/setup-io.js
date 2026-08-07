@@ -65,6 +65,7 @@ function compareChannelOrder(a, b) {
  */
 const SPAWN_DEFER_APP_IDS = new Set([
   35, // vamp / Chord Vamp
+  36, // hold_sam — heavy jack/MIDI init wedges USB if spawned mid-poll without Hold
 ]);
 
 /**
@@ -205,7 +206,12 @@ async function probeConfigCable(config) {
 /**
  * GetVersion works during LAYOUT_USB_MIDI_MUTE; SetAppParams does not (empty
  * AppState). Poll GetAppParams until the slot actually has a param_handler.
- * @param {{ label?: string }} [opts]
+ *
+ * Under Hold, FW answers empty AppState in ~400ms while apps are still gated;
+ * without Hold, a missing param_handler blocks the config loop up to 3s and
+ * can wedge USB (seen reproducibly when Hold Sam is the last spawn).
+ *
+ * @param {{ label?: string, expectAppId?: number, deviceRef?: { device: object }, underHold?: boolean }} [opts]
  */
 async function waitForSlotReady(
   config,
@@ -214,31 +220,51 @@ async function waitForSlotReady(
   timeoutMs = 12000,
   opts = {},
 ) {
+  let cfg = config;
   const id = Number(layoutId);
   const label = opts.label ? ` ${opts.label}` : "";
+  const deviceRef = opts.deviceRef || null;
+  const underHold = !!opts.underHold;
   log(`  wait layoutId=${id}${label} ready (not muted / spawned) …`);
   const deadline = Date.now() + timeoutMs;
   let lastDetail = "no reply";
   let emptyStreak = 0;
   let warnedScope = false;
   let checkedLayout = false;
+  let quietStreak = 0;
+  let reconnects = 0;
+  const maxReconnects = 2;
+  // Prefer cache / short polls under Hold (400ms FW path); avoid stacking
+  // multi-second GetAppParams waits while later channels are still spawning.
+  const getTimeoutMs = underHold ? 1500 : 3500;
   while (Date.now() < deadline) {
     try {
-      const cached = cachedAppState(config.rx, id);
+      const cached = cachedAppState(cfg.rx, id);
       const cachedValues = cached?.value?.[1];
       if (Array.isArray(cachedValues) && cachedValues.length > 0) {
         log(`  ✓ layoutId=${id} ready (${cachedValues.length} params · cached)`);
-        return config;
+        return cfg;
       }
-      drainConfigQueue(config.rx);
+      // Brief passive window: spawn often pushes AppState without a poll.
+      await delay(underHold ? 200 : 350);
+      {
+        const again = cachedAppState(cfg.rx, id);
+        const vals = again?.value?.[1];
+        if (Array.isArray(vals) && vals.length > 0) {
+          log(`  ✓ layoutId=${id} ready (${vals.length} params · cached)`);
+          return cfg;
+        }
+      }
+      drainConfigQueue(cfg.rx);
       // Host wait must exceed FW GetAppParams timeout under Hold (400ms) and
       // the non-hold 3s path — otherwise we desync SysEx and never recover.
       const response = await sendAndReceiveExpect(
-        config,
+        cfg,
         { tag: "GetAppParams", value: { layout_id: id } },
         "AppState",
-        { timeoutMs: 5000, attempts: 2, matchLayoutId: id },
+        { timeoutMs: getTimeoutMs, attempts: 2, matchLayoutId: id },
       );
+      quietStreak = 0;
       const n = Array.isArray(response.value?.[1])
         ? response.value[1].length
         : Array.isArray(response.value?.values)
@@ -246,7 +272,7 @@ async function waitForSlotReady(
           : 0;
       if (n > 0) {
         log(`  ✓ layoutId=${id} ready (${n} params)`);
-        return config;
+        return cfg;
       }
       emptyStreak++;
       lastDetail = "empty AppState (mute or not spawned)";
@@ -254,9 +280,9 @@ async function waitForSlotReady(
       if (emptyStreak >= 3 && !checkedLayout) {
         checkedLayout = true;
         try {
-          drainConfigQueue(config.rx);
+          drainConfigQueue(cfg.rx);
           const lay = await sendAndReceiveExpect(
-            config,
+            cfg,
             { tag: "GetLayout" },
             "Layout",
             { timeoutMs: 3000, attempts: 2 },
@@ -283,21 +309,50 @@ async function waitForSlotReady(
           "  ⚠ still empty — close Scopepunk / other tabs on the config MIDI cable",
         );
       }
-      await delay(Math.min(1200, 300 + emptyStreak * 80));
+      await delay(Math.min(1600, 400 + emptyStreak * 100));
       continue;
     } catch (e) {
       lastDetail = e.message || String(e);
       if (String(lastDetail).includes("missing from device")) throw e;
-      // Resync probe — if Version works, keep polling; if not, surface cable death.
+      // Resync probe — if Version works, keep polling; if not, reconnect or fail.
       try {
-        await probeConfigCable(config);
+        await probeConfigCable(cfg);
+        quietStreak = 0;
       } catch (cableErr) {
-        throw new Error(
-          `layoutId=${id} not ready; config cable quiet (${cableErr.message || cableErr}). Close Scopepunk / Configurator, then retry.`,
+        quietStreak++;
+        lastDetail = `config cable quiet (${cableErr.message || cableErr})`;
+        if (!deviceRef || reconnects >= maxReconnects) {
+          throw new Error(
+            `layoutId=${id} not ready; ${lastDetail}. Close Scopepunk / Configurator, then retry.`,
+          );
+        }
+        // One quiet probe is often mid-spawn noise — back off before reconnect.
+        if (quietStreak < 2) {
+          log(`  ⚠ cable quiet (layoutId=${id}) — backoff …`);
+          await delay(800);
+          continue;
+        }
+        reconnects += 1;
+        quietStreak = 0;
+        log(
+          `  ⚠ cable quiet while waiting layoutId=${id} — reconnect ${reconnects}/${maxReconnects} …`,
         );
+        disconnectDevice(deviceRef.device);
+        await delay(1000);
+        try {
+          deviceRef.device = await connectDevice();
+          cfg = deviceRef.device.config;
+          log(
+            `  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`,
+          );
+        } catch (re) {
+          throw new Error(
+            `layoutId=${id} not ready; USB lost (${re.message || re})`,
+          );
+        }
       }
     }
-    await delay(250);
+    await delay(300);
   }
   throw new Error(
     `layoutId=${id}${label} not ready after SetLayout (${lastDetail}). ` +
@@ -377,13 +432,13 @@ async function applySetLayout(
 }
 
 /**
- * Full Push: clear/reap old tasks, apply final layout once, then wait slots.
+ * Full Push: clear/reap old tasks, apply final layout once under Hold, then wait.
  *
  * Repeated growing SetLayout calls outrun firmware 1.11 task reaping and stall
- * reproducibly on the ninth layout generation. A single atomic SetLayout
- * creates only one new generation. The clear/reap phase prevents old and new
- * static app pools from overlapping; readiness polling then follows firmware's
- * channel spawn order before parameters are written.
+ * on the ninth generation — so the final layout is atomic (one generation).
+ * Clear/reap runs released so old pool slots free; the final spawn runs under
+ * HoldPerfMute so FW uses paced spawn + start-gate and apps like Hold Sam
+ * park heavy jack/MIDI init until Release (avoids USB wedge on dense presets).
  */
 async function applySetLayoutIncremental(
   config,
@@ -405,9 +460,10 @@ async function applySetLayoutIncremental(
       .join(" → ")}`,
   );
   let cfg = config;
+  let held = false;
 
-  // Aborted older Pushes may have left the device held. Release once, then
-  // leave it released so Embassy can reap old tasks between SetLayout calls.
+  // Aborted older Pushes may have left the device held. Release so Embassy can
+  // reap during clear; Hold again only for the final dense spawn.
   try {
     await sendAndReceiveExpect(
       cfg,
@@ -441,34 +497,72 @@ async function applySetLayoutIncremental(
   log("  reap old app tasks 10s …");
   await delayKeepalive(cfg, 10_000);
 
-  clearCachedAppStates(cfg.rx);
-  cfg = await applySetLayout(
-    cfg,
-    appLayout,
-    log,
-    LAYOUT_SETTLE_INCREMENTAL_MS,
-    deviceRef,
-    `SetLayout (final ${n} apps)`,
-    {
-      headStartMs: 1800,
-      pollBudgetMs: Math.max(10_000, n * 900),
-    },
-  );
+  try {
+    try {
+      await sendAndReceiveExpect(
+        cfg,
+        { tag: "HoldPerfMute" },
+        "Pong",
+        { timeoutMs: 2000, attempts: 2 },
+      );
+      held = true;
+      log("  HoldPerfMute (paced spawn · park heavy app init)");
+      await delay(300);
+    } catch {
+      log("  ⚠ HoldPerfMute unavailable — spawning without hold");
+    }
 
-  log(`  wait ${n} slots in channel spawn order …`);
-  for (const slot of ordered) {
-    const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
-    await waitForSlotReady(cfg, slot.id, log, 90_000, {
-      label,
-      expectAppId: slot.app?.appId,
+    clearCachedAppStates(cfg.rx);
+    // Under Hold, FW stagger+breath for 13 apps is ~20–30s; settle only needs
+    // GetVersion once, then waitForSlotReady covers the rest.
+    cfg = await applySetLayout(
+      cfg,
+      appLayout,
+      log,
+      LAYOUT_SETTLE_INCREMENTAL_MS,
+      deviceRef,
+      `SetLayout (final ${n} apps)`,
+      {
+        headStartMs: held ? 2500 : 1800,
+        pollBudgetMs: Math.max(held ? 18_000 : 10_000, n * (held ? 1400 : 900)),
+      },
+    );
+
+    log(`  wait ${n} slots in channel spawn order …`);
+    for (const slot of ordered) {
+      const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
+      cfg = await waitForSlotReady(cfg, slot.id, log, 90_000, {
+        label,
+        expectAppId: slot.app?.appId,
+        deviceRef,
+        underHold: held,
+      });
+      await delay(held ? 150 : 250);
+    }
+
+    const ids = ordered.map((s) => Number(s.id));
+    log("  SetAppParams (all) …");
+    cfg = await applySetAppParams(cfg, paramsById, ids, log, {
+      deviceRef,
+      underHold: held,
     });
-    await delay(250);
+    return cfg;
+  } finally {
+    if (held) {
+      try {
+        await sendAndReceiveExpect(
+          cfg,
+          { tag: "ReleasePerfMute" },
+          "Pong",
+          { timeoutMs: 5000, attempts: 2 },
+        );
+        log("  ReleasePerfMute");
+        await delay(400);
+      } catch (e) {
+        log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+      }
+    }
   }
-
-  const ids = ordered.map((s) => Number(s.id));
-  log("  SetAppParams (all) …");
-  await applySetAppParams(cfg, paramsById, ids, log);
-  return cfg;
 }
 
 /** Poll GetAppParams until every layoutId has a live param_handler. */
@@ -576,7 +670,10 @@ function buildAppLayout(setup, allApps, log) {
   return { appLayout, paramsById };
 }
 
-async function applySetAppParams(config, paramsById, layoutIds, log) {
+async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) {
+  let cfg = config;
+  const deviceRef = opts.deviceRef || null;
+  const underHold = !!opts.underHold;
   const ids =
     layoutIds == null
       ? [...paramsById.keys()].map(Number)
@@ -591,15 +688,17 @@ async function applySetAppParams(config, paramsById, layoutIds, log) {
     // SetLayout ACK and GetVersion only prove transport health. Dense layouts
     // continue spawning AppStates for many seconds (often IDs 9→14). Do not
     // spend SetAppParams retries while the requested slot does not exist yet.
-    await waitForSlotReady(config, id, log, 75_000, {
+    cfg = await waitForSlotReady(cfg, id, log, 75_000, {
       label: "before params",
+      deviceRef,
+      underHold,
     });
     let lastErr = null;
     for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
       try {
-        drainConfigQueue(config.rx);
+        drainConfigQueue(cfg.rx);
         const response = await sendAndReceiveExpect(
-          config,
+          cfg,
           {
             tag: "SetAppParams",
             value: {
@@ -646,11 +745,12 @@ async function applySetAppParams(config, paramsById, layoutIds, log) {
     await setOne(id);
   }
   try {
-    await assertConfigCableAlive(config, log);
+    await assertConfigCableAlive(cfg, log);
     log("  ✓ config cable alive after params");
   } catch (e) {
     log(`  ⚠ ${e.message || e}`);
   }
+  return cfg;
 }
 
 async function getAllApps(config, log) {
@@ -934,6 +1034,9 @@ export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
  * Live structural push: SetLayout + SetAppParams for selected (or all) slots.
  * Used when swapping an app / adding / reordering — not a param-only tweak.
  *
+ * Dense layouts (or Hold Sam) use HoldPerfMute so FW parks heavy jack/MIDI
+ * init until Release — otherwise the config cable wedges mid-spawn.
+ *
  * @param {object} setup
  * @param {{
  *   onLog?: (line: string) => void,
@@ -950,6 +1053,8 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
   }
 
   let device;
+  let held = false;
+  let config;
   try {
     log("Connecting via Web MIDI …");
     device = await connectDevice();
@@ -957,19 +1062,70 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     const deviceRef = { device };
     const allApps = await getAllApps(deviceRef.device.config, log);
     const { appLayout, paramsById } = buildAppLayout(setup, allApps, log);
-    const config = await applySetLayout(
-      deviceRef.device.config,
-      appLayout,
-      log,
-      settleMs,
-      deviceRef,
-    );
-    device = deviceRef.device;
-    const ids =
-      opts.paramLayoutIds == null
-        ? null
-        : opts.paramLayoutIds.map(Number).filter((n) => Number.isFinite(n));
-    await applySetAppParams(config, paramsById, ids, log);
+    const n = appLayout.filter((s) => s.app).length;
+    // Hold Sam (app 36) and other dense spawns wedge USB without hold.
+    const needsHold =
+      n >= 8 ||
+      appLayout.some((s) => Number(s.app?.appId) === 36);
+
+    config = deviceRef.device.config;
+    if (needsHold) {
+      try {
+        await sendAndReceiveExpect(
+          config,
+          { tag: "HoldPerfMute" },
+          "Pong",
+          { timeoutMs: 2000, attempts: 2 },
+        );
+        held = true;
+        log("  HoldPerfMute (live dense / Hold Sam)");
+        await delay(300);
+      } catch {
+        log("  ⚠ HoldPerfMute unavailable — continuing without hold");
+      }
+    }
+
+    try {
+      config = await applySetLayout(
+        config,
+        appLayout,
+        log,
+        settleMs,
+        deviceRef,
+        undefined,
+        needsHold
+          ? {
+              headStartMs: 2000,
+              pollBudgetMs: Math.max(12_000, n * 1200),
+            }
+          : undefined,
+      );
+      device = deviceRef.device;
+      const ids =
+        opts.paramLayoutIds == null
+          ? null
+          : opts.paramLayoutIds.map(Number).filter((n) => Number.isFinite(n));
+      config = await applySetAppParams(config, paramsById, ids, log, {
+        deviceRef,
+        underHold: held,
+      });
+    } finally {
+      if (held) {
+        try {
+          await sendAndReceiveExpect(
+            config,
+            { tag: "ReleasePerfMute" },
+            "Pong",
+            { timeoutMs: 5000, attempts: 2 },
+          );
+          log("  ReleasePerfMute");
+          await delay(400);
+        } catch (e) {
+          log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+        }
+      }
+    }
+
     const ms = Date.now() - t0;
     log(`Live structure done · ${(ms / 1000).toFixed(1)}s`);
     return { ok: true, ms, version: device.config.version };

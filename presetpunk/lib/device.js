@@ -4,7 +4,10 @@ import { buildConfigFrame, parseConfigFrame, SYSEX_EOX, SYSEX_START } from "./sy
 const RECEIVE_TIMEOUT_MS = 2000;
 // The device can answer slowly while app tasks are spawning or immediately
 // after USB reconnect. 300 ms caused valid config ports to be rejected.
-const PROBE_TIMEOUT_MS = 1000;
+const PROBE_TIMEOUT_MS = 1200;
+/** After a wedged Full Push, GetVersion often needs a few retries. */
+const CONNECT_PROBE_ROUNDS = 3;
+const CONNECT_PROBE_GAP_MS = 700;
 
 function attachConfigInput(input) {
   const rx = {
@@ -136,17 +139,22 @@ export async function connectDevice() {
 
   let config = null;
   const sawPorts = inputs.length > 0 && outputs.length > 0;
-  for (const output of outputs) {
-    for (const input of inputs) {
-      const version = await probePair(input, output);
-      if (version === null) continue;
-      const rx = attachConfigInput(input);
-      await input.open();
-      await output.open();
-      config = { input, output, version, rx };
-      break;
+  for (let round = 0; round < CONNECT_PROBE_ROUNDS && !config; round++) {
+    if (round > 0) {
+      await new Promise((r) => setTimeout(r, CONNECT_PROBE_GAP_MS * round));
     }
-    if (config) break;
+    for (const output of outputs) {
+      for (const input of inputs) {
+        const version = await probePair(input, output);
+        if (version === null) continue;
+        const rx = attachConfigInput(input);
+        await input.open();
+        await output.open();
+        config = { input, output, version, rx };
+        break;
+      }
+      if (config) break;
+    }
   }
 
   if (!config) {
