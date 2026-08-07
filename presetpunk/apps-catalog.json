@@ -2143,7 +2143,7 @@
       "module": "heat_pump",
       "channels": 1,
       "name": "Heat Pump",
-      "description": "Clock-synced sidechain ducking envelope",
+      "description": "Clock-synced sidechain ducking: hold + log release",
       "color": "Pink",
       "icon": "AdEnv",
       "params": [
@@ -2248,7 +2248,7 @@
       "module": "grooves",
       "channels": 1,
       "name": "Grooves",
-      "description": "Multi-genre MIDI drum grooves with swing",
+      "description": "Multi-genre MIDI drum grooves with feel",
       "color": "Orange",
       "icon": "Die",
       "params": [
@@ -2295,10 +2295,11 @@
             "variants": [
               "Dub",
               "Disco",
-              "Hip-Hop",
               "House",
               "Techno",
               "Trip-Hop",
+              "Hip-Hop",
+              "Jungle",
               "UK Garage",
               "Dubstep"
             ]
@@ -2318,38 +2319,6 @@
             "name": "GATE %",
             "min": 1,
             "max": 100
-          }
-        },
-        {
-          "tag": "Color",
-          "value": {
-            "name": "Color",
-            "variants": [
-              {
-                "tag": "Orange"
-              },
-              {
-                "tag": "Yellow"
-              },
-              {
-                "tag": "Pink"
-              },
-              {
-                "tag": "Cyan"
-              },
-              {
-                "tag": "Violet"
-              },
-              {
-                "tag": "Green"
-              },
-              {
-                "tag": "Blue"
-              },
-              {
-                "tag": "Rose"
-              }
-            ]
           }
         },
         {
@@ -2385,7 +2354,7 @@
             "name": "CV Dest",
             "variants": [
               "Density",
-              "Swing",
+              "Feel",
               "Reset"
             ]
           }
@@ -3021,10 +2990,11 @@
             "variants": [
               "Dub",
               "Disco",
-              "Hip-Hop",
               "House",
               "Techno",
               "Trip-Hop",
+              "Hip-Hop",
+              "Jungle",
               "UK Garage",
               "Dubstep"
             ]
@@ -3483,6 +3453,21 @@
         },
         {
           "tag": "VoltPerOct"
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Decay Mode",
+            "variants": [
+              "Random",
+              "Pitch Up",
+              "Pitch Down",
+              "Vel + Root",
+              "Pitch Root",
+              "Velocity",
+              "Gate"
+            ]
+          }
         }
       ]
     },
@@ -3668,9 +3653,24 @@
           }
         },
         {
-          "tag": "MidiNote",
+          "tag": "Enum",
           "value": {
-            "name": "MIDI Note B"
+            "name": "Interval B",
+            "variants": [
+              "Unison",
+              "m2",
+              "M2",
+              "m3",
+              "M3",
+              "P4",
+              "TT",
+              "P5",
+              "m6",
+              "M6",
+              "m7",
+              "M7",
+              "Octave"
+            ]
           }
         },
         {
