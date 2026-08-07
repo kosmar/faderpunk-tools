@@ -4,6 +4,20 @@ function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "");
 }
 
+/** Semantic badge tint by gesture / channel role. */
+export function badgeRole(label: string): string {
+  const g = label.trim().toLowerCase();
+  if (/^f\d/.test(g) || /\bjack\b/.test(g)) return "jack";
+  if (/^(main|fader)\b/.test(g) || /\bch\d+\s*main\b/.test(g)) return "main";
+  if (/^alt\b/.test(g)) return "alt";
+  if (/^third\b/.test(g)) return "third";
+  if (/^(btn|hold|short|long)\b/.test(g) && !/shift/.test(g)) return "btn";
+  if (/shift/.test(g)) return "shift";
+  if (/^led/.test(g)) return "led";
+  if (/cv\s*dest|jack params/.test(g)) return "jack";
+  return "default";
+}
+
 /** Pull leading <strong>…</strong> (+ optional hint) from a cheatsheet line. */
 function parseGestureLine(html: string): {
   gesture: string;
@@ -42,6 +56,10 @@ function splitZones(body: string): { lead: string; zones: string[] } | null {
   return { lead, zones };
 }
 
+function GestureBadge({ label }: { label: string }) {
+  return <span className={`ux-badge role-${badgeRole(label)}`}>{label}</span>;
+}
+
 function GestureRow({ html }: { html: string }) {
   const { gesture, hint, body } = parseGestureLine(html);
   const zones = splitZones(body);
@@ -51,7 +69,7 @@ function GestureRow({ html }: { html: string }) {
     <div className={hasGesture ? "ux-row" : "ux-row plain"}>
       {hasGesture && (
         <div className="ux-gesture">
-          <span className="ux-badge">{gesture}</span>
+          <GestureBadge label={gesture} />
           {hint ? <span className="ux-hint">{hint}</span> : null}
         </div>
       )}
@@ -99,15 +117,15 @@ function channelRows(
     if (!title && !desc) return;
     rows.push({ label, text: [title, desc].filter(Boolean).join(" — ") });
   };
-  push(`F${fader}`, ch.jackTitle, ch.jackDescription);
-  push("Main", ch.faderTitle, ch.faderDescription);
+  push(`F${fader} jack`, ch.jackTitle, ch.jackDescription);
+  push("Fader", ch.faderTitle, ch.faderDescription);
   push("Alt", ch.faderPlusShiftTitle, ch.faderPlusShiftDescription);
   push("Third", ch.faderPlusFnTitle, ch.faderPlusFnDescription);
   push("Btn", ch.fnTitle, ch.fnDescription);
   push("Shift", ch.fnPlusShiftTitle, ch.fnPlusShiftDescription);
-  if (ch.ledTop) rows.push({ label: "LED↑", text: ch.ledTop });
-  if (ch.ledTopPlusShift) rows.push({ label: "LED↑+S", text: ch.ledTopPlusShift });
-  if (ch.ledBottom) rows.push({ label: "LED↓", text: ch.ledBottom });
+  if (ch.ledTop) rows.push({ label: "LED top", text: ch.ledTop });
+  if (ch.ledTopPlusShift) rows.push({ label: "LED top+S", text: ch.ledTopPlusShift });
+  if (ch.ledBottom) rows.push({ label: "LED bottom", text: ch.ledBottom });
   return rows;
 }
 
@@ -157,7 +175,7 @@ export function AppUxPanel({ ux, startChannel, width }: Props) {
                   {rows.map((row) => (
                     <div key={row.label} className="ux-row">
                       <div className="ux-gesture">
-                        <span className="ux-badge">{row.label}</span>
+                        <GestureBadge label={row.label} />
                       </div>
                       <div className="ux-body">{row.text}</div>
                     </div>
