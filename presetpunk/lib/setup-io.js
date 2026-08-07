@@ -14,6 +14,8 @@ import {
 const LAYOUT_SETTLE_LIVE_MS = 3500;
 /** Incremental Full Push: one new app per SetLayout — short settle + cable poll. */
 const LAYOUT_SETTLE_INCREMENTAL_MS = 2000;
+/** Quiet teardown budget: 16 exits × 120ms + task reap + layout persistence. */
+const LAYOUT_CLEAR_QUIET_MS = 4000;
 const SET_PARAMS_RETRIES = 4;
 /** Pause after SetAppParams: firmware respawns the app (param_handler exits). */
 const SET_PARAMS_GAP_MS = 900;
@@ -562,7 +564,8 @@ async function applySetLayout(
 
 /**
  * Full Push — Configurator AddApp loop, not one giant Recall:
- *   for each app: SetLayout(growing) → quiet pause → SetAppParams.
+ *   clear old layout → quiet teardown → for each app:
+ *   SetLayout(growing) → quiet pause → SetAppParams.
  *
  * Order: multi-channel first (quiet bus), then light params → heavy params.
  * HoldPerfMute must not wrap a step: firmware parks the new app under Hold,
@@ -602,6 +605,21 @@ async function applySetLayoutIncremental(
   } catch {
     /* already released / older firmware */
   }
+
+  // SetLayout ACK precedes Core 1 processing. Without an explicit clear, the
+  // first one-app layout also tears down up to 16 old apps (120ms each), reaps
+  // their tasks, persists the empty layout, and only then starts the new app.
+  // A params request during that phase receives empty AppState and can wedge
+  // USB. Split teardown from spawn and remain completely silent throughout.
+  cfg = await applySetLayout(
+    cfg,
+    [],
+    log,
+    LAYOUT_SETTLE_INCREMENTAL_MS,
+    deviceRef,
+    "SetLayout (clear old apps)",
+    { quietMs: LAYOUT_CLEAR_QUIET_MS },
+  );
 
   clearCachedAppStates(cfg.rx);
 
