@@ -1583,6 +1583,47 @@ button.on.mute {
   text-overflow: ellipsis;
 }
 
+.ux-badge.role-jack {
+  color: #0c1a1a;
+  background: color-mix(in srgb, var(--fp-cyan) 72%, #f0f0f0);
+}
+
+.ux-badge.role-main {
+  color: #1a1408;
+  background: color-mix(in srgb, var(--fp-yellow) 78%, #fff);
+}
+
+.ux-badge.role-alt {
+  color: #1a0814;
+  background: color-mix(in srgb, var(--fp-magenta) 70%, #fff);
+}
+
+.ux-badge.role-third {
+  color: #1a1008;
+  background: color-mix(in srgb, var(--accent) 72%, #fff);
+}
+
+.ux-badge.role-btn {
+  color: #081410;
+  background: color-mix(in srgb, var(--ok) 68%, #fff);
+}
+
+.ux-badge.role-shift {
+  color: #10081a;
+  background: color-mix(in srgb, var(--fp-violet) 72%, #fff);
+}
+
+.ux-badge.role-led {
+  color: #d8d8d8;
+  background: #2a2a2a;
+  border: 1px solid #4a4a4a;
+}
+
+.ux-badge.role-default {
+  color: #101010;
+  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 78%, #e8e8e8);
+}
+
 .ux-hint {
   font-size: 8px;
   line-height: 1.25;
