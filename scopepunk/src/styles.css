@@ -1482,6 +1482,87 @@ button.on.mute {
   color: var(--muted);
 }
 
+.track-blurb {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-wire-inline {
+  color: color-mix(in srgb, var(--muted) 80%, var(--track, #888));
+}
+
+.track-actions .ux-toggle {
+  min-width: 1.6em;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.track-actions .ux-toggle.on {
+  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 28%, var(--tab));
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--track, var(--fp-cyan)) 55%, var(--line));
+}
+
+.app-ux {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px 8px 6px;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--track, var(--line)) 35%, var(--line));
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--track, #4cafb1) 8%, #161616);
+}
+
+.app-ux-sec h4 {
+  margin: 0 0 3px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--track, var(--fp-cyan)) 70%, var(--muted));
+}
+
+.app-ux-sec ul {
+  margin: 0;
+  padding: 0 0 0 1.1em;
+  list-style: disc;
+}
+
+.app-ux-sec li {
+  margin: 0 0 2px;
+  font-size: 10px;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+}
+
+.app-ux-sec li strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.app-ux-ch + .app-ux-ch {
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px solid color-mix(in srgb, var(--track, var(--line)) 22%, transparent);
+}
+
+.app-ux-ch-label {
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  color: var(--track, var(--fp-cyan));
+  margin-bottom: 2px;
+}
+
+.track.compact .app-ux {
+  padding: 6px 6px 4px;
+}
+
 .share-banner {
   display: flex;
   align-items: flex-start;

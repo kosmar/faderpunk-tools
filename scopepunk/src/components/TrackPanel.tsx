@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { colorCss, Scope, WaveProfile } from "./Scope";
 import {
   keyNoteOptions,
@@ -7,6 +7,9 @@ import {
 } from "../audio/music";
 import type { TrackRuntime } from "../store";
 import { useDiag } from "../store";
+import { AppUxPanel } from "../ux/AppUxPanel";
+import { loadAppUxCatalog, uxForApp } from "../ux/catalog";
+import type { AppUx } from "../ux/types";
 
 interface Props {
   runtime: TrackRuntime;
@@ -100,6 +103,8 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
   const clockBpm = useDiag((s) => s.clockBpm);
   const demo = useDiag((s) => s.demo);
   const faderChRef = useRef<HTMLSpanElement>(null);
+  const [ux, setUx] = useState<AppUx | null>(null);
+  const [uxOpen, setUxOpen] = useState(false);
   const {
     track,
     lanes,
@@ -115,6 +120,17 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
     collisionGroup,
     ambiguousHit,
   } = runtime;
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadAppUxCatalog().then((cat) => {
+      if (cancelled) return;
+      setUx(uxForApp(cat, track.app.appId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [track.app.appId]);
   const color = colorCss(String(track.app.color));
   const faderCh =
     track.width > 1
@@ -222,17 +238,48 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
           </span>
           <span className="track-copy">
             <strong>{track.app.name}</strong>
-            {!compact && !cvOnly && (
-              <small>
-                {muted ? "monitor muted · " : ""}
-                {wireLabel}
+            {!compact && (
+              <small className="track-blurb">
+                {ux?.blurb || track.app.description ? (
+                  <>
+                    {ux?.blurb || track.app.description}
+                    {!cvOnly && (
+                      <span className="track-wire-inline">
+                        {" · "}
+                        {muted ? "muted · " : ""}
+                        {wireLabel}
+                      </span>
+                    )}
+                    {cvOnly && muted && (
+                      <span className="mute-tag"> · monitor muted</span>
+                    )}
+                  </>
+                ) : !cvOnly ? (
+                  <>
+                    {muted ? "monitor muted · " : ""}
+                    {wireLabel}
+                  </>
+                ) : muted ? (
+                  <span className="mute-tag">monitor muted</span>
+                ) : null}
               </small>
             )}
-            {!compact && cvOnly && muted && <small className="mute-tag">monitor muted</small>}
             {compact && muted && <small className="mute-tag">muted</small>}
           </span>
         </button>
         <div className="track-actions">
+          {ux && (
+            <button
+              type="button"
+              className={uxOpen ? "on ux-toggle" : "ux-toggle"}
+              onClick={() => setUxOpen((o) => !o)}
+              title={uxOpen ? "Hide how to play" : "How to play"}
+              aria-expanded={uxOpen}
+              aria-controls={`ux-${track.key}`}
+            >
+              ?
+            </button>
+          )}
           <button
             type="button"
             className={muted ? "on mute" : ""}
@@ -275,6 +322,12 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
           </button>
         </div>
       </header>
+
+      {ux && uxOpen && (
+        <div id={`ux-${track.key}`}>
+          <AppUxPanel ux={ux} startChannel={track.startChannel} width={track.width} />
+        </div>
+      )}
 
       {compact && !cvOnly && primaryOut && (
         <div className="mini-scope" title={`Out · CH${primaryOut.channel}`}>
@@ -422,7 +475,7 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
             </dl>
           )}
 
-          {track.app.description && (
+          {!ux && track.app.description && (
             <p className="track-desc">{track.app.description}</p>
           )}
         </>

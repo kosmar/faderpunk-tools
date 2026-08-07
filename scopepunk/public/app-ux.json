@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "apps": {
+    "32": {
+      "id": 32,
+      "name": "Super LFO",
+      "blurb": "Morphing dual-osc LFO · 2 channels",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Morph · <strong>Alt</strong> — Attenuation (Amp)",
+            "<strong>Ch0 Third</strong> — Skew",
+            "<strong>Ch1 Main</strong> — Symmetry · <strong>Alt</strong> — Speed",
+            "<strong>Ch1 Third</strong> — Phase-Warp"
+          ]
+        },
+        {
+          "heading": "CV destinations (Ch0 Shift+Short)",
+          "items": [
+            "Blue Rate Mod · Pink Phase · Red Reset · Cyan Amp",
+            "Yellow Speed · Orange Morph · Violet Skew",
+            "Green Warp · Rose Symmetry"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Short</strong> — Freeze toggle (white)",
+            "<strong>Ch0 Long</strong> — In mute",
+            "<strong>Ch0 Shift+Short</strong> — Cycle CV Dest",
+            "<strong>Ch0 Shift+Long</strong> — Cycle Mix Mode",
+            "<strong>Ch1 Short</strong> — Phase reset",
+            "<strong>Ch1 Long</strong> — Out mute",
+            "<strong>Ch1 Shift+Short</strong> — Phase reverse",
+            "<strong>Ch1 Shift+Long</strong> — Clock sync toggle"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV In",
+          "jackDescription": "Modulates the selected CV Dest (attenuated)",
+          "faderTitle": "Morph",
+          "faderDescription": "Waveform morph amount",
+          "faderPlusShiftTitle": "Attenuation (Amp)",
+          "faderPlusShiftDescription": "Output / CV-in amplitude",
+          "faderPlusFnTitle": "Skew",
+          "faderPlusFnDescription": "Soft skew of the morph shape",
+          "fnTitle": "Freeze",
+          "fnDescription": "Short: freeze toggle. Long: in-mute.",
+          "fnPlusShiftTitle": "CV Dest / Mix Mode",
+          "fnPlusShiftDescription": "Short: cycle CV Dest. Long: cycle Mix Mode.",
+          "ledTop": "Morph / dest meters",
+          "ledBottom": "Amp / skew meters"
+        },
+        {
+          "jackTitle": "CV Out",
+          "jackDescription": "Mixed LFO voltage",
+          "faderTitle": "Symmetry",
+          "faderDescription": "Duty / symmetry of the wave",
+          "faderPlusShiftTitle": "Speed",
+          "faderPlusShiftDescription": "Rate (or clock division when Grid Lock)",
+          "faderPlusFnTitle": "Phase-Warp",
+          "faderPlusFnDescription": "Nonlinear phase distortion",
+          "fnTitle": "Phase reset",
+          "fnDescription": "Short: reset phase. Long: out-mute.",
+          "fnPlusShiftTitle": "Reverse / Grid Lock",
+          "fnPlusShiftDescription": "Short: reverse. Long: clock sync toggle.",
+          "ledTop": "Symmetry / speed meters",
+          "ledBottom": "Warp meters"
+        }
+      ]
+    },
+    "38": {
+      "id": 38,
+      "name": "Loop de Cay",
+      "blurb": "Additive overdub loop with level decay",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Pitch (span from Base Note); spectrum LED meter",
+            "<strong>Alt</strong> (Shift+Fader) — Decay strength: bottom = immortal, top ≈ 4 wraps (violet→red)",
+            "<strong>Third</strong> (Btn+Fader; gate modes while muted) — Decay mode zones (IR→UV): Random Rose · Pitch Up Orange · Pitch Down Yellow · Vel+Root Lime · Pitch Root Cyan · Velocity Blue · Gate Violet"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Hold</strong> (gate modes) — Note on; release = off (long notes OK)",
+            "<strong>Shift+Short</strong> — Cycle loop length 1→2→…→8 bars (amber→cyan flash)",
+            "<strong>Shift+Long</strong> — Mute (red LED; decay pauses)",
+            "<strong>Short while muted</strong> — Unmute (re-arms)",
+            "<strong>Shift+Long while muted</strong> — Erase buffer (white flash)"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV / gate",
+          "jackDescription": "Depends on Mode (Pitch→MIDI / Gate→MIDI use CV In; MIDI→CV / Fader→Both use CV Out)",
+          "faderTitle": "Pitch",
+          "faderDescription": "Span around Base Note; quantized to global scale",
+          "faderPlusShiftTitle": "Decay strength",
+          "faderPlusShiftDescription": "0 = immortal; higher ≈ fewer wraps to silence",
+          "faderPlusFnTitle": "Decay Mode",
+          "faderPlusFnDescription": "Seven zones IR→UV (Btn+Fader; gate modes while muted)",
+          "fnTitle": "Gate / play",
+          "fnDescription": "Hold for note in gate modes; Shift+Short = bars; Shift+Long = mute/erase",
+          "ledTop": "Pitch / decay / mode meters",
+          "ledBottom": "Pitch / decay / mode meters"
+        }
+      ]
+    },
+    "40": {
+      "id": 40,
+      "name": "Venn",
+      "blurb": "Dual Euclidean layers + boolean logic (OR/AND/XOR/Accnt)",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — F0 pulses A · F1 pulses B",
+            "<strong>Alt</strong> (Shift) — F0 rotation A · F1 rotation B",
+            "<strong>Third</strong> (Btn1 or Btn2 hold) — F0 length A · F1 length B (2–32)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn1 or Btn2 hold</strong> — Third (length A/B on F0/F1)",
+            "<strong>Btn2 tap</strong> (no fader move) — Mute both outs",
+            "<strong>Shift+Btn1</strong> — Cycle Logic OR → AND → XOR → Accnt",
+            "<strong>Shift+Btn2</strong> — Toggle post-logic invert (shadow); white↔none fade like Heat Pump"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Logic out",
+          "jackDescription": "Gate + MIDI Note A for the primary boolean result",
+          "faderTitle": "Pulses A",
+          "faderDescription": "Number of pulses in Euclidean layer A",
+          "faderPlusShiftTitle": "Rotation A",
+          "faderPlusShiftDescription": "Rotate layer A pattern",
+          "faderPlusFnTitle": "Length A",
+          "faderPlusFnDescription": "Cycle length for layer A (2–32)",
+          "fnTitle": "Third / Logic",
+          "fnDescription": "Hold for length; Shift+tap cycles OR→AND→XOR→Accnt",
+          "ledTop": "Layer A hits / rotation / length",
+          "ledBottom": "Logic outs / step sync / length band"
+        },
+        {
+          "jackTitle": "Coupled out",
+          "jackDescription": "Secondary gate tied to logic mode (overlap / Δ / accent)",
+          "faderTitle": "Pulses B",
+          "faderDescription": "Number of pulses in Euclidean layer B",
+          "faderPlusShiftTitle": "Rotation B",
+          "faderPlusShiftDescription": "Rotate layer B pattern",
+          "faderPlusFnTitle": "Length B",
+          "faderPlusFnDescription": "Cycle length for layer B (2–32)",
+          "fnTitle": "Mute / Invert",
+          "fnDescription": "Tap mute both; Shift+tap toggles post-logic invert",
+          "ledTop": "Layer B complement color",
+          "ledBottom": "Coupled with logic meters"
+        }
+      ]
+    }
+  }
+}
