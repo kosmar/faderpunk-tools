@@ -1510,7 +1510,7 @@ button.on.mute {
 .app-ux {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding: 8px 8px 6px;
   margin: 0;
   border: 1px solid color-mix(in srgb, var(--track, var(--line)) 35%, var(--line));
@@ -1518,23 +1518,8 @@ button.on.mute {
   background: color-mix(in srgb, var(--track, #4cafb1) 8%, #161616);
 }
 
-.ux-gesture-grid {
-  display: grid;
-  gap: 10px 14px;
-}
-
-.ux-gesture-grid.cols-2 {
-  grid-template-columns: 1fr 1fr;
-}
-
-@media (max-width: 720px) {
-  .ux-gesture-grid.cols-2 {
-    grid-template-columns: 1fr;
-  }
-}
-
 .app-ux-sec h4 {
-  margin: 0 0 5px;
+  margin: 0 0 4px;
   font-size: 9px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -1545,42 +1530,29 @@ button.on.mute {
 .ux-rows {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 3px;
 }
 
 .ux-row {
-  display: grid;
-  grid-template-columns: minmax(5.5rem, 7.5rem) 1fr;
-  gap: 6px 8px;
-  align-items: start;
-}
-
-.ux-row.plain {
-  grid-template-columns: 1fr;
-}
-
-.ux-gesture {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  line-height: 1.35;
 }
 
 .ux-badge {
   display: inline-block;
-  width: fit-content;
-  max-width: 100%;
+  flex: 0 0 auto;
   padding: 1px 5px;
   border-radius: 2px;
   font-size: 9px;
   font-weight: 650;
   letter-spacing: 0.02em;
-  line-height: 1.35;
+  line-height: 1.3;
   color: #101010;
   background: color-mix(in srgb, var(--track, var(--fp-cyan)) 78%, #e8e8e8);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .ux-badge.role-jack {
@@ -1625,45 +1597,81 @@ button.on.mute {
 }
 
 .ux-hint {
+  flex: 0 1 auto;
   font-size: 8px;
-  line-height: 1.25;
+  line-height: 1.3;
   color: var(--muted);
-  letter-spacing: 0.01em;
 }
 
 .ux-body {
+  flex: 1 1 10rem;
+  min-width: 0;
   font-size: 10px;
   line-height: 1.35;
   color: color-mix(in srgb, var(--text) 90%, var(--muted));
-  min-width: 0;
 }
 
 .ux-lead {
-  display: block;
-  margin-bottom: 3px;
   color: color-mix(in srgb, var(--text) 82%, var(--muted));
-}
-
-.ux-zones {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
 }
 
 .ux-zone {
   display: inline-block;
-  padding: 1px 5px;
+  margin: 1px 3px 1px 0;
+  padding: 0 4px;
   border-radius: 2px;
   font-size: 9px;
-  line-height: 1.3;
+  line-height: 1.35;
   color: var(--text);
-  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 14%, #1a1a1a);
-  border: 1px solid color-mix(in srgb, var(--track, var(--fp-cyan)) 28%, transparent);
+  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 12%, #1a1a1a);
+  border: 1px solid color-mix(in srgb, var(--track, var(--fp-cyan)) 26%, transparent);
+  white-space: nowrap;
+}
+
+.ux-zone.tone-rose {
+  color: #1a0810;
+  background: color-mix(in srgb, #e070a0 55%, #fff);
+  border-color: transparent;
+}
+.ux-zone.tone-orange {
+  color: #1a1008;
+  background: color-mix(in srgb, #e08a40 60%, #fff);
+  border-color: transparent;
+}
+.ux-zone.tone-yellow {
+  color: #1a1408;
+  background: color-mix(in srgb, var(--fp-yellow) 70%, #fff);
+  border-color: transparent;
+}
+.ux-zone.tone-lime {
+  color: #081408;
+  background: color-mix(in srgb, #8bc34a 55%, #fff);
+  border-color: transparent;
+}
+.ux-zone.tone-cyan {
+  color: #0c1a1a;
+  background: color-mix(in srgb, var(--fp-cyan) 60%, #fff);
+  border-color: transparent;
+}
+.ux-zone.tone-blue {
+  color: #f0f4ff;
+  background: color-mix(in srgb, var(--fp-blue) 70%, #1a1a1a);
+  border-color: transparent;
+}
+.ux-zone.tone-violet {
+  color: #f4f0ff;
+  background: color-mix(in srgb, var(--fp-violet) 65%, #1a1a1a);
+  border-color: transparent;
+}
+.ux-zone.tone-red {
+  color: #1a0808;
+  background: color-mix(in srgb, var(--danger) 55%, #fff);
+  border-color: transparent;
 }
 
 .app-ux-ch + .app-ux-ch {
-  margin-top: 8px;
-  padding-top: 6px;
+  margin-top: 6px;
+  padding-top: 5px;
   border-top: 1px solid color-mix(in srgb, var(--track, var(--line)) 22%, transparent);
 }
 
@@ -1672,19 +1680,11 @@ button.on.mute {
   font-weight: 650;
   letter-spacing: 0.04em;
   color: var(--track, var(--fp-cyan));
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .track.compact .app-ux {
   padding: 6px 6px 4px;
-}
-
-.track.compact .ux-gesture-grid.cols-2 {
-  grid-template-columns: 1fr;
-}
-
-.track.compact .ux-row {
-  grid-template-columns: minmax(4.5rem, 6rem) 1fr;
 }
 
 .share-banner {

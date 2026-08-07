@@ -8,17 +8,29 @@ function stripTags(s: string): string {
 export function badgeRole(label: string): string {
   const g = label.trim().toLowerCase();
   if (/^f\d/.test(g) || /\bjack\b/.test(g)) return "jack";
+  if (/shift|\balt\+/.test(g)) return "shift";
   if (/^(main|fader)\b/.test(g) || /\bch\d+\s*main\b/.test(g)) return "main";
   if (/^alt\b/.test(g)) return "alt";
   if (/^third\b/.test(g)) return "third";
-  if (/^(btn|hold|short|long)\b/.test(g) && !/shift/.test(g)) return "btn";
-  if (/shift/.test(g)) return "shift";
+  if (/^(btn|hold|short|long)\b/.test(g)) return "btn";
   if (/^led/.test(g)) return "led";
-  if (/cv\s*dest|jack params/.test(g)) return "jack";
   return "default";
 }
 
-/** Pull leading <strong>…</strong> (+ optional hint) from a cheatsheet line. */
+/** Optional tint for decay-mode style zone chips that name a color. */
+function zoneTone(label: string): string | null {
+  const g = label.toLowerCase();
+  if (/\brose\b|\bpink\b/.test(g)) return "rose";
+  if (/\borange\b/.test(g)) return "orange";
+  if (/\byellow\b/.test(g)) return "yellow";
+  if (/\blime\b|\bgreen\b/.test(g)) return "lime";
+  if (/\bcyan\b/.test(g)) return "cyan";
+  if (/\bblue\b/.test(g)) return "blue";
+  if (/\bviolet\b|\bpurple\b/.test(g)) return "violet";
+  if (/\bred\b/.test(g)) return "red";
+  return null;
+}
+
 function parseGestureLine(html: string): {
   gesture: string;
   hint: string | null;
@@ -41,7 +53,6 @@ function parseGestureLine(html: string): {
   return { gesture, hint, body: stripTags(rest) };
 }
 
-/** Split "label: a · b · c" zone lists into chips when useful. */
 function splitZones(body: string): { lead: string; zones: string[] } | null {
   const idx = body.indexOf(":");
   if (idx < 0) return null;
@@ -63,30 +74,29 @@ function GestureBadge({ label }: { label: string }) {
 function GestureRow({ html }: { html: string }) {
   const { gesture, hint, body } = parseGestureLine(html);
   const zones = splitZones(body);
-  const hasGesture = Boolean(gesture);
 
   return (
-    <div className={hasGesture ? "ux-row" : "ux-row plain"}>
-      {hasGesture && (
-        <div className="ux-gesture">
-          <GestureBadge label={gesture} />
-          {hint ? <span className="ux-hint">{hint}</span> : null}
-        </div>
-      )}
+    <div className="ux-row">
+      {gesture ? <GestureBadge label={gesture} /> : null}
+      {hint ? <span className="ux-hint">({hint})</span> : null}
       <div className="ux-body">
         {zones ? (
           <>
-            <span className="ux-lead">{zones.lead}</span>
-            <div className="ux-zones">
-              {zones.zones.map((z) => (
-                <span key={z} className="ux-zone">
+            <span className="ux-lead">{zones.lead}:</span>{" "}
+            {zones.zones.map((z) => {
+              const tone = zoneTone(z);
+              return (
+                <span
+                  key={z}
+                  className={tone ? `ux-zone tone-${tone}` : "ux-zone"}
+                >
                   {z}
                 </span>
-              ))}
-            </div>
+              );
+            })}
           </>
         ) : (
-          <span>{body}</span>
+          body
         )}
       </div>
     </div>
@@ -146,15 +156,9 @@ export function AppUxPanel({ ux, startChannel, width }: Props) {
 
   return (
     <div className="app-ux" role="region" aria-label={`${ux.name} how to play`}>
-      {gestureSecs.length > 0 && (
-        <div
-          className={`ux-gesture-grid ${gestureSecs.length > 1 ? "cols-2" : "cols-1"}`}
-        >
-          {gestureSecs.map((sec) => (
-            <SectionBlock key={sec.heading} section={sec} />
-          ))}
-        </div>
-      )}
+      {gestureSecs.map((sec) => (
+        <SectionBlock key={sec.heading} section={sec} />
+      ))}
 
       {otherSecs.map((sec) => (
         <SectionBlock key={sec.heading} section={sec} />
@@ -174,9 +178,7 @@ export function AppUxPanel({ ux, startChannel, width }: Props) {
                 <div className="ux-rows">
                   {rows.map((row) => (
                     <div key={row.label} className="ux-row">
-                      <div className="ux-gesture">
-                        <GestureBadge label={row.label} />
-                      </div>
+                      <GestureBadge label={row.label} />
                       <div className="ux-body">{row.text}</div>
                     </div>
                   ))}
