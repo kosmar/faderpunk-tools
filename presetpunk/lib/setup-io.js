@@ -545,13 +545,13 @@ async function applySetLayout(
 }
 
 /**
- * Full Push — mirror Configurator Recall:
- *   Release (unstick) → one Atomic SetLayout → short pause → SetAppParams.
+ * Full Push — Configurator AddApp loop, not one giant Recall:
+ *   Release → for each app: SetLayout(growing) → short pause → SetAppParams(that id).
  *
- * Critical: Configurator only waits ~1s, then writes params while post-layout
- * soft-mute still holds Local MIDI quiet. A long “spawn budget” sleep lets
- * mute expire, apps flood USB, and GetVersion fails before we ever set params.
- * SetAppParams itself extends soft-mute — start writing early; retry empties.
+ * A single 13-app SetLayout wedges the config cable within ~3s on dense WIP
+ * presets (soft-mute expires / spawn storm). Configurator rarely does that;
+ * it adds apps one SetLayout at a time (500ms). Gen-9 stall was Hold+repeated
+ * SetLayout — without Hold, one-new-app-per-layout reaps cleanly.
  */
 async function applySetLayoutIncremental(
   config,
@@ -566,15 +566,15 @@ async function applySetLayoutIncremental(
     log("SetLayout (0 apps) …");
     return config;
   }
-  const ordered = [...activeSlots].sort(compareChannelOrder);
+  // Light apps first reduces early USB stress; wire positions stay startChannel.
+  const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
-    `Atomic SetLayout (${n} apps): ${ordered
+    `Incremental SetLayout (${n} apps, no Hold): ${ordered
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
       .join(" → ")}`,
   );
   let cfg = config;
 
-  // Unstick a prior aborted Hold so apps are not parked.
   try {
     await sendAndReceiveExpect(
       cfg,
@@ -590,57 +590,56 @@ async function applySetLayoutIncremental(
 
   clearCachedAppStates(cfg.rx);
 
-  // Configurator: setLayout() → delay(1000) → setAllAppParams.
-  // Stay inside the ~4s post-layout soft-mute window (FW POST_LAYOUT_PERF_MUTE_MS).
-  const pauseMs = Math.max(1000, Math.min(2800, 900 + n * 120));
-  cfg = await applySetLayout(
-    cfg,
-    appLayout,
-    log,
-    LAYOUT_SETTLE_INCREMENTAL_MS,
-    deviceRef,
-    `SetLayout (final ${n} apps)`,
-    {
-      headStartMs: 600,
-      pollBudgetMs: Math.max(2000, Math.min(4500, n * 250)),
-    },
-  );
-  log(
-    `  pause ${pauseMs}ms (Configurator-style · write params during soft-mute) …`,
-  );
-  await delay(pauseMs);
+  const growing = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const slot = ordered[i];
+    growing.push(slot);
+    const name = slot.app?.name || slot.app?.appId;
+    const ch = Number(slot.startChannel) || 0;
+    const heavy = isHeavySpawnSlot(slot, i, n);
+    const pauseMs = heavy || i >= 8 ? 700 : 500;
 
-  // Soft check only — do not sit in reconnect hell before attempting params.
-  try {
-    await probeConfigCable(cfg);
-  } catch {
-    log("  ⚠ cable quiet after pause — trying SetAppParams anyway …");
+    cfg = await applySetLayout(
+      cfg,
+      growing,
+      log,
+      LAYOUT_SETTLE_INCREMENTAL_MS,
+      deviceRef,
+      `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+      {
+        headStartMs: heavy ? 900 : 500,
+        pollBudgetMs: heavy || i >= 8 ? 4500 : 2800,
+      },
+    );
+
+    // Configurator AddApp: delay(500) then touch params — stay in soft-mute.
+    log(`  pause ${pauseMs}ms …`);
+    await delay(pauseMs);
+
+    const id = Number(slot.id);
+    try {
+      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+        deviceRef,
+        underHold: false,
+        skipReadyWait: true,
+      });
+    } catch (e) {
+      log(`  ⚠ SetAppParams(${id}): ${e.message || e}`);
+      if (!deviceRef) throw e;
+      log("  retry: reconnect + SetAppParams …");
+      disconnectDevice(deviceRef.device);
+      await delay(1000);
+      deviceRef.device = await connectDevice();
+      cfg = deviceRef.device.config;
+      log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+        deviceRef,
+        underHold: false,
+        skipReadyWait: true,
+      });
+    }
   }
 
-  const ids = ordered.map((s) => Number(s.id));
-  log(`  SetAppParams (${ids.length}) …`);
-  try {
-    cfg = await applySetAppParams(cfg, paramsById, ids, log, {
-      deviceRef,
-      underHold: false,
-      skipReadyWait: true,
-    });
-  } catch (e) {
-    // One reconnect + retry if the first writes raced spawn / soft wedge.
-    log(`  ⚠ SetAppParams: ${e.message || e}`);
-    if (!deviceRef) throw e;
-    log("  retry: reconnect + SetAppParams …");
-    disconnectDevice(deviceRef.device);
-    await delay(1000);
-    deviceRef.device = await connectDevice();
-    cfg = deviceRef.device.config;
-    log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
-    cfg = await applySetAppParams(cfg, paramsById, ids, log, {
-      deviceRef,
-      underHold: false,
-      skipReadyWait: true,
-    });
-  }
   return cfg;
 }
 
