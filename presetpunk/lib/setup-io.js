@@ -69,6 +69,38 @@ const SPAWN_DEFER_APP_IDS = new Set([
 ]);
 
 /**
+ * Mirror faderpunk `layout.rs` Hold-paced spawn budget (stagger + breath + gate).
+ * GetVersion succeeds mid-spawn; GetAppParams during that window wedges USB.
+ */
+function estimateHoldSpawnMs(appCount) {
+  const n = Math.max(0, Number(appCount) || 0);
+  if (n === 0) return 0;
+  let ms = 400; // pre-gate close
+  for (let running = 1; running <= n; running++) {
+    if (running >= 8) ms += 1600;
+    else if (running >= 6) ms += 1100;
+    else ms += 700;
+    if (running >= 3 && running % 3 === 0) ms += 2000;
+  }
+  // gate open + post + FRAM load slack after start-gate release
+  return ms + 200 + 600 + 400 + 2000;
+}
+
+/**
+ * Non-hold atomic spawn is faster but still outruns a short GetVersion settle.
+ */
+function estimateAtomicSpawnMs(appCount) {
+  const n = Math.max(0, Number(appCount) || 0);
+  if (n === 0) return 0;
+  let ms = 500;
+  for (let running = 1; running <= n; running++) {
+    if (running >= 10) ms += 800;
+    else if (running >= 6) ms += 500;
+    else ms += 250;
+  }
+  return ms + 800 + 1500;
+}
+/**
  * Incremental spawn order: light apps first, deferred/heavy last.
  * Final positions remain startChannel via buildSendLayout.
  */
@@ -277,7 +309,8 @@ async function waitForSlotReady(
       emptyStreak++;
       lastDetail = "empty AppState (mute or not spawned)";
       // Once: confirm the layoutId is actually on the device (not a phantom wait).
-      if (emptyStreak >= 3 && !checkedLayout) {
+      const layoutCheckAfter = underHold ? 8 : 3;
+      if (emptyStreak >= layoutCheckAfter && !checkedLayout) {
         checkedLayout = true;
         try {
           drainConfigQueue(cfg.rx);
@@ -303,13 +336,16 @@ async function waitForSlotReady(
       }
       // Scopepunk soft-poll / GetAllAppParams often injects empty AppStates
       // mid-spawn — back off so our next GetAppParams can land.
-      if (emptyStreak >= 6 && !warnedScope) {
+      const warnAfter = underHold ? 16 : 6;
+      if (emptyStreak >= warnAfter && !warnedScope) {
         warnedScope = true;
         log(
           "  ⚠ still empty — close Scopepunk / other tabs on the config MIDI cable",
         );
       }
-      await delay(Math.min(1600, 400 + emptyStreak * 100));
+      await delay(
+        Math.min(underHold ? 2200 : 1600, (underHold ? 600 : 400) + emptyStreak * 100),
+      );
       continue;
     } catch (e) {
       lastDetail = e.message || String(e);
@@ -513,8 +549,13 @@ async function applySetLayoutIncremental(
     }
 
     clearCachedAppStates(cfg.rx);
-    // Under Hold, FW stagger+breath for 13 apps is ~20–30s; settle only needs
-    // GetVersion once, then waitForSlotReady covers the rest.
+    // Settle only proves the cable answers GetVersion (true mid-spawn). Under
+    // Hold, FW still needs ~20–30s for 13 apps before param_handlers exist —
+    // polling GetAppParams during that window is what wedges USB.
+    const spawnBudgetMs = held
+      ? estimateHoldSpawnMs(n)
+      : estimateAtomicSpawnMs(n);
+    const layoutStartedAt = Date.now();
     cfg = await applySetLayout(
       cfg,
       appLayout,
@@ -524,9 +565,18 @@ async function applySetLayoutIncremental(
       `SetLayout (final ${n} apps)`,
       {
         headStartMs: held ? 2500 : 1800,
-        pollBudgetMs: Math.max(held ? 18_000 : 10_000, n * (held ? 1400 : 900)),
+        // Short poll: first Version is enough; quiet wait covers the rest.
+        pollBudgetMs: held ? 6000 : Math.max(10_000, n * 900),
       },
     );
+    const spawnedFor = Date.now() - layoutStartedAt;
+    const quietMs = Math.max(0, spawnBudgetMs - spawnedFor);
+    if (quietMs > 0) {
+      log(
+        `  wait spawn storm ${quietMs}ms more (budget ${spawnBudgetMs}ms, GetVersion only) …`,
+      );
+      await delayKeepalive(cfg, quietMs);
+    }
 
     log(`  wait ${n} slots in channel spawn order …`);
     for (const slot of ordered) {
@@ -1086,6 +1136,12 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     }
 
     try {
+      const spawnBudgetMs = held
+        ? estimateHoldSpawnMs(n)
+        : n >= 8
+          ? estimateAtomicSpawnMs(n)
+          : 0;
+      const layoutStartedAt = Date.now();
       config = await applySetLayout(
         config,
         appLayout,
@@ -1096,11 +1152,18 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         needsHold
           ? {
               headStartMs: 2000,
-              pollBudgetMs: Math.max(12_000, n * 1200),
+              pollBudgetMs: 6000,
             }
           : undefined,
       );
       device = deviceRef.device;
+      const quietMs = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
+      if (quietMs > 0) {
+        log(
+          `  wait spawn storm ${quietMs}ms more (budget ${spawnBudgetMs}ms, GetVersion only) …`,
+        );
+        await delayKeepalive(config, quietMs);
+      }
       const ids =
         opts.paramLayoutIds == null
           ? null
