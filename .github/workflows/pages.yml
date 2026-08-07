@@ -53,6 +53,36 @@ jobs:
           rsync -a scopepunk/dist/ _site/scopepunk/
           cp site/index.html _site/index.html
           touch _site/.nojekyll
+          BUILD_MS=$(node -e 'process.stdout.write(String(Date.now()))')
+          VER=$(node -p "require('./presetpunk/package.json').version")
+          python3 - <<PY
+          from pathlib import Path
+          import re
+          build = "${BUILD_MS}"
+          ver = "${VER}"
+          index = Path("_site/presetpunk/index.html")
+          text = index.read_text(encoding="utf-8")
+          text = text.replace("__PRESETPUNK_BUILD_MS__", build)
+          text = text.replace('const APP_VERSION = "0.1.0"', f'const APP_VERSION = "{ver}"')
+          index.write_text(text, encoding="utf-8")
+
+          def bust_imports(src: str) -> str:
+              def repl(m: re.Match) -> str:
+                  prefix, quote, path = m.group(1), m.group(2), m.group(3)
+                  if "?v=" in path:
+                      return m.group(0)
+                  return f"{prefix}{quote}{path}?v={build}{quote}"
+              return re.sub(
+                  r"""((?:from|import)\s*\(?\s*)(['"])(\./[^'"]+\.js)\2""",
+                  repl,
+                  src,
+              )
+
+          lib = Path("_site/presetpunk/lib")
+          for path in lib.glob("*.js"):
+              path.write_text(bust_imports(path.read_text(encoding="utf-8")), encoding="utf-8")
+          print(f"presetpunk stamp v{ver}+{build}")
+          PY
 
       - uses: actions/upload-pages-artifact@v5
         with:

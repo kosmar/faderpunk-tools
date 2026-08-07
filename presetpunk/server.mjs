@@ -15,6 +15,12 @@ import {
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const PORT = 3847;
 const BANK_PATH = join(__dirname, "out", "preset-bank.json");
+/** Fresh per server start — stamps index.html + cache-busts module URLs. */
+const BUILD_MS = String(Date.now());
+
+function stampPresetpunkHtml(html) {
+  return html.split("__PRESETPUNK_BUILD_MS__").join(BUILD_MS);
+}
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -173,8 +179,13 @@ const server = createServer(async (req, res) => {
       (req.method === "GET" || req.method === "HEAD") &&
       (url.pathname === "/" || url.pathname === "/index.html")
     ) {
-      const html = await readFile(join(__dirname, "index.html"), "utf8");
-      res.writeHead(200, { "Content-Type": MIME[".html"] });
+      const html = stampPresetpunkHtml(
+        await readFile(join(__dirname, "index.html"), "utf8"),
+      );
+      res.writeHead(200, {
+        "Content-Type": MIME[".html"],
+        "Cache-Control": "no-store",
+      });
       res.end(req.method === "HEAD" ? undefined : html);
       return;
     }
@@ -213,6 +224,7 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, "127.0.0.1", async () => {
   console.log(`Faderpunk preset editor: http://127.0.0.1:${PORT}/`);
+  console.log(`Build: v0.1.0+${BUILD_MS}`);
   console.log(`Pull/Push: Web MIDI SysEx in the browser (no Configurator / CDP)`);
   console.log(`Bank: GET|PUT /api/bank`);
   console.log(`Catalog: GET /api/catalog  CCs: GET /api/ccs?path=Nord/Drum%203P.csv`);

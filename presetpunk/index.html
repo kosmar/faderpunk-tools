@@ -6,16 +6,16 @@
   <title data-i18n="doc.title">Presetpunk</title>
   <link rel="icon" href="./favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" href="./favicon.png" />
-  <script src="./i18n.js"></script>
-  <script src="./midi-browser.js"></script>
+  <script src="./i18n.js?v=__PRESETPUNK_BUILD_MS__"></script>
+  <script src="./midi-browser.js?v=__PRESETPUNK_BUILD_MS__"></script>
   <script type="importmap">
   {
     "imports": {
-      "@atov/fp-config": "./vendor/fp-config/index.js"
+      "@atov/fp-config": "./vendor/fp-config/index.js?v=__PRESETPUNK_BUILD_MS__"
     }
   }
   </script>
-  <script type="module" src="./lib/fp-midi.js"></script>
+  <script type="module" src="./lib/fp-midi.js?v=__PRESETPUNK_BUILD_MS__"></script>
   <script>
     /* Apply stored/nav lang before first paint of chrome text. */
     try {
@@ -2169,7 +2169,7 @@
       <div class="brand-text">
         <h1 data-i18n="app.h1">Presetpunk</h1>
         <p class="compat-note">
-          <span class="app-ver">v0.1.0</span>
+          <span class="app-ver" title="">v0.1.0</span>
         </p>
       </div>
     </div>
@@ -2555,8 +2555,23 @@
     }
   </script>
   <script>
-    /** Bump with package.json version when tagging releases */
+    /** Semver from package.json; build ms stamped at Pages deploy / local server. */
     const APP_VERSION = "0.1.0";
+    const APP_BUILD_RAW = "__PRESETPUNK_BUILD_MS__";
+    const APP_BUILD_MS = /^\d+$/.test(APP_BUILD_RAW) ? APP_BUILD_RAW : "dev";
+    function appVersionLabel() {
+      return `v${APP_VERSION}+${APP_BUILD_MS}`;
+    }
+    function appBuildTitle() {
+      if (APP_BUILD_MS === "dev") return "local / unstamped build";
+      const n = Number(APP_BUILD_MS);
+      if (!Number.isFinite(n)) return `build ${APP_BUILD_MS}`;
+      try {
+        return `build ${new Date(n).toISOString()}`;
+      } catch {
+        return `build ${APP_BUILD_MS}`;
+      }
+    }
 
     /** Reveal UI once static chrome is localized (avoids EN→DE/FR flicker). */
     function markI18nReady() {
@@ -8764,6 +8779,7 @@
       lastPushStep = label;
       setPushMeta(t("push.metaRunning"));
       appendPushLog(`→ ${label}`, { toStatus: true });
+      appendPushLog(`  ${appVersionLabel()}`, { toStatus: false });
 
       const tick = setInterval(() => {
         const s = Math.round((Date.now() - t0) / 1000);
@@ -9211,8 +9227,10 @@
     async function bootstrap() {
       markI18nReady();
       document.querySelectorAll(".app-ver").forEach((el) => {
-        el.textContent = `v${APP_VERSION}`;
+        el.textContent = appVersionLabel();
+        el.title = appBuildTitle();
       });
+      document.title = `Presetpunk ${appVersionLabel()}`;
       await loadAppsCatalog();
       const fromServer = await hydrateBankFromServer();
       syncAllGroovesFromSchema();

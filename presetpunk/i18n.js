@@ -185,7 +185,7 @@
         "Preset {index} · {name} · {used}/16 faders · {apps} apps · {portNote}{ch16Note}",
       "status.portNoteOverride": "default {port} · {n}× row port",
       "status.portNoteAll": "Port {port} (all rows)",
-      "status.ch16Note": " · {n}× CH16 (Configurator load bug → push fixes)",
+      "status.ch16Note": " · {n}× CH16",
       "status.hintOverflow":
         "Overflow stays in the editor — push only sends 1–16",
       "status.hintFree": "{n} free",
@@ -534,8 +534,7 @@
         "Preset {index} · {name} · {used}/16 Fader · {apps} Apps · {portNote}{ch16Note}",
       "status.portNoteOverride": "default {port} · {n}× Zeilen-Port",
       "status.portNoteAll": "Port {port} (alle Zeilen)",
-      "status.ch16Note":
-        " · {n}× CH16 (Configurator-Load bug → Push zieht nach)",
+      "status.ch16Note": " · {n}× CH16",
       "status.hintOverflow":
         "Overflow bleibt im Editor — Push sendet nur 1–16",
       "status.hintFree": "{n} frei",
@@ -897,8 +896,7 @@
         "Preset {index} · {name} · {used}/16 faders · {apps} apps · {portNote}{ch16Note}",
       "status.portNoteOverride": "default {port} · {n}× port de ligne",
       "status.portNoteAll": "Port {port} (toutes les lignes)",
-      "status.ch16Note":
-        " · {n}× CH16 (bug load Configurator → le push corrige)",
+      "status.ch16Note": " · {n}× CH16",
       "status.hintOverflow":
         "L’overflow reste dans l’éditeur — le push n’envoie que 1–16",
       "status.hintFree": "{n} libre(s)",
