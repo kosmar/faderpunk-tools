@@ -201,28 +201,28 @@ test("partitionBySpawnWeight: heavies are multi-ch / large params, not named app
   );
 });
 
-test("compareSpawnOrder: multi-channel before 1ch (quiet bus first)", () => {
+test("compareSpawnOrder: physical channel order avoids sparse prefixes", () => {
   const slots = [
     { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16, name: "Chord Vamp" }, startChannel: 3 },
     { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8, name: "Grooves" }, startChannel: 0 },
     { id: 6, app: { appId: SUPER_LFO, channels: 2, paramCount: 9, name: "Super LFO" }, startChannel: 6 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
-  assert.equal(ordered[0].app.appId, SUPER_LFO);
-  assert.equal(ordered[1].app.appId, GROOVES);
-  assert.equal(ordered[2].app.appId, VAMP);
+  assert.equal(ordered[0].app.appId, GROOVES);
+  assert.equal(ordered[1].app.appId, VAMP);
+  assert.equal(ordered[2].app.appId, SUPER_LFO);
 });
 
-test("compareSpawnOrder: among 1ch, fewer params first", () => {
+test("compareSpawnOrder: param count does not override channel order", () => {
   const slots = [
-    { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16 }, startChannel: 3 },
-    { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8 }, startChannel: 0 },
-    { id: 5, app: { appId: ECHOLOT, channels: 1, paramCount: 8 }, startChannel: 5 },
+    { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16 }, startChannel: 0 },
+    { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8 }, startChannel: 5 },
+    { id: 5, app: { appId: ECHOLOT, channels: 1, paramCount: 8 }, startChannel: 3 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.appId),
-    [GROOVES, ECHOLOT, VAMP],
+    [VAMP, ECHOLOT, GROOVES],
   );
 });
 

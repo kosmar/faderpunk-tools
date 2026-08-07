@@ -8211,6 +8211,12 @@
     /** Keep live status visible across render() rebuilds. */
     let liveStatusHold = null;
 
+    function blockFullDeviceIoWhileLive() {
+      if (!livePushInFlight) return false;
+      liveNote("warn", t("push.fullBusyLive"), { expand: true });
+      return true;
+    }
+
     function rowMeteorEl(rowIndex) {
       return document.querySelector(
         `[data-row-meteor="${CSS.escape(String(rowIndex))}"]`,
@@ -8820,6 +8826,7 @@
     }
 
     document.getElementById("btnPush").onclick = async () => {
+      if (blockFullDeviceIoWhileLive()) return;
       const btn = document.getElementById("btnPush");
       btn.dataset.spun = "1";
       btn.dataset.spinBack = "0";
@@ -8942,6 +8949,7 @@
         action = isBlankBank(bank) ? "replace" : "new";
       }
 
+      if (blockFullDeviceIoWhileLive()) return false;
       setPushBusy(true);
       appendPushLog(t("pull.logStart"));
       setPushMeta(t("push.metaPull"));

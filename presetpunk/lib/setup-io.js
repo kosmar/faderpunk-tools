@@ -187,18 +187,11 @@ function estimateAtomicSpawnMs(appCount) {
 
 /**
  * Incremental Full Push order:
- *   1) multi-channel first (while the bus is still quiet),
- *   2) then lighter param vectors,
- *   3) channel as tie-break.
- * Final wire positions remain startChannel via buildSendLayout.
+ * physical channel order so every intermediate layout grows left-to-right.
+ * Starting with a sparse multi-channel app at ch11 reproduced a USB wedge;
+ * the same apps at ch0 followed by contiguous Controls are stable.
  */
 export function compareSpawnOrder(a, b) {
-  const aWide = Number(a.app?.channels) > 1 ? 0 : 1;
-  const bWide = Number(b.app?.channels) > 1 ? 0 : 1;
-  if (aWide !== bWide) return aWide - bWide;
-  const aParams = Number(a.app?.paramCount) || 0;
-  const bParams = Number(b.app?.paramCount) || 0;
-  if (aParams !== bParams) return aParams - bParams;
   return compareChannelOrder(a, b);
 }
 
@@ -584,7 +577,7 @@ async function applySetLayoutIncremental(
     log("SetLayout (0 apps) …");
     return config;
   }
-  // Multi-ch first, then light params; wire positions stay startChannel.
+  // Grow physically left-to-right; sparse high-channel prefixes wedge FW 1.11.
   const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
     `Incremental SetLayout (${n} apps): ${ordered
