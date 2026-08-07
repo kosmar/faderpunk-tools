@@ -45,6 +45,7 @@ function channelLines(ch: AppUxChannel, index: number, faderBase: number): strin
   push("Btn", ch.fnTitle, ch.fnDescription);
   push("Shift+Btn", ch.fnPlusShiftTitle, ch.fnPlusShiftDescription);
   if (ch.ledTop) lines.push(`LED top: ${ch.ledTop}`);
+  if (ch.ledTopPlusShift) lines.push(`LED top+Shift: ${ch.ledTopPlusShift}`);
   if (ch.ledBottom) lines.push(`LED bottom: ${ch.ledBottom}`);
   return lines;
 }

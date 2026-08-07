@@ -19,6 +19,7 @@ export type AppUxChannel = {
   fnPlusShiftTitle?: string;
   fnPlusShiftDescription?: string;
   ledTop?: string;
+  ledTopPlusShift?: string;
   ledBottom?: string;
 };
 
