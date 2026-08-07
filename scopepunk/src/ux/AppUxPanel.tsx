@@ -1,96 +1,168 @@
-import type { AppUx, AppUxChannel } from "./types";
-
-/** Render cheatsheet lines that only use <strong>…</strong> (strip anything else). */
-export function RichLine({ html }: { html: string }) {
-  const parts: Array<string | { strong: string }> = [];
-  const re = /<strong>(.*?)<\/strong>/gi;
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    if (m.index > last) parts.push(stripTags(html.slice(last, m.index)));
-    parts.push({ strong: stripTags(m[1]) });
-    last = m.index + m[0].length;
-  }
-  if (last < html.length) parts.push(stripTags(html.slice(last)));
-
-  return (
-    <>
-      {parts.map((p, i) =>
-        typeof p === "string" ? (
-          <span key={i}>{p}</span>
-        ) : (
-          <strong key={i}>{p.strong}</strong>
-        ),
-      )}
-    </>
-  );
-}
+import type { AppUx, AppUxChannel, AppUxSection } from "./types";
 
 function stripTags(s: string): string {
   return s.replace(/<[^>]+>/g, "");
 }
 
-function channelLines(ch: AppUxChannel, index: number, faderBase: number): string[] {
+/** Pull leading <strong>…</strong> (+ optional hint) from a cheatsheet line. */
+function parseGestureLine(html: string): {
+  gesture: string;
+  hint: string | null;
+  body: string;
+} {
+  const m = html.match(/^<strong>(.*?)<\/strong>\s*(.*)$/i);
+  if (!m) {
+    return { gesture: "", hint: null, body: stripTags(html).trim() };
+  }
+  const gesture = stripTags(m[1]).trim();
+  let rest = m[2].trim();
+  let hint: string | null = null;
+  const hintM = rest.match(/^\(([^)]+)\)\s*[—–\-]\s*(.*)$/);
+  if (hintM) {
+    hint = hintM[1].trim();
+    rest = hintM[2].trim();
+  } else {
+    rest = rest.replace(/^[—–\-]\s*/, "").trim();
+  }
+  return { gesture, hint, body: stripTags(rest) };
+}
+
+/** Split "label: a · b · c" zone lists into chips when useful. */
+function splitZones(body: string): { lead: string; zones: string[] } | null {
+  const idx = body.indexOf(":");
+  if (idx < 0) return null;
+  const lead = body.slice(0, idx).trim();
+  const tail = body.slice(idx + 1).trim();
+  if (!tail.includes("·") && !tail.includes("•")) return null;
+  const zones = tail
+    .split(/\s*[·•]\s*/)
+    .map((z) => z.trim())
+    .filter(Boolean);
+  if (zones.length < 2) return null;
+  return { lead, zones };
+}
+
+function GestureRow({ html }: { html: string }) {
+  const { gesture, hint, body } = parseGestureLine(html);
+  const zones = splitZones(body);
+  const hasGesture = Boolean(gesture);
+
+  return (
+    <div className={hasGesture ? "ux-row" : "ux-row plain"}>
+      {hasGesture && (
+        <div className="ux-gesture">
+          <span className="ux-badge">{gesture}</span>
+          {hint ? <span className="ux-hint">{hint}</span> : null}
+        </div>
+      )}
+      <div className="ux-body">
+        {zones ? (
+          <>
+            <span className="ux-lead">{zones.lead}</span>
+            <div className="ux-zones">
+              {zones.zones.map((z) => (
+                <span key={z} className="ux-zone">
+                  {z}
+                </span>
+              ))}
+            </div>
+          </>
+        ) : (
+          <span>{body}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SectionBlock({ section }: { section: AppUxSection }) {
+  return (
+    <section className="app-ux-sec">
+      <h4>{section.heading}</h4>
+      <div className="ux-rows">
+        {section.items.map((item, i) => (
+          <GestureRow key={i} html={item} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function channelRows(
+  ch: AppUxChannel,
+  index: number,
+  faderBase: number,
+): { label: string; text: string }[] {
   const fader = faderBase + index + 1;
-  const lines: string[] = [];
+  const rows: { label: string; text: string }[] = [];
   const push = (label: string, title?: string, desc?: string) => {
     if (!title && !desc) return;
-    const body = [title, desc].filter(Boolean).join(" — ");
-    lines.push(`${label}: ${body}`);
+    rows.push({ label, text: [title, desc].filter(Boolean).join(" — ") });
   };
-  push(`F${fader} jack`, ch.jackTitle, ch.jackDescription);
-  push("Fader", ch.faderTitle, ch.faderDescription);
+  push(`F${fader}`, ch.jackTitle, ch.jackDescription);
+  push("Main", ch.faderTitle, ch.faderDescription);
   push("Alt", ch.faderPlusShiftTitle, ch.faderPlusShiftDescription);
   push("Third", ch.faderPlusFnTitle, ch.faderPlusFnDescription);
   push("Btn", ch.fnTitle, ch.fnDescription);
-  push("Shift+Btn", ch.fnPlusShiftTitle, ch.fnPlusShiftDescription);
-  if (ch.ledTop) lines.push(`LED top: ${ch.ledTop}`);
-  if (ch.ledTopPlusShift) lines.push(`LED top+Shift: ${ch.ledTopPlusShift}`);
-  if (ch.ledBottom) lines.push(`LED bottom: ${ch.ledBottom}`);
-  return lines;
+  push("Shift", ch.fnPlusShiftTitle, ch.fnPlusShiftDescription);
+  if (ch.ledTop) rows.push({ label: "LED↑", text: ch.ledTop });
+  if (ch.ledTopPlusShift) rows.push({ label: "LED↑+S", text: ch.ledTopPlusShift });
+  if (ch.ledBottom) rows.push({ label: "LED↓", text: ch.ledBottom });
+  return rows;
 }
 
 type Props = {
   ux: AppUx;
-  /** Absolute fader start (0-based) for F-number labels */
   startChannel: number;
-  /** How many channels this layout instance owns */
   width: number;
 };
 
+function isGestureSection(heading: string): boolean {
+  return /^(faders?|buttons?)\b/i.test(heading.trim());
+}
+
 export function AppUxPanel({ ux, startChannel, width }: Props) {
   const channels = ux.channels.slice(0, Math.max(1, width));
+  const gestureSecs = ux.sections.filter((s) => isGestureSection(s.heading));
+  const otherSecs = ux.sections.filter((s) => !isGestureSection(s.heading));
 
   return (
     <div className="app-ux" role="region" aria-label={`${ux.name} how to play`}>
-      {ux.sections.map((sec) => (
-        <section key={sec.heading} className="app-ux-sec">
-          <h4>{sec.heading}</h4>
-          <ul>
-            {sec.items.map((item, i) => (
-              <li key={i}>
-                <RichLine html={item} />
-              </li>
-            ))}
-          </ul>
-        </section>
+      {gestureSecs.length > 0 && (
+        <div
+          className={`ux-gesture-grid ${gestureSecs.length > 1 ? "cols-2" : "cols-1"}`}
+        >
+          {gestureSecs.map((sec) => (
+            <SectionBlock key={sec.heading} section={sec} />
+          ))}
+        </div>
+      )}
+
+      {otherSecs.map((sec) => (
+        <SectionBlock key={sec.heading} section={sec} />
       ))}
+
       {channels.length > 0 && (
         <section className="app-ux-sec">
           <h4>{channels.length > 1 ? "Channels" : "This channel"}</h4>
           {channels.map((ch, i) => {
-            const lines = channelLines(ch, i, startChannel);
-            if (!lines.length) return null;
+            const rows = channelRows(ch, i, startChannel);
+            if (!rows.length) return null;
             return (
               <div key={i} className="app-ux-ch">
                 {channels.length > 1 && (
                   <div className="app-ux-ch-label">F{startChannel + i + 1}</div>
                 )}
-                <ul>
-                  {lines.map((line, j) => (
-                    <li key={j}>{line}</li>
+                <div className="ux-rows">
+                  {rows.map((row) => (
+                    <div key={row.label} className="ux-row">
+                      <div className="ux-gesture">
+                        <span className="ux-badge">{row.label}</span>
+                      </div>
+                      <div className="ux-body">{row.text}</div>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             );
           })}

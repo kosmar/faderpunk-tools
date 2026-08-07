@@ -1510,7 +1510,7 @@ button.on.mute {
 .app-ux {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   padding: 8px 8px 6px;
   margin: 0;
   border: 1px solid color-mix(in srgb, var(--track, var(--line)) 35%, var(--line));
@@ -1518,8 +1518,23 @@ button.on.mute {
   background: color-mix(in srgb, var(--track, #4cafb1) 8%, #161616);
 }
 
+.ux-gesture-grid {
+  display: grid;
+  gap: 10px 14px;
+}
+
+.ux-gesture-grid.cols-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+@media (max-width: 720px) {
+  .ux-gesture-grid.cols-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .app-ux-sec h4 {
-  margin: 0 0 3px;
+  margin: 0 0 5px;
   font-size: 9px;
   font-weight: 650;
   letter-spacing: 0.06em;
@@ -1527,27 +1542,87 @@ button.on.mute {
   color: color-mix(in srgb, var(--track, var(--fp-cyan)) 70%, var(--muted));
 }
 
-.app-ux-sec ul {
-  margin: 0;
-  padding: 0 0 0 1.1em;
-  list-style: disc;
+.ux-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.app-ux-sec li {
-  margin: 0 0 2px;
+.ux-row {
+  display: grid;
+  grid-template-columns: minmax(5.5rem, 7.5rem) 1fr;
+  gap: 6px 8px;
+  align-items: start;
+}
+
+.ux-row.plain {
+  grid-template-columns: 1fr;
+}
+
+.ux-gesture {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ux-badge {
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+  color: #101010;
+  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 78%, #e8e8e8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ux-hint {
+  font-size: 8px;
+  line-height: 1.25;
+  color: var(--muted);
+  letter-spacing: 0.01em;
+}
+
+.ux-body {
   font-size: 10px;
   line-height: 1.35;
-  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+  color: color-mix(in srgb, var(--text) 90%, var(--muted));
+  min-width: 0;
 }
 
-.app-ux-sec li strong {
+.ux-lead {
+  display: block;
+  margin-bottom: 3px;
+  color: color-mix(in srgb, var(--text) 82%, var(--muted));
+}
+
+.ux-zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.ux-zone {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 2px;
+  font-size: 9px;
+  line-height: 1.3;
   color: var(--text);
-  font-weight: 600;
+  background: color-mix(in srgb, var(--track, var(--fp-cyan)) 14%, #1a1a1a);
+  border: 1px solid color-mix(in srgb, var(--track, var(--fp-cyan)) 28%, transparent);
 }
 
 .app-ux-ch + .app-ux-ch {
-  margin-top: 6px;
-  padding-top: 5px;
+  margin-top: 8px;
+  padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--track, var(--line)) 22%, transparent);
 }
 
@@ -1556,11 +1631,19 @@ button.on.mute {
   font-weight: 650;
   letter-spacing: 0.04em;
   color: var(--track, var(--fp-cyan));
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
 
 .track.compact .app-ux {
   padding: 6px 6px 4px;
+}
+
+.track.compact .ux-gesture-grid.cols-2 {
+  grid-template-columns: 1fr;
+}
+
+.track.compact .ux-row {
+  grid-template-columns: minmax(4.5rem, 6rem) 1fr;
 }
 
 .share-banner {
