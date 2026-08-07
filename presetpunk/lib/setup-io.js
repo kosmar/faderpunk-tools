@@ -27,21 +27,66 @@ function delay(ms) {
 /**
  * Sleep without going SysEx-silent for long stretches — macOS/Web MIDI can
  * drop the config port after ~1min of idle during a long Full Push.
+ * @param {{ probe?: boolean, label?: string, onLog?: (s: string) => void }} [opts]
+ *        probe=false → pure quiet (post-gate FRAM); default probes GetVersion.
+ * @returns {Promise<{ quietMs: number, probesOk: number, probesFail: number }>}
  */
-async function delayKeepalive(config, ms) {
-  if (ms <= 0) return;
+async function delayKeepalive(config, ms, opts = {}) {
+  const probe = opts.probe !== false;
+  const log = opts.onLog || (() => {});
+  let quietMs = 0;
+  let probesOk = 0;
+  let probesFail = 0;
+  let warned = false;
+  if (ms <= 0) return { quietMs, probesOk, probesFail };
   const end = Date.now() + ms;
   while (Date.now() < end) {
     const left = end - Date.now();
-    const slice = Math.min(left, 1200);
+    const slice = Math.min(left, probe ? 1200 : 2000);
     await delay(slice);
     if (Date.now() >= end) break;
+    if (!probe) continue;
     try {
       await probeConfigCable(config);
+      probesOk++;
+      quietMs = 0;
     } catch {
-      // spawn may still be muting replies briefly — ignore until settle
+      probesFail++;
+      quietMs += slice;
+      // spawn may mute briefly — only warn on sustained silence
+      if (!warned && quietMs >= 5000) {
+        warned = true;
+        log(
+          `  ⚠ config quiet ${Math.round(quietMs / 1000)}s during ${opts.label || "wait"} — continuing …`,
+        );
+      }
     }
   }
+  return { quietMs, probesOk, probesFail };
+}
+
+/**
+ * After long quiet waits: prove the cable, or one reconnect before slot polls.
+ */
+async function ensureCableAfterSpawn(config, deviceRef, log) {
+  let cfg = config;
+  try {
+    await assertConfigCableAlive(cfg, log);
+    log("  ✓ config cable alive after spawn wait");
+    return cfg;
+  } catch (e) {
+    log(`  ⚠ ${e.message || e}`);
+  }
+  if (!deviceRef) throw new Error("config cable quiet after spawn wait");
+  log("  retry: reconnect Web MIDI after spawn wait …");
+  disconnectDevice(deviceRef.device);
+  await delay(1200);
+  deviceRef.device = await connectDevice();
+  cfg = deviceRef.device.config;
+  log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+  await assertConfigCableAlive(cfg, log);
+  log("  ✓ config cable alive after reconnect");
+  return cfg;
 }
 
 /**
@@ -70,7 +115,7 @@ const SPAWN_DEFER_APP_IDS = new Set([
 
 /**
  * Mirror faderpunk `layout.rs` Hold-paced spawn budget (stagger + breath + gate).
- * GetVersion succeeds mid-spawn; GetAppParams during that window wedges USB.
+ * Does NOT cover post-gate FRAM — see estimatePostGateFramMs.
  */
 function estimateHoldSpawnMs(appCount) {
   const n = Math.max(0, Number(appCount) || 0);
@@ -82,8 +127,18 @@ function estimateHoldSpawnMs(appCount) {
     else ms += 700;
     if (running >= 3 && running % 3 === 0) ms += 2000;
   }
-  // gate open + post + FRAM load slack after start-gate release
-  return ms + 200 + 600 + 400 + 2000;
+  // gate open + short post (FRAM is separate — mass load after gate)
+  return ms + 200 + 600 + 400;
+}
+
+/**
+ * After Hold start-gate opens, every app runs ParamStore/ManagedStorage::load
+ * together. That FRAM burst wedges USB if we GetAppParams into it.
+ */
+function estimatePostGateFramMs(appCount) {
+  const n = Math.max(0, Number(appCount) || 0);
+  if (n === 0) return 0;
+  return Math.max(6000, n * 700 + 3000);
 }
 
 /**
@@ -99,6 +154,22 @@ function estimateAtomicSpawnMs(appCount) {
     else ms += 250;
   }
   return ms + 800 + 1500;
+}
+
+const HOLD_SAM_APP_ID = 36;
+
+/** Hold Sam last under Hold — alone after the dense pack is live. */
+function partitionHoldSam(appLayout) {
+  const without = [];
+  const sam = [];
+  for (const slot of appLayout) {
+    if (slot.app && Number(slot.app.appId) === HOLD_SAM_APP_ID) {
+      sam.push(slot);
+    } else {
+      without.push(slot);
+    }
+  }
+  return { without, sam };
 }
 /**
  * Incremental spawn order: light apps first, deferred/heavy last.
@@ -549,53 +620,101 @@ async function applySetLayoutIncremental(
     }
 
     clearCachedAppStates(cfg.rx);
-    // Settle only proves the cable answers GetVersion (true mid-spawn). Under
-    // Hold, FW still needs ~20–30s for 13 apps before param_handlers exist —
-    // polling GetAppParams during that window is what wedges USB.
-    const spawnBudgetMs = held
-      ? estimateHoldSpawnMs(n)
-      : estimateAtomicSpawnMs(n);
-    const layoutStartedAt = Date.now();
-    cfg = await applySetLayout(
-      cfg,
-      appLayout,
-      log,
-      LAYOUT_SETTLE_INCREMENTAL_MS,
-      deviceRef,
-      `SetLayout (final ${n} apps)`,
-      {
-        headStartMs: held ? 2500 : 1800,
-        // Short poll: first Version is enough; quiet wait covers the rest.
-        pollBudgetMs: held ? 6000 : Math.max(10_000, n * 900),
-      },
-    );
-    const spawnedFor = Date.now() - layoutStartedAt;
-    const quietMs = Math.max(0, spawnBudgetMs - spawnedFor);
-    if (quietMs > 0) {
-      log(
-        `  wait spawn storm ${quietMs}ms more (budget ${spawnBudgetMs}ms, GetVersion only) …`,
-      );
-      await delayKeepalive(cfg, quietMs);
-    }
 
-    log(`  wait ${n} slots in channel spawn order …`);
-    for (const slot of ordered) {
-      const label = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
-      cfg = await waitForSlotReady(cfg, slot.id, log, 90_000, {
-        label,
-        expectAppId: slot.app?.appId,
+    /**
+     * SetLayout → spawn/FRAM quiet → cable check → wait listed slots → params.
+     * @param {object[]} layoutSlots full or partial appLayout rows (holes OK)
+     * @param {object[]} waitSlots slots to poll + write params for
+     * @param {string} label
+     */
+    async function layoutWave(layoutSlots, waitSlots, label) {
+      const waveN = layoutSlots.filter((s) => s.app).length;
+      const spawnBudgetMs = held
+        ? estimateHoldSpawnMs(waveN)
+        : estimateAtomicSpawnMs(waveN);
+      const framMs = held ? estimatePostGateFramMs(waveN) : Math.max(2000, waveN * 400);
+      const layoutStartedAt = Date.now();
+      cfg = await applySetLayout(
+        cfg,
+        layoutSlots,
+        log,
+        LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
-        underHold: held,
-      });
-      await delay(held ? 150 : 250);
+        label,
+        {
+          headStartMs: held ? 2500 : 1800,
+          pollBudgetMs: held ? 6000 : Math.max(10_000, waveN * 900),
+        },
+      );
+      const spawnedFor = Date.now() - layoutStartedAt;
+      const staggerLeft = Math.max(0, spawnBudgetMs - spawnedFor);
+      if (staggerLeft > 0) {
+        log(
+          `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+        );
+        await delayKeepalive(cfg, staggerLeft, {
+          probe: true,
+          label: "spawn stagger",
+          onLog: log,
+        });
+      }
+      if (framMs > 0) {
+        log(
+          `  wait post-gate FRAM ${framMs}ms (no SysEx — ${waveN} apps loading) …`,
+        );
+        await delayKeepalive(cfg, framMs, { probe: false });
+      }
+      cfg = await ensureCableAfterSpawn(cfg, deviceRef, log);
+
+      const waitOrdered = [...waitSlots]
+        .filter((s) => s.app)
+        .sort(compareChannelOrder);
+      if (waitOrdered.length) {
+        log(`  wait ${waitOrdered.length} slots in channel spawn order …`);
+        for (const slot of waitOrdered) {
+          const slotLabel = `${slot.app?.name || slot.app?.appId}(ch${Number(slot.startChannel) || 0})`;
+          cfg = await waitForSlotReady(cfg, slot.id, log, 90_000, {
+            label: slotLabel,
+            expectAppId: slot.app?.appId,
+            deviceRef,
+            underHold: held,
+          });
+          await delay(held ? 150 : 250);
+        }
+        const ids = waitOrdered.map((s) => Number(s.id));
+        log(`  SetAppParams (${ids.length}) …`);
+        cfg = await applySetAppParams(cfg, paramsById, ids, log, {
+          deviceRef,
+          underHold: held,
+        });
+      }
     }
 
-    const ids = ordered.map((s) => Number(s.id));
-    log("  SetAppParams (all) …");
-    cfg = await applySetAppParams(cfg, paramsById, ids, log, {
-      deviceRef,
-      underHold: held,
-    });
+    // Hold Sam alone after the dense pack — its jack/MIDI init + mass FRAM
+    // with 12 peers was killing the config cable on every Epsilon push.
+    const { without, sam } = partitionHoldSam(appLayout);
+    const withoutApps = without.filter((s) => s.app).length;
+    if (held && sam.length > 0 && withoutApps > 0) {
+      log(
+        `  Hold Sam deferred: first ${withoutApps} apps, then ${sam.length}× Hold Sam`,
+      );
+      await layoutWave(
+        without,
+        without.filter((s) => s.app),
+        `SetLayout (${withoutApps} apps, Hold Sam deferred)`,
+      );
+      await layoutWave(
+        appLayout,
+        sam,
+        `SetLayout (+${sam.length} Hold Sam)`,
+      );
+    } else {
+      await layoutWave(
+        appLayout,
+        ordered,
+        `SetLayout (final ${n} apps)`,
+      );
+    }
     return cfg;
   } finally {
     if (held) {
@@ -1141,6 +1260,11 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         : n >= 8
           ? estimateAtomicSpawnMs(n)
           : 0;
+      const framMs = held
+        ? estimatePostGateFramMs(n)
+        : n >= 8
+          ? Math.max(2000, n * 400)
+          : 0;
       const layoutStartedAt = Date.now();
       config = await applySetLayout(
         config,
@@ -1157,13 +1281,22 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           : undefined,
       );
       device = deviceRef.device;
-      const quietMs = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
-      if (quietMs > 0) {
+      const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
+      if (staggerLeft > 0) {
         log(
-          `  wait spawn storm ${quietMs}ms more (budget ${spawnBudgetMs}ms, GetVersion only) …`,
+          `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
         );
-        await delayKeepalive(config, quietMs);
+        await delayKeepalive(config, staggerLeft, {
+          probe: true,
+          label: "spawn stagger",
+          onLog: log,
+        });
       }
+      if (framMs > 0) {
+        log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
+        await delayKeepalive(config, framMs, { probe: false });
+      }
+      config = await ensureCableAfterSpawn(config, deviceRef, log);
       const ids =
         opts.paramLayoutIds == null
           ? null
