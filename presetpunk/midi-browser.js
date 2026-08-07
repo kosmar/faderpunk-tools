@@ -148,11 +148,30 @@
     };
   }
 
-  /** Probe local Node API; null if static host / offline. */
+  /** True on GitHub Pages / file:// — no Node ./api/* server. */
+  function isStaticHost() {
+    try {
+      if (typeof location === "undefined") return false;
+      if (location.protocol === "file:") return true;
+      return /\.github\.io$/i.test(location.hostname || "");
+    } catch {
+      return false;
+    }
+  }
+
+  /** Once we see a 404 from ./api/*, stop probing for this page load. */
+  let serverApiAvailable = isStaticHost() ? false : null;
+
+  /** Probe local Node API; null if static host / offline / already known missing. */
   async function tryServerJson(url, opts) {
+    if (serverApiAvailable === false) return null;
     try {
       const res = await fetch(url, opts);
-      if (res.status === 404) return { res, data: null };
+      if (res.status === 404) {
+        serverApiAvailable = false;
+        return null;
+      }
+      serverApiAvailable = true;
       const data = await res.json().catch(() => null);
       return { res, data };
     } catch {
@@ -167,5 +186,6 @@
     uploadCustom,
     syncFromGithub,
     tryServerJson,
+    isStaticHost,
   };
 })(typeof window !== "undefined" ? window : globalThis);
