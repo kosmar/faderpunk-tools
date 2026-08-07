@@ -104,14 +104,40 @@ function compareChannelOrder(a, b) {
 }
 
 /**
- * Apps that stall Embassy spawn when introduced early in an incremental Hold
- * push. Wire layout still uses startChannel; only *addition* order is deferred
- * (see tools/push-playground.mjs — Chord Vamp last).
+ * Spawn cost heuristic (no per-app special cases).
+ * Higher weight → later wave under dense Hold pushes.
+ * Signals: channel footprint, multi-channel, large param vectors.
  */
-const SPAWN_DEFER_APP_IDS = new Set([
-  35, // vamp / Chord Vamp
-  36, // hold_sam — heavy jack/MIDI init wedges USB if spawned mid-poll without Hold
-]);
+export function spawnWeight(slot) {
+  if (!slot?.app) return 0;
+  const channels = Math.max(1, Number(slot.app.channels) || 1);
+  const params = Number(slot.app.paramCount) || 0;
+  let w = channels;
+  if (channels > 1) w += 2;
+  if (params >= 14) w += 2;
+  else if (params >= 11) w += 1;
+  return w;
+}
+
+/** Minimum weight to ride in the heavy wave (multi-ch or large param apps). */
+const HEAVY_SPAWN_WEIGHT = 3;
+
+/**
+ * Split active slots into light / heavy by spawnWeight.
+ * Empty (no app) rows are omitted — wire holes come from startChannel on placed slots.
+ */
+export function partitionBySpawnWeight(appLayout, heavyMin = HEAVY_SPAWN_WEIGHT) {
+  const light = [];
+  const heavy = [];
+  for (const slot of appLayout) {
+    if (!slot?.app) continue;
+    if (spawnWeight(slot) >= heavyMin) heavy.push(slot);
+    else light.push(slot);
+  }
+  heavy.sort((a, b) => spawnWeight(a) - spawnWeight(b) || compareChannelOrder(a, b));
+  light.sort(compareChannelOrder);
+  return { light, heavy };
+}
 
 /**
  * Mirror faderpunk `layout.rs` Hold-paced spawn budget (stagger + breath + gate).
@@ -156,39 +182,18 @@ function estimateAtomicSpawnMs(appCount) {
   return ms + 800 + 1500;
 }
 
-const HOLD_SAM_APP_ID = 36;
-
-/** Hold Sam last under Hold — alone after the dense pack is live. */
-function partitionHoldSam(appLayout) {
-  const without = [];
-  const sam = [];
-  for (const slot of appLayout) {
-    if (slot.app && Number(slot.app.appId) === HOLD_SAM_APP_ID) {
-      sam.push(slot);
-    } else {
-      without.push(slot);
-    }
-  }
-  return { without, sam };
-}
 /**
- * Incremental spawn order: light apps first, deferred/heavy last.
- * Final positions remain startChannel via buildSendLayout.
+ * Incremental / wave order: lighter spawnWeight first, then channel.
+ * Final wire positions remain startChannel via buildSendLayout.
  */
 export function compareSpawnOrder(a, b) {
-  const aDefer = SPAWN_DEFER_APP_IDS.has(Number(a.app?.appId)) ? 1 : 0;
-  const bDefer = SPAWN_DEFER_APP_IDS.has(Number(b.app?.appId)) ? 1 : 0;
-  if (aDefer !== bDefer) return aDefer - bDefer;
-  const aWide = Number(a.app?.channels) > 1 ? 1 : 0;
-  const bWide = Number(b.app?.channels) > 1 ? 1 : 0;
-  if (aWide !== bWide) return aWide - bWide;
+  const dw = spawnWeight(a) - spawnWeight(b);
+  if (dw) return dw;
   return compareChannelOrder(a, b);
 }
 
 function isHeavySpawnSlot(slot, index, total) {
-  const channels = Number(slot.app?.channels) || 1;
-  if (channels > 1) return true;
-  if (SPAWN_DEFER_APP_IDS.has(Number(slot.app?.appId))) return true;
+  if (spawnWeight(slot) >= HEAVY_SPAWN_WEIGHT) return true;
   // Dense tail: last stretch of a packed layout (pool pressure).
   return index >= Math.max(6, total - 5);
 }
@@ -312,7 +317,7 @@ async function probeConfigCable(config) {
  *
  * Under Hold, FW answers empty AppState in ~400ms while apps are still gated;
  * without Hold, a missing param_handler blocks the config loop up to 3s and
- * can wedge USB (seen reproducibly when Hold Sam is the last spawn).
+ * can wedge USB on dense layouts during readiness polls.
  *
  * @param {{ label?: string, expectAppId?: number, deviceRef?: { device: object }, underHold?: boolean }} [opts]
  */
@@ -544,8 +549,8 @@ async function applySetLayout(
  * Repeated growing SetLayout calls outrun firmware 1.11 task reaping and stall
  * on the ninth generation — so the final layout is atomic (one generation).
  * Clear/reap runs released so old pool slots free; the final spawn runs under
- * HoldPerfMute so FW uses paced spawn + start-gate and apps like Hold Sam
- * park heavy jack/MIDI init until Release (avoids USB wedge on dense presets).
+ * HoldPerfMute so FW uses paced spawn + start-gate and heavy init stays parked
+ * until Release (avoids USB wedge on dense presets).
  */
 async function applySetLayoutIncremental(
   config,
@@ -690,30 +695,35 @@ async function applySetLayoutIncremental(
       }
     }
 
-    // Hold Sam alone after the dense pack — its jack/MIDI init + mass FRAM
-    // with 12 peers was killing the config cable on every Epsilon push.
-    const { without, sam } = partitionHoldSam(appLayout);
-    const withoutApps = without.filter((s) => s.app).length;
-    if (held && sam.length > 0 && withoutApps > 0) {
+    // Dense Hold pushes: light apps as one atomic wave, then each heavy
+    // (multi-ch / large param vectors) added alone — weight heuristic, no
+    // per-app special cases.
+    const { light, heavy } = partitionBySpawnWeight(ordered);
+    const useWeightWaves =
+      held && n >= 8 && light.length > 0 && heavy.length > 0;
+    if (useWeightWaves) {
       log(
-        `  Hold Sam deferred: first ${withoutApps} apps, then ${sam.length}× Hold Sam`,
+        `  weight waves: ${light.length} light (w<${HEAVY_SPAWN_WEIGHT}), then ${heavy.length} heavy one-by-one`,
       );
+      const growing = [...light];
       await layoutWave(
-        without,
-        without.filter((s) => s.app),
-        `SetLayout (${withoutApps} apps, Hold Sam deferred)`,
+        growing,
+        light,
+        `SetLayout (${light.length} light apps)`,
       );
-      await layoutWave(
-        appLayout,
-        sam,
-        `SetLayout (+${sam.length} Hold Sam)`,
-      );
+      for (let i = 0; i < heavy.length; i++) {
+        const slot = heavy[i];
+        growing.push(slot);
+        const w = spawnWeight(slot);
+        const name = slot.app?.name || slot.app?.appId;
+        await layoutWave(
+          growing,
+          [slot],
+          `SetLayout (+${name} w=${w}, heavy ${i + 1}/${heavy.length})`,
+        );
+      }
     } else {
-      await layoutWave(
-        appLayout,
-        ordered,
-        `SetLayout (final ${n} apps)`,
-      );
+      await layoutWave(appLayout, ordered, `SetLayout (final ${n} apps)`);
     }
     return cfg;
   } finally {
@@ -1203,8 +1213,8 @@ export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
  * Live structural push: SetLayout + SetAppParams for selected (or all) slots.
  * Used when swapping an app / adding / reordering — not a param-only tweak.
  *
- * Dense layouts (or Hold Sam) use HoldPerfMute so FW parks heavy jack/MIDI
- * init until Release — otherwise the config cable wedges mid-spawn.
+ * Dense layouts use HoldPerfMute so FW parks heavy jack/MIDI init until
+ * Release — otherwise the config cable wedges mid-spawn.
  *
  * @param {object} setup
  * @param {{
@@ -1232,10 +1242,9 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     const allApps = await getAllApps(deviceRef.device.config, log);
     const { appLayout, paramsById } = buildAppLayout(setup, allApps, log);
     const n = appLayout.filter((s) => s.app).length;
-    // Hold Sam (app 36) and other dense spawns wedge USB without hold.
-    const needsHold =
-      n >= 8 ||
-      appLayout.some((s) => Number(s.app?.appId) === 36);
+    const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
+    // Dense or multi-heavy layouts wedge USB without hold.
+    const needsHold = n >= 8 || heavyN >= 2;
 
     config = deviceRef.device.config;
     if (needsHold) {
@@ -1247,7 +1256,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           { timeoutMs: 2000, attempts: 2 },
         );
         held = true;
-        log("  HoldPerfMute (live dense / Hold Sam)");
+        log(`  HoldPerfMute (live dense · ${n} apps · ${heavyN} heavy)`);
         await delay(300);
       } catch {
         log("  ⚠ HoldPerfMute unavailable — continuing without hold");

@@ -11,6 +11,8 @@ import {
   compareSpawnOrder,
   normalizeValueForWire,
   padParams,
+  partitionBySpawnWeight,
+  spawnWeight,
   verifyLayoutSlot,
 } from "../lib/setup-io.js";
 import { serialize } from "../vendor/fp-config/index.js";
@@ -160,12 +162,50 @@ test("buildSendLayout: out-of-range startChannel is skipped", () => {
 
 const VAMP = 35;
 const SUPER_LFO = 32;
+const HOLD_SAM = 36;
 
-test("compareSpawnOrder: defers Chord Vamp to the end", () => {
+test("spawnWeight: multi-channel and large param vectors cost more", () => {
+  assert.equal(
+    spawnWeight({ app: { appId: 1, channels: 1, paramCount: 6 } }),
+    1,
+  );
+  assert.equal(
+    spawnWeight({ app: { appId: HOLD_SAM, channels: 1, paramCount: 11 } }),
+    2,
+  );
+  assert.equal(
+    spawnWeight({ app: { appId: VAMP, channels: 1, paramCount: 16 } }),
+    3,
+  );
+  assert.equal(
+    spawnWeight({ app: { appId: SUPER_LFO, channels: 2, paramCount: 9 } }),
+    4,
+  );
+});
+
+test("partitionBySpawnWeight: heavies are multi-ch / large params, not named apps", () => {
   const slots = [
-    { id: 3, app: { appId: VAMP, channels: 1, name: "Chord Vamp" }, startChannel: 3 },
-    { id: 0, app: { appId: GROOVES, channels: 1, name: "Grooves" }, startChannel: 0 },
-    { id: 5, app: { appId: ECHOLOT, channels: 1, name: "Echolot" }, startChannel: 5 },
+    { id: 0, app: { appId: HOLD_SAM, channels: 1, paramCount: 11, name: "Hold Sam" }, startChannel: 0 },
+    { id: 1, app: { appId: GROOVES, channels: 1, paramCount: 14, name: "Grooves" }, startChannel: 1 },
+    { id: 2, app: { appId: SUPER_LFO, channels: 2, paramCount: 9, name: "Super LFO" }, startChannel: 2 },
+    { id: 3, app: { appId: BERNOULLI, channels: 1, paramCount: 6, name: "Bernoulli" }, startChannel: 3 },
+  ];
+  const { light, heavy } = partitionBySpawnWeight(slots);
+  assert.deepEqual(
+    light.map((s) => s.app.appId),
+    [HOLD_SAM, BERNOULLI],
+  );
+  assert.deepEqual(
+    heavy.map((s) => s.app.appId),
+    [GROOVES, SUPER_LFO],
+  );
+});
+
+test("compareSpawnOrder: lighter weight before heavier", () => {
+  const slots = [
+    { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16, name: "Chord Vamp" }, startChannel: 3 },
+    { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8, name: "Grooves" }, startChannel: 0 },
+    { id: 5, app: { appId: ECHOLOT, channels: 1, paramCount: 8, name: "Echolot" }, startChannel: 5 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.equal(ordered[0].app.appId, GROOVES);
@@ -173,16 +213,16 @@ test("compareSpawnOrder: defers Chord Vamp to the end", () => {
   assert.equal(ordered[2].app.appId, VAMP);
 });
 
-test("compareSpawnOrder: multi-channel after 1ch, before deferred vamp", () => {
+test("compareSpawnOrder: multi-channel after 1ch light, before heavy params", () => {
   const slots = [
-    { id: 3, app: { appId: VAMP, channels: 1 }, startChannel: 3 },
-    { id: 6, app: { appId: SUPER_LFO, channels: 2 }, startChannel: 6 },
-    { id: 0, app: { appId: GROOVES, channels: 1 }, startChannel: 0 },
+    { id: 3, app: { appId: VAMP, channels: 1, paramCount: 16 }, startChannel: 3 },
+    { id: 6, app: { appId: SUPER_LFO, channels: 2, paramCount: 9 }, startChannel: 6 },
+    { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 8 }, startChannel: 0 },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.appId),
-    [GROOVES, SUPER_LFO, VAMP],
+    [GROOVES, VAMP, SUPER_LFO],
   );
 });
 
