@@ -631,13 +631,49 @@ async function applySetLayoutIncremental(
      * @param {object[]} layoutSlots full or partial appLayout rows (holes OK)
      * @param {object[]} waitSlots slots to poll + write params for
      * @param {string} label
+     * @param {{ incremental?: boolean }} [waveOpts]
+     *        incremental: only `waitSlots` are new (FW skips unchanged apps).
+     *        Budgets must follow new-app count — sizing by total layout was
+     *        waiting 10–18s per +1 heavy and stressing USB into a wedge.
      */
-    async function layoutWave(layoutSlots, waitSlots, label) {
+    async function layoutWave(layoutSlots, waitSlots, label, waveOpts = {}) {
       const waveN = layoutSlots.filter((s) => s.app).length;
+      const newN = Math.max(
+        1,
+        waitSlots.filter((s) => s.app).length,
+      );
+      const incremental = !!waveOpts.incremental && newN < waveN;
+      const budgetN = incremental ? newN : waveN;
+      // Single-app add under Hold: no start-gate mass FRAM — only the new task loads.
       const spawnBudgetMs = held
-        ? estimateHoldSpawnMs(waveN)
-        : estimateAtomicSpawnMs(waveN);
-      const framMs = held ? estimatePostGateFramMs(waveN) : Math.max(2000, waveN * 400);
+        ? estimateHoldSpawnMs(budgetN)
+        : estimateAtomicSpawnMs(budgetN);
+      const framMs = held
+        ? incremental
+          ? Math.max(2000, newN * 900 + 1200)
+          : estimatePostGateFramMs(waveN)
+        : Math.max(2000, budgetN * 400);
+      const headStartMs = held
+        ? incremental
+          ? 900
+          : 2500
+        : 1800;
+      const pollBudgetMs = held
+        ? incremental
+          ? 5000
+          : 6000
+        : Math.max(10_000, waveN * 900);
+
+      if (incremental) {
+        // Brief quiet between dense SetLayouts so the prior wave can finish USB.
+        await delay(500);
+        try {
+          await probeConfigCable(cfg);
+        } catch {
+          cfg = await ensureCableAfterSpawn(cfg, deviceRef, log);
+        }
+      }
+
       const layoutStartedAt = Date.now();
       cfg = await applySetLayout(
         cfg,
@@ -646,16 +682,14 @@ async function applySetLayoutIncremental(
         LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
         label,
-        {
-          headStartMs: held ? 2500 : 1800,
-          pollBudgetMs: held ? 6000 : Math.max(10_000, waveN * 900),
-        },
+        { headStartMs, pollBudgetMs },
       );
       const spawnedFor = Date.now() - layoutStartedAt;
       const staggerLeft = Math.max(0, spawnBudgetMs - spawnedFor);
       if (staggerLeft > 0) {
         log(
-          `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+          `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms` +
+            `${incremental ? ` · ${newN} new` : ""} , GetVersion) …`,
         );
         await delayKeepalive(cfg, staggerLeft, {
           probe: true,
@@ -665,7 +699,8 @@ async function applySetLayoutIncremental(
       }
       if (framMs > 0) {
         log(
-          `  wait post-gate FRAM ${framMs}ms (no SysEx — ${waveN} apps loading) …`,
+          `  wait post-gate FRAM ${framMs}ms (no SysEx — ` +
+            `${incremental ? `${newN} new` : `${waveN} apps`} loading) …`,
         );
         await delayKeepalive(cfg, framMs, { probe: false });
       }
@@ -691,6 +726,7 @@ async function applySetLayoutIncremental(
         cfg = await applySetAppParams(cfg, paramsById, ids, log, {
           deviceRef,
           underHold: held,
+          skipReadyWait: true,
         });
       }
     }
@@ -720,6 +756,7 @@ async function applySetLayoutIncremental(
           growing,
           [slot],
           `SetLayout (+${name} w=${w}, heavy ${i + 1}/${heavy.length})`,
+          { incremental: true },
         );
       }
     } else {
@@ -853,6 +890,7 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
   let cfg = config;
   const deviceRef = opts.deviceRef || null;
   const underHold = !!opts.underHold;
+  const skipReadyWait = !!opts.skipReadyWait;
   const ids =
     layoutIds == null
       ? [...paramsById.keys()].map(Number)
@@ -867,11 +905,13 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
     // SetLayout ACK and GetVersion only prove transport health. Dense layouts
     // continue spawning AppStates for many seconds (often IDs 9→14). Do not
     // spend SetAppParams retries while the requested slot does not exist yet.
-    cfg = await waitForSlotReady(cfg, id, log, 75_000, {
-      label: "before params",
-      deviceRef,
-      underHold,
-    });
+    if (!skipReadyWait) {
+      cfg = await waitForSlotReady(cfg, id, log, 75_000, {
+        label: "before params",
+        deviceRef,
+        underHold,
+      });
+    }
     let lastErr = null;
     for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
       try {
