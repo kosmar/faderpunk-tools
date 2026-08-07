@@ -545,12 +545,13 @@ async function applySetLayout(
 }
 
 /**
- * Full Push — Configurator-style Recall, denser-safe:
- *   clear/reap → (Hold if dense) → one Atomic SetLayout → quiet spawn/FRAM
- *   wait (almost no SysEx) → SetAppParams → Release.
+ * Full Push — mirror Configurator Recall as closely as practical:
+ *   Release (unstick) → one Atomic SetLayout → density-scaled quiet sleep
+ *   (no SysEx) → SetAppParams.
  *
- * Weight waves / per-slot GetAppParams readiness belong on Live-Add, not here:
- * hammering the config cable mid-spawn is what wedges USB on 13-app presets.
+ * No HoldPerfMute, no clear/reap storm, no weight waves, no readiness polls.
+ * Dense Hold+atomic was killing the config cable mid-spawn even with a quiet
+ * bus; Configurator beta simply SetLayout → ~1s → params and stays up.
  */
 async function applySetLayoutIncremental(
   config,
@@ -572,11 +573,8 @@ async function applySetLayoutIncremental(
       .join(" → ")}`,
   );
   let cfg = config;
-  let held = false;
-  const dense = n >= 8;
 
-  // Aborted older Pushes may have left the device held. Release so Embassy can
-  // reap during clear; Hold again only for the final dense spawn.
+  // Unstick a prior aborted Hold so apps are not parked.
   try {
     await sendAndReceiveExpect(
       cfg,
@@ -584,115 +582,54 @@ async function applySetLayoutIncremental(
       "Pong",
       { timeoutMs: 1500, attempts: 1 },
     );
-    log("  ReleasePerfMute (ensure task reaping is active)");
-    await delay(500);
+    log("  ReleasePerfMute (unstick)");
+    await delay(300);
   } catch {
     /* already released / older firmware */
   }
 
-  // Clear first so old static pool slots free before the final generation.
+  clearCachedAppStates(cfg.rx);
+
+  // Configurator: setLayout() once, then delay(1000), then setAllAppParams.
+  // Scale the pause for dense non-Hold spawn (faster stagger than Hold path).
+  const spawnBudgetMs = estimateAtomicSpawnMs(n);
+  // POST_LAYOUT_PERF_MUTE_MS is 4s; add per-app FRAM slack.
+  const quietMs = Math.max(
+    n <= 4 ? 1000 : 2500,
+    spawnBudgetMs + Math.max(4000, n * 350),
+  );
+  const layoutStartedAt = Date.now();
   cfg = await applySetLayout(
     cfg,
-    [],
+    appLayout,
     log,
     LAYOUT_SETTLE_INCREMENTAL_MS,
     deviceRef,
-    "SetLayout (clear old tasks)",
+    `SetLayout (final ${n} apps)`,
     {
       headStartMs: 1000,
-      pollBudgetMs: 4000,
+      pollBudgetMs: Math.max(3000, Math.min(8000, n * 400)),
     },
   );
-  log("  reap old app tasks 10s …");
-  await delayKeepalive(cfg, 10_000);
-
-  try {
-    if (dense) {
-      try {
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "HoldPerfMute" },
-          "Pong",
-          { timeoutMs: 2000, attempts: 2 },
-        );
-        held = true;
-        log("  HoldPerfMute (dense layout · paced spawn)");
-        await delay(300);
-      } catch {
-        log("  ⚠ HoldPerfMute unavailable — spawning without hold");
-      }
-    }
-
-    clearCachedAppStates(cfg.rx);
-
-    // Configurator Recall: one SetLayout, then a fixed pause (they use 1s).
-    // Dense 13-app Hold spawn needs the FW stagger+FRAM budget — but keep the
-    // bus quiet: GetVersion only during stagger, zero SysEx during FRAM.
-    const spawnBudgetMs = held
-      ? estimateHoldSpawnMs(n)
-      : estimateAtomicSpawnMs(n);
-    const framMs = held
-      ? estimatePostGateFramMs(n)
-      : Math.max(1500, n * 400);
-    const layoutStartedAt = Date.now();
-    cfg = await applySetLayout(
-      cfg,
-      appLayout,
-      log,
-      LAYOUT_SETTLE_INCREMENTAL_MS,
-      deviceRef,
-      `SetLayout (final ${n} apps)`,
-      {
-        // Short settle: first Version is enough; quiet wait covers the rest.
-        headStartMs: held ? 2000 : 1200,
-        pollBudgetMs: held ? 5000 : Math.max(4000, n * 500),
-      },
+  const already = Date.now() - layoutStartedAt;
+  const sleepMs = Math.max(0, quietMs - already);
+  if (sleepMs > 0) {
+    log(
+      `  quiet ${sleepMs}ms (Configurator-style · no SysEx · budget ${quietMs}ms) …`,
     );
-    const spawnedFor = Date.now() - layoutStartedAt;
-    const staggerLeft = Math.max(0, spawnBudgetMs - spawnedFor);
-    if (staggerLeft > 0) {
-      log(
-        `  quiet spawn ${staggerLeft}ms (budget ${spawnBudgetMs}ms, sparse GetVersion) …`,
-      );
-      await delayKeepalive(cfg, staggerLeft, {
-        probe: true,
-        probeEveryMs: 3000,
-        label: "spawn",
-        onLog: log,
-      });
-    }
-    if (framMs > 0) {
-      log(`  quiet FRAM ${framMs}ms (no SysEx · ${n} apps) …`);
-      await delayKeepalive(cfg, framMs, { probe: false });
-    }
-    cfg = await ensureCableAfterSpawn(cfg, deviceRef, log);
-
-    // Like Configurator setAllAppParams: write params without readiness polls.
-    // Empty AppState retries inside applySetAppParams still cover late spawns.
-    const ids = ordered.map((s) => Number(s.id));
-    log(`  SetAppParams (${ids.length}) …`);
-    cfg = await applySetAppParams(cfg, paramsById, ids, log, {
-      deviceRef,
-      underHold: held,
-      skipReadyWait: true,
-    });
-    return cfg;
-  } finally {
-    if (held) {
-      try {
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "ReleasePerfMute" },
-          "Pong",
-          { timeoutMs: 5000, attempts: 2 },
-        );
-        log("  ReleasePerfMute");
-        await delay(400);
-      } catch (e) {
-        log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
-      }
-    }
+    await delay(sleepMs);
   }
+
+  cfg = await ensureCableAfterSpawn(cfg, deviceRef, log);
+
+  const ids = ordered.map((s) => Number(s.id));
+  log(`  SetAppParams (${ids.length}) …`);
+  cfg = await applySetAppParams(cfg, paramsById, ids, log, {
+    deviceRef,
+    underHold: false,
+    skipReadyWait: true,
+  });
+  return cfg;
 }
 
 /** Poll GetAppParams until every layoutId has a live param_handler. */
