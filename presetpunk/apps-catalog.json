@@ -3895,11 +3895,11 @@
     },
     {
       "id": 42,
-      "slug": "kultura",
-      "module": "kultura",
+      "slug": "contura",
+      "module": "contura",
       "channels": 1,
-      "name": "Kultura",
-      "description": "Melodic lines in stylized cultural scales, anchored to the device tonic",
+      "name": "Contura",
+      "description": "Melodic contour over selectable 12-TET scale sets, anchored to the device tonic",
       "color": "Orange",
       "icon": "Note",
       "params": [
@@ -3983,27 +3983,7 @@
           }
         },
         {
-          "tag": "Enum",
-          "value": {
-            "name": "Family",
-            "variants": [
-              "Japan",
-              "India",
-              "Near East",
-              "World"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Scale",
-            "variants": [
-              "A",
-              "B",
-              "C"
-            ]
-          }
+          "tag": "None"
         },
         {
           "tag": "None"
