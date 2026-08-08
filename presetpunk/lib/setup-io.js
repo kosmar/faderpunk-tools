@@ -254,6 +254,8 @@ function toPlainJson(value) {
 export function normalizeValueForWire(v) {
   if (!v || typeof v !== "object" || !("tag" in v)) return v;
   const tag = v.tag;
+  // Param::None / stale catalog placeholders are not wire Values.
+  if (tag === "None") return undefined;
   // i32/f32/Enum/bool are scalars — never single-element arrays
   if (
     (tag === "i32" || tag === "f32" || tag === "Enum" || tag === "bool") &&
@@ -264,6 +266,18 @@ export function normalizeValueForWire(v) {
   // MidiOut must be [[usb,out1,out2]] not [usb,out1,out2]
   if (tag === "MidiOut" && Array.isArray(v.value) && v.value.length === 3 && typeof v.value[0] === "boolean") {
     return { tag, value: [v.value] };
+  }
+  // MidiNote / MidiChannel / MidiCc: heal NaN from unset note-column overlays
+  if (
+    (tag === "MidiNote" || tag === "MidiChannel" || tag === "MidiCc") &&
+    Array.isArray(v.value) &&
+    v.value.length === 1
+  ) {
+    const n = Number(v.value[0]);
+    if (!Number.isFinite(n)) {
+      const fallback = tag === "MidiChannel" ? 1 : tag === "MidiNote" ? 48 : 0;
+      return { tag, value: [fallback] };
+    }
   }
   return v;
 }

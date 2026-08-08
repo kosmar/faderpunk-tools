@@ -3344,9 +3344,14 @@
             firstNotePatched = true;
           }
         } else {
-          if (p.tag === "MidiCc" && row.kind !== "note") p.value = [Number(row.cc)];
+          if (p.tag === "MidiCc" && row.kind !== "note") p.value = [rowCcNum(row)];
           if (p.tag === "MidiNote" && row.kind === "note" && !firstNotePatched) {
-            p.value = [Number(row.cc)];
+            // Note-only apps (Contura, Bassment, …) — never Number(row.cc) when
+            // unset (→ NaN → ConfigMsgIn serialize fail). Prefer rowNoteNum;
+            // leave schema Base Note alone if neither note nor cc column is set.
+            if (rowHasNoteColumn(row)) {
+              p.value = [rowNoteNum(row)];
+            }
             firstNotePatched = true;
           }
         }
@@ -3552,12 +3557,22 @@
       return NOTE_APPS.has(app) ? "note" : "cc";
     }
 
+    function rowHasNoteColumn(row) {
+      if (row?.note != null && row.note !== "") return true;
+      if (row?.kind === "note" && row?.cc != null && row.cc !== "") {
+        return Number.isFinite(Number(row.cc));
+      }
+      return false;
+    }
+
     function rowNoteNum(row) {
       if (row?.note != null && row.note !== "") {
         return Math.max(0, Math.min(127, Number(row.note) || 0));
       }
       if (row?.kind === "note") {
-        return Math.max(0, Math.min(127, Number(row.cc) || 0));
+        const n = Number(row.cc);
+        // Legacy note apps store pitch in `cc`. Unset → C3, never NaN.
+        return Math.max(0, Math.min(127, Number.isFinite(n) ? n : 48));
       }
       return 36;
     }
@@ -4091,10 +4106,12 @@
             firstNote = true;
           }
         } else if (row.kind === "note" && p.tag === "MidiNote" && !firstNote) {
-          p.value = [Number(row.cc)];
+          if (rowHasNoteColumn(row)) {
+            p.value = [rowNoteNum(row)];
+          }
           firstNote = true;
         } else if (row.kind !== "note" && p.tag === "MidiCc" && !firstCc) {
-          p.value = [Number(row.cc)];
+          p.value = [rowCcNum(row)];
           firstCc = true;
         }
       }

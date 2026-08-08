@@ -98,11 +98,44 @@ test("normalizeValueForWire: flat MidiOut flags get wrapped", () => {
   assert.deepEqual(normalizeValueForWire(ok), ok);
 });
 
+test("normalizeValueForWire: Param None is not a wire Value", () => {
+  assert.equal(normalizeValueForWire({ tag: "None" }), undefined);
+});
+
+test("normalizeValueForWire: NaN MidiNote/MidiChannel from unset note column", () => {
+  // Regression: Contura live SetAppParams — enforceRowMidi used Number(row.cc)
+  // when unset → [NaN] → "Value ConfigMsgIn has wrong format".
+  assert.deepEqual(normalizeValueForWire({ tag: "MidiNote", value: [NaN] }), {
+    tag: "MidiNote",
+    value: [48],
+  });
+  assert.deepEqual(normalizeValueForWire({ tag: "MidiChannel", value: [NaN] }), {
+    tag: "MidiChannel",
+    value: [1],
+  });
+  assert.deepEqual(normalizeValueForWire({ tag: "MidiNote", value: [60] }), {
+    tag: "MidiNote",
+    value: [60],
+  });
+});
+
 test("normalizeValueForWire: non-Value inputs pass through", () => {
   assert.equal(normalizeValueForWire(null), null);
   assert.equal(normalizeValueForWire(undefined), undefined);
   const noTag = { value: 3 };
   assert.equal(normalizeValueForWire(noTag), noTag);
+});
+
+test("padParams: None placeholders become undefined holes", () => {
+  const out = padParams([
+    { tag: "i32", value: 1 },
+    { tag: "None" },
+    { tag: "bool", value: true },
+  ]);
+  assert.equal(out.length, 16);
+  assert.deepEqual(out[0], { tag: "i32", value: 1 });
+  assert.equal(out[1], undefined);
+  assert.deepEqual(out[2], { tag: "bool", value: true });
 });
 
 test("padParams: always 16 entries, holes undefined, values normalized", () => {
