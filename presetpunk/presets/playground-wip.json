@@ -4,29 +4,79 @@
       "index": 1,
       "letter": 0,
       "name": "Playground WIP",
-      "desc": "Newest WIP apps left→right + Quantizer (2ch) + Controls. Firmware defaults for params.",
+      "desc": "Newest WIP apps left\u2192right + Quantizer (2ch) + Controls. Firmware defaults for params.",
       "port": "usb",
       "rows": [
-        { "app": "loop_de_cay", "fader": 1 },
-        { "app": "harmonica", "fader": 2 },
-        { "app": "hold_sam", "fader": 3 },
-        { "app": "vamp", "fader": 4 },
-        { "app": "arp_de_levy", "fader": 5 },
-        { "app": "echolot", "fader": 6 },
-        { "app": "super_lfo", "fader": 7 },
-        { "app": "bassment", "fader": 8 },
-        { "app": "fibonacci_gate", "fader": 9 },
-        { "app": "grooves", "fader": 10 },
-        { "app": "heat_pump", "fader": 11 },
-        { "app": "quantizer", "fader": 12 },
-        { "app": "control", "fader": 14 },
-        { "app": "venn", "fader": 15 }
+        {
+          "app": "loop_de_cay",
+          "fader": 1
+        },
+        {
+          "app": "harmonica",
+          "fader": 2
+        },
+        {
+          "app": "hold_sam",
+          "fader": 3
+        },
+        {
+          "app": "vamp",
+          "fader": 4
+        },
+        {
+          "app": "arp_de_levy",
+          "fader": 5
+        },
+        {
+          "app": "echolot",
+          "fader": 6
+        },
+        {
+          "app": "super_lfo",
+          "fader": 7
+        },
+        {
+          "app": "bassment",
+          "fader": 8
+        },
+        {
+          "app": "fibonacci_gate",
+          "fader": 9
+        },
+        {
+          "app": "grooves",
+          "fader": 10
+        },
+        {
+          "app": "heat_pump",
+          "fader": 11
+        },
+        {
+          "app": "quantizer",
+          "fader": 12
+        },
+        {
+          "app": "kultura",
+          "fader": 13
+        },
+        {
+          "app": "control",
+          "fader": 14
+        },
+        {
+          "app": "venn",
+          "fader": 15
+        }
       ],
       "global": {
         "clock": {
-          "clock_src": { "tag": "Internal" },
+          "clock_src": {
+            "tag": "Internal"
+          },
           "ext_ppqn": 24,
-          "reset_src": { "tag": "None" },
+          "reset_src": {
+            "tag": "None"
+          },
           "internal_bpm": 126,
           "swing_amount": -2
         }

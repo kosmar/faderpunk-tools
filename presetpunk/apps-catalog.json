@@ -3892,6 +3892,123 @@
           }
         }
       ]
+    },
+    {
+      "id": 42,
+      "slug": "kultura",
+      "module": "kultura",
+      "channels": 1,
+      "name": "Kultura",
+      "description": "Melodic lines in stylized cultural scales, anchored to the device tonic",
+      "color": "Orange",
+      "icon": "Note",
+      "params": [
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_0_5V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Family",
+            "variants": [
+              "Japan",
+              "India",
+              "Near East",
+              "World"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Scale",
+            "variants": [
+              "A",
+              "B",
+              "C"
+            ]
+          }
+        },
+        {
+          "tag": "None"
+        }
+      ]
     }
   ]
 }
