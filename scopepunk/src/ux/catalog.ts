@@ -13,8 +13,10 @@ function isCatalog(v: unknown): v is AppUxCatalog {
 export function loadAppUxCatalog(): Promise<AppUxCatalog | null> {
   if (catalog) return Promise.resolve(catalog);
   if (loadPromise) return loadPromise;
-  const url = `${import.meta.env.BASE_URL}app-ux.json`;
-  loadPromise = fetch(url)
+  // Bust CDN/browser cache when Pages rebuilds (VITE_BUILD_MS set in CI).
+  const bust = import.meta.env.VITE_BUILD_MS ?? "dev";
+  const url = `${import.meta.env.BASE_URL}app-ux.json?v=${bust}`;
+  loadPromise = fetch(url, { cache: "no-cache" })
     .then(async (res) => {
       if (!res.ok) return null;
       const data: unknown = await res.json();

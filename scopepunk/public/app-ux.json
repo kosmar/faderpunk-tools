@@ -2075,7 +2075,25 @@
           ]
         }
       ],
-      "channels": []
+      "channels": [
+        {
+          "jackTitle": "Pitch CV",
+          "jackDescription": "Quantized melodic pitch (1V/oct / range param). Gate is MIDI note on/off.",
+          "faderTitle": "Interval",
+          "faderDescription": "Max scale-degree step size (narrow → wide leaps)",
+          "faderPlusShiftTitle": "Phrase / density",
+          "faderPlusShiftDescription": "Phrase length 4–24 steps and how often new notes vs rests fire",
+          "faderPlusFnTitle": "Expressivity",
+          "faderPlusFnDescription": "Repeat/short notes ↔ leaps and longer holds",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press mutes/unmutes. Long press cycles the scale set.",
+          "fnPlusShiftTitle": "Scale / octaves",
+          "fnPlusShiftDescription": "Shift+short = previous scale set · Shift+long = octave span 1→4",
+          "ledTop": "Gate / note-on cue (app color)",
+          "ledTopPlusShift": "Octave-span color blink after Shift+long",
+          "ledBottom": "Pitch height within the current span"
+        }
+      ]
     }
   }
 }

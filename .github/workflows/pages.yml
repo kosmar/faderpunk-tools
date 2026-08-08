@@ -34,6 +34,7 @@ jobs:
         working-directory: scopepunk
         env:
           GITHUB_PAGES: "1"
+          VITE_BUILD_MS: ${{ github.run_id }}
         run: |
           pnpm install --frozen-lockfile
           pnpm build
