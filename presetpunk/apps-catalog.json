@@ -3809,13 +3809,13 @@
           "value": {
             "name": "Voice",
             "variants": [
+              "Mingus",
               "Jamerson",
               "Bootsy",
               "Jaco",
-              "Mingus",
-              "Flea",
               "Robbie",
               "Flabba",
+              "Flea",
               "Claypool"
             ]
           }
