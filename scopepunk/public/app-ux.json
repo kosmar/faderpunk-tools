@@ -2043,6 +2043,39 @@
         }
       ],
       "channels": []
+    },
+    "42": {
+      "id": 42,
+      "name": "Contura",
+      "blurb": "Melodic contour over selectable 12-TET scale sets, anchored to the device tonic",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — interval width (narrow → wide scale-degree steps)",
+            "<strong>Alt</strong> (Shift) — phrase length (4–24) + note density",
+            "<strong>Third</strong> (Btn hold) — expressivity (repeat/short → leaps/long holds)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short</strong> — mute / unmute",
+            "<strong>Shift+short</strong> — previous scale set",
+            "<strong>Long</strong> — next scale set",
+            "<strong>Shift+long</strong> — octave span 1→2→3→4"
+          ]
+        },
+        {
+          "heading": "Scale sets / LEDs",
+          "items": [
+            "Flat list of named 12-TET sets (Ionian…Folk) — conventional interval-pattern labels, not cultural claims",
+            "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
+            "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/16)"
+          ]
+        }
+      ],
+      "channels": []
     }
   }
 }
