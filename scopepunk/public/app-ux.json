@@ -2052,9 +2052,9 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — interval width (narrow → wide scale-degree steps)",
-            "<strong>Alt</strong> (Shift) — phrase length (4–24) + note density",
-            "<strong>Third</strong> (Btn hold) — expressivity (repeat/short → leaps/long holds)"
+            "<strong>Main</strong> — interval width (stepwise ↔ wide leaps; aggressive curve)",
+            "<strong>Alt</strong> (Shift) — phrase length only (3–28 steps)",
+            "<strong>Third</strong> (Btn hold) — note density (sparse rests ↔ continuous)"
           ]
         },
         {
@@ -2071,6 +2071,7 @@
           "items": [
             "Flat list of named 12-TET sets (Ionian…Folk) — conventional interval-pattern labels, not cultural claims",
             "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
+            "Per-set melodic feel (contour / leap / sustain) — expressivity is not a fader",
             "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/16)"
           ]
         }
@@ -2080,11 +2081,11 @@
           "jackTitle": "Pitch CV",
           "jackDescription": "Quantized melodic pitch (1V/oct / range param). Gate is MIDI note on/off.",
           "faderTitle": "Interval",
-          "faderDescription": "Max scale-degree step size (narrow → wide leaps)",
-          "faderPlusShiftTitle": "Phrase / density",
-          "faderPlusShiftDescription": "Phrase length 4–24 steps and how often new notes vs rests fire",
-          "faderPlusFnTitle": "Expressivity",
-          "faderPlusFnDescription": "Repeat/short notes ↔ leaps and longer holds",
+          "faderDescription": "Max scale-degree step — bottom stays stepwise, top opens wide leaps",
+          "faderPlusShiftTitle": "Phrase length",
+          "faderPlusShiftDescription": "How many steps before the contour resets (3–28)",
+          "faderPlusFnTitle": "Density",
+          "faderPlusFnDescription": "How often notes fire vs rests — bottom sparse, top continuous",
           "fnTitle": "Mute",
           "fnDescription": "Short press mutes/unmutes. Long press cycles the scale set.",
           "fnPlusShiftTitle": "Scale / octaves",
