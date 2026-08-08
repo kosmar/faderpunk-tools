@@ -3832,7 +3832,7 @@
         {
           "tag": "i32",
           "value": {
-            "name": "Swing max %",
+            "name": "Groove max %",
             "min": 10,
             "max": 100
           }
