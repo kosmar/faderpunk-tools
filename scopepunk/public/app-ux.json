@@ -1,6 +1,1395 @@
 {
   "version": 1,
   "apps": {
+    "1": {
+      "id": 1,
+      "name": "Control",
+      "blurb": "Simple MIDI/CV controller",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Sets CV and MIDI CC value",
+            "<strong>Alt</strong> — Attenuation level — Reduces the CV and CC range"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output",
+          "jackDescription": "CV Output",
+          "faderTitle": "Sets CV and MIDI CC value",
+          "faderPlusShiftTitle": "Attenuation level",
+          "faderPlusShiftDescription": "Reduces the CV and CC range",
+          "fnTitle": "Mute",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        }
+      ]
+    },
+    "2": {
+      "id": 2,
+      "name": "LFO",
+      "blurb": "Multi shape LFO",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — LFO speed — Sets the LFO speed, top is maximum and bottom slowest",
+            "<strong>Alt</strong> — Attenuation — Reduces the output range"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Waveform / Mute — Short: cycle waveform. Long (no shift): mute output",
+            "<strong>Shift+Btn</strong> — Reset / Clocked mode — Short: reset LFO. Long: toggle clocked mode"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output",
+          "jackDescription": "-5V to 5V LFO out",
+          "faderTitle": "LFO speed",
+          "faderDescription": "Sets the LFO speed, top is maximum and bottom slowest",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Reduces the output range",
+          "fnTitle": "Waveform / Mute",
+          "fnDescription": "Short: cycle waveform. Long (no shift): mute output",
+          "fnPlusShiftTitle": "Reset / Clocked mode",
+          "fnPlusShiftDescription": "Short: reset LFO. Long: toggle clocked mode",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        }
+      ]
+    },
+    "3": {
+      "id": 3,
+      "name": "AD envelope",
+      "blurb": "Variable curve AD, ASR or looping AD",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Attack time — Sets the attack time from 0 to 4 sec",
+            "<strong>Ch0 Alt</strong> — Trigger to gate time — 0-4 sec. Infinite at maximum.",
+            "<strong>Ch1 Main</strong> — Decay time — Sets the decay time from 0 to 4 sec",
+            "<strong>Ch1 Alt</strong> — Attenuation — Reduces the output range."
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Attack curve — Short: cycle attack curve",
+            "<strong>Ch0 Shift+Btn</strong> — Manual trigger",
+            "<strong>Ch1 Btn</strong> — Decay curve / Mute — Short: cycle decay curve. Long (no shift): mute output",
+            "<strong>Ch1 Shift+Btn</strong> — Envelope mode — AD (yellow), ASR (blue), and looping AD (pink)"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Gate Input",
+          "jackDescription": "Gate is detected if the voltage is above 1V",
+          "faderTitle": "Attack time",
+          "faderDescription": "Sets the attack time from 0 to 4 sec",
+          "faderPlusShiftTitle": "Trigger to gate time",
+          "faderPlusShiftDescription": "0-4 sec. Infinite at maximum.",
+          "fnTitle": "Attack curve",
+          "fnDescription": "Short: cycle attack curve",
+          "fnPlusShiftTitle": "Manual trigger",
+          "ledTop": "Output level in attack phase",
+          "ledTopPlusShift": "Trigger to gate time (flash)",
+          "ledBottom": "Gate input state"
+        },
+        {
+          "jackTitle": "Envelope Output",
+          "jackDescription": "0-10V output range",
+          "faderTitle": "Decay time",
+          "faderDescription": "Sets the decay time from 0 to 4 sec",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Reduces the output range.",
+          "fnTitle": "Decay curve / Mute",
+          "fnDescription": "Short: cycle decay curve. Long (no shift): mute output",
+          "fnPlusShiftTitle": "Envelope mode",
+          "fnPlusShiftDescription": "AD (yellow), ASR (blue), and looping AD (pink)",
+          "ledTop": "Output level in decay phase",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "inactive"
+        }
+      ]
+    },
+    "4": {
+      "id": 4,
+      "name": "Random CC/CV",
+      "blurb": "Generate random CC and CV values",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Speed — Sets the speed, top is maximum and bottom slowest",
+            "<strong>Alt</strong> — Attenuation — Reduces the output range",
+            "<strong>Third</strong> — Slew — Slew limiter timing."
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute — Short press (no shift) toggles mute",
+            "<strong>Shift+Btn</strong> — Clocked mode — Long press: toggle free-running/clocked"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Either -5V to 5V or 0 to 10V CV",
+          "faderTitle": "Speed",
+          "faderDescription": "Sets the speed, top is maximum and bottom slowest",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Reduces the output range",
+          "faderPlusFnTitle": "Slew",
+          "faderPlusFnDescription": "Slew limiter timing.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press (no shift) toggles mute",
+          "fnPlusShiftTitle": "Clocked mode",
+          "fnPlusShiftDescription": "Long press: toggle free-running/clocked",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        }
+      ]
+    },
+    "5": {
+      "id": 5,
+      "name": "Sequencer",
+      "blurb": "4 x 16 step CV/gate sequencers",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Note / Velocity — Sets the note at this step",
+            "<strong>Ch0 Alt</strong> — Sequence length — Set the length of the selected sequencer between 1 and 16 steps",
+            "<strong>Ch1 Main</strong> — Note / Velocity — Sets the note at this step",
+            "<strong>Ch1 Alt</strong> — Gate length",
+            "<strong>Ch2 Main</strong> — Note / Velocity — Sets the note at this step, or velocity level when velocity lane is enabled",
+            "<strong>Ch2 Alt</strong> — Octave — Offset the whole sequence by 0–5 octaves",
+            "<strong>Ch3 Main</strong> — Note / Velocity — Sets the note at this step, or velocity level when velocity lane is enabled",
+            "<strong>Ch3 Alt</strong> — Sequence Range — Set sequence range (1–5 octaves)",
+            "<strong>Ch4 Main</strong> — Note / Velocity — Sets the note at this step",
+            "<strong>Ch4 Alt</strong> — Sequence resolution — Set sequence resolution: 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th",
+            "<strong>Ch5 Main</strong> — Note / Velocity — Sets the note at this step",
+            "<strong>Ch5 Alt</strong> — Direction — Set sequence direction: Forward, Backward, Ping-Pong, or Random",
+            "<strong>Ch6 Main</strong> — Note / Velocity — Sets the note at this step, or velocity level when velocity lane is enabled",
+            "<strong>Ch6 Alt</strong> — Probability — Set trigger probability for this sequencer (5%–100%)",
+            "<strong>Ch7 Main</strong> — Note / Velocity — Sets the note at this step, or velocity level when velocity lane is enabled",
+            "<strong>Ch7 Alt</strong> — Slide time — Set 303-style portamento slide time (0 = instant)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch0 Shift+Btn</strong> — Seq 1 page 1 / Mute Seq 1 — Short: select page. Long: mute/unmute sequencer 1",
+            "<strong>Ch1 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch1 Shift+Btn</strong> — Select Seq 1, page 2",
+            "<strong>Ch2 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch2 Shift+Btn</strong> — Seq 2 page 1 / Mute Seq 2 — Short: select page. Long: mute/unmute sequencer 2",
+            "<strong>Ch3 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch3 Shift+Btn</strong> — Select Seq 2, page 2",
+            "<strong>Ch4 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch4 Shift+Btn</strong> — Seq 3 page 1 / Mute Seq 3 — Short: select page. Long: mute/unmute sequencer 3",
+            "<strong>Ch5 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch5 Shift+Btn</strong> — Select Seq 3, page 2",
+            "<strong>Ch6 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch6 Shift+Btn</strong> — Seq 4 page 1 / Mute Seq 4 — Short: select page. Long: mute/unmute sequencer 4",
+            "<strong>Ch7 Btn</strong> — Gate/Legato — Short press sets a gate or rest, long press sets a legato",
+            "<strong>Ch7 Shift+Btn</strong> — Select Seq 4, page 2"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "Quantized note output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step",
+          "faderPlusShiftTitle": "Sequence length",
+          "faderPlusShiftDescription": "Set the length of the selected sequencer between 1 and 16 steps",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Seq 1 page 1 / Mute Seq 1",
+          "fnPlusShiftDescription": "Short: select page. Long: mute/unmute sequencer 1",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "Gate Output",
+          "jackDescription": "Gate output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step",
+          "faderPlusShiftTitle": "Gate length",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Select Seq 1, page 2",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "Quantized note output, or unquantized velocity CV when velocity lane is enabled",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step, or velocity level when velocity lane is enabled",
+          "faderPlusShiftTitle": "Octave",
+          "faderPlusShiftDescription": "Offset the whole sequence by 0–5 octaves",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Seq 2 page 1 / Mute Seq 2",
+          "fnPlusShiftDescription": "Short: select page. Long: mute/unmute sequencer 2",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "Gate Output",
+          "jackDescription": "Gate output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step, or velocity level when velocity lane is enabled",
+          "faderPlusShiftTitle": "Sequence Range",
+          "faderPlusShiftDescription": "Set sequence range (1–5 octaves)",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Select Seq 2, page 2",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "Quantized note output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step",
+          "faderPlusShiftTitle": "Sequence resolution",
+          "faderPlusShiftDescription": "Set sequence resolution: 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Seq 3 page 1 / Mute Seq 3",
+          "fnPlusShiftDescription": "Short: select page. Long: mute/unmute sequencer 3",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "Gate Output",
+          "jackDescription": "Gate output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step",
+          "faderPlusShiftTitle": "Direction",
+          "faderPlusShiftDescription": "Set sequence direction: Forward, Backward, Ping-Pong, or Random",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Select Seq 3, page 2",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "Quantized note output, or unquantized velocity CV when velocity lane is enabled",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step, or velocity level when velocity lane is enabled",
+          "faderPlusShiftTitle": "Probability",
+          "faderPlusShiftDescription": "Set trigger probability for this sequencer (5%–100%)",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Seq 4 page 1 / Mute Seq 4",
+          "fnPlusShiftDescription": "Short: select page. Long: mute/unmute sequencer 4",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        },
+        {
+          "jackTitle": "Gate Output",
+          "jackDescription": "Gate output",
+          "faderTitle": "Note / Velocity",
+          "faderDescription": "Sets the note at this step, or velocity level when velocity lane is enabled",
+          "faderPlusShiftTitle": "Slide time",
+          "faderPlusShiftDescription": "Set 303-style portamento slide time (0 = instant)",
+          "fnTitle": "Gate/Legato",
+          "fnDescription": "Short press sets a gate or rest, long press sets a legato",
+          "fnPlusShiftTitle": "Select Seq 4, page 2",
+          "ledTop": "Note level",
+          "ledTopPlusShift": "Sequence Length",
+          "ledBottom": "Active page"
+        }
+      ]
+    },
+    "6": {
+      "id": 6,
+      "name": "Turing",
+      "blurb": "Turing machine, synched to internal clock",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Probability — Bottom: no bit flip, Top: constant bit flips and doubled sequence length; Middle: max randomness",
+            "<strong>Alt</strong> — Attenuation / Gate density — Reduces CV output range; in Gate Out mode controls gate density (threshold mode)",
+            "<strong>Third</strong> — Speed — 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute — Short press (no shift) mutes/unmutes the output",
+            "<strong>Shift+Btn</strong> — Sequence Length — Short press x times while holding Shift sets length to x. Long press (Gate Out on): toggle threshold / bit gate mode"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV / Gate Output",
+          "jackDescription": "0–10V quantized CV (Gate Out off) or gate signal (Gate Out on)",
+          "faderTitle": "Probability",
+          "faderDescription": "Bottom: no bit flip, Top: constant bit flips and doubled sequence length; Middle: max randomness",
+          "faderPlusShiftTitle": "Attenuation / Gate density",
+          "faderPlusShiftDescription": "Reduces CV output range; in Gate Out mode controls gate density (threshold mode)",
+          "faderPlusFnTitle": "Speed",
+          "faderPlusFnDescription": "32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press (no shift) mutes/unmutes the output",
+          "fnPlusShiftTitle": "Sequence Length",
+          "fnPlusShiftDescription": "Short press x times while holding Shift sets length to x. Long press (Gate Out on): toggle threshold / bit gate mode",
+          "ledTop": "CV output level (CV mode) / Gate state — on/off (Gate Out mode)",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "White flash at sequence repeat point"
+        }
+      ]
+    },
+    "7": {
+      "id": 7,
+      "name": "Turing+",
+      "blurb": "Turing machine, with clock input",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Probability — Bottom: no bit flip, Top: constant bit flips and doubled sequence length; Middle: max randomness",
+            "<strong>Ch1 Main</strong> — Attenuation — Reduces the output range"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Shift+Btn</strong> — Sequence Length — Press button x times sets length to x",
+            "<strong>Ch1 Btn</strong> — Mute — Short press (no shift) mutes/unmutes the output"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Gate input",
+          "jackDescription": "Gate is detected if the voltage is above 1V",
+          "faderTitle": "Probability",
+          "faderDescription": "Bottom: no bit flip, Top: constant bit flips and doubled sequence length; Middle: max randomness",
+          "fnPlusShiftTitle": "Sequence Length",
+          "fnPlusShiftDescription": "Press button x times sets length to x",
+          "ledTop": "Pre attenuation level",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Gate input indicator"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "0 to 10V CV",
+          "faderTitle": "Attenuation",
+          "faderDescription": "Reduces the output range",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press (no shift) mutes/unmutes the output",
+          "ledTop": "Output level indicator"
+        }
+      ]
+    },
+    "8": {
+      "id": 8,
+      "name": "Euclid",
+      "blurb": "Euclidean sequencer",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Length — Sets the length of the sequence",
+            "<strong>Ch0 Alt</strong> — Rotation — Rotates the sequence",
+            "<strong>Ch0 Third</strong> — Speed — 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar",
+            "<strong>Ch1 Main</strong> — Beats — Amount of beats in the sequence",
+            "<strong>Ch1 Alt</strong> — Probability — Chances that the sequencer outputs a trigger"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Speed — Fn + Fader changes the sequencer speed",
+            "<strong>Ch1 Btn</strong> — Mute — Mute the sequencer",
+            "<strong>Ch1 Shift+Btn</strong> — Mode switch — Set output 2 to inverted mode or EoC"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Trigger 1 Out",
+          "jackDescription": "Outputs 10V triggers",
+          "faderTitle": "Length",
+          "faderDescription": "Sets the length of the sequence",
+          "faderPlusShiftTitle": "Rotation",
+          "faderPlusShiftDescription": "Rotates the sequence",
+          "faderPlusFnTitle": "Speed",
+          "faderPlusFnDescription": "32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar",
+          "fnTitle": "Speed",
+          "fnDescription": "Fn + Fader changes the sequencer speed",
+          "ledTop": "Trigger 1 activity"
+        },
+        {
+          "jackTitle": "Trigger 2 Out",
+          "jackDescription": "Outputs 10V triggers",
+          "faderTitle": "Beats",
+          "faderDescription": "Amount of beats in the sequence",
+          "faderPlusShiftTitle": "Probability",
+          "faderPlusShiftDescription": "Chances that the sequencer outputs a trigger",
+          "fnTitle": "Mute",
+          "fnDescription": "Mute the sequencer",
+          "fnPlusShiftTitle": "Mode switch",
+          "fnPlusShiftDescription": "Set output 2 to inverted mode or EoC",
+          "ledTop": "Trigger 1 activity"
+        }
+      ]
+    },
+    "9": {
+      "id": 9,
+      "name": "Random Trigger",
+      "blurb": "Sends random triggers on clock",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Probability — Sets the chance of a trigger on each clock pulse",
+            "<strong>Alt</strong> — Resolution — 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar, 2 bars, 4 bars"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute — Toggles trigger output on/off"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Trigger Output",
+          "jackDescription": "Sends random triggers on clock",
+          "faderTitle": "Probability",
+          "faderDescription": "Sets the chance of a trigger on each clock pulse",
+          "faderPlusShiftTitle": "Resolution",
+          "faderPlusShiftDescription": "32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar, 2 bars, 4 bars",
+          "fnTitle": "Mute",
+          "fnDescription": "Toggles trigger output on/off",
+          "ledTop": "Trigger activity indicator",
+          "ledBottom": "Flashes with clock"
+        }
+      ]
+    },
+    "10": {
+      "id": 10,
+      "name": "Note Fader",
+      "blurb": "Play MIDI notes manually or on clock",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Note — Sets the note value based on fader position",
+            "<strong>Alt</strong> — Resolution — Sets clock resolution: 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mode — Direct mode trigger note, clocked mode toggles",
+            "<strong>Shift+Btn</strong> — Toggles between clocked and direct mode"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Sends either V/Oct or Gate signal",
+          "faderTitle": "Note",
+          "faderDescription": "Sets the note value based on fader position",
+          "faderPlusShiftTitle": "Resolution",
+          "faderPlusShiftDescription": "Sets clock resolution: 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar",
+          "fnTitle": "Mode",
+          "fnDescription": "Direct mode trigger note, clocked mode toggles",
+          "fnPlusShiftTitle": "Toggles between clocked and direct mode",
+          "ledTop": "Note output indicator",
+          "ledBottom": "Flashes in clocked mode (orange: triplet, blue: straight)"
+        }
+      ]
+    },
+    "11": {
+      "id": 11,
+      "name": "Offset + Attenuverter",
+      "blurb": "Offset and attenuverter module",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Offset — Applies a DC offset to the input signal",
+            "<strong>Ch1 Main</strong> — Attenuverter — Scales and inverts the input signal (max gain 2x)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Kill Offset — Button 1 disables the offset",
+            "<strong>Ch1 Btn</strong> — Kill Attenuverter — Button 2 disables the attenuvertion and set to unity gain"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "Accepts ±5V or 0–10V signals (set by Range)",
+          "faderTitle": "Offset",
+          "faderDescription": "Applies a DC offset to the input signal",
+          "fnTitle": "Kill Offset",
+          "fnDescription": "Button 1 disables the offset",
+          "ledTop": "Positive input",
+          "ledBottom": "Negative input"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Outputs ±5V or 0–10V signals (set by Range)",
+          "faderTitle": "Attenuverter",
+          "faderDescription": "Scales and inverts the input signal (max gain 2x)",
+          "fnTitle": "Kill Attenuverter",
+          "fnDescription": "Button 2 disables the attenuvertion and set to unity gain",
+          "ledTop": "Positive output",
+          "ledBottom": "Negative output"
+        }
+      ]
+    },
+    "12": {
+      "id": 12,
+      "name": "Slew Limiter",
+      "blurb": "Slows CV changes with offset and attenuverter",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Attack — Sets the attack time of the slew limiter",
+            "<strong>Ch0 Alt</strong> — Offset — Applies a DC offset to the input signal",
+            "<strong>Ch1 Main</strong> — Decay — Sets the decay time of the slew limiter",
+            "<strong>Ch1 Alt</strong> — Attenuverter — Scales and inverts the input signal (max gain 2x)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Kill Offset — Button 1 disables the offset",
+            "<strong>Ch1 Btn</strong> — Set Attenuverter — Button 2 enables or configures the attenuvertion"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "Accepts ±5V or 0–10V signals (set by Range)",
+          "faderTitle": "Attack",
+          "faderDescription": "Sets the attack time of the slew limiter",
+          "faderPlusShiftTitle": "Offset",
+          "faderPlusShiftDescription": "Applies a DC offset to the input signal",
+          "fnTitle": "Kill Offset",
+          "fnDescription": "Button 1 disables the offset",
+          "ledTop": "Positive input",
+          "ledBottom": "Negative input"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Outputs ±5V or 0–10V signals (set by Range)",
+          "faderTitle": "Decay",
+          "faderDescription": "Sets the decay time of the slew limiter",
+          "faderPlusShiftTitle": "Attenuverter",
+          "faderPlusShiftDescription": "Scales and inverts the input signal (max gain 2x)",
+          "fnTitle": "Set Attenuverter",
+          "fnDescription": "Button 2 enables or configures the attenuvertion",
+          "ledTop": "Positive output",
+          "ledBottom": "Negative output"
+        }
+      ]
+    },
+    "13": {
+      "id": 13,
+      "name": "Envelope Follower",
+      "blurb": "Audio amplitude to CV",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Attack — Sets the attack time of the envelope follower",
+            "<strong>Ch0 Alt</strong> — Offset — Applies a DC offset to the input signal",
+            "<strong>Ch0 Third</strong> — Input Gain — Adjusts input gain from 1x to 3x using Button 1 + Fader 1",
+            "<strong>Ch1 Main</strong> — Decay — Sets the decay time of the envelope follower",
+            "<strong>Ch1 Alt</strong> — Attenuverter — Scales and inverts the envelope signal (max gain 2x)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Shift+Btn</strong> — Reset Offset — Shift + Button 1 resets offset to neutral",
+            "<strong>Ch1 Btn</strong> — Mute — Short press (no shift) mutes/unmutes the output",
+            "<strong>Ch1 Shift+Btn</strong> — Reset Attenuation — Shift + Button 2 resets attenuation to unity"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "Accepts ±5V signals",
+          "faderTitle": "Attack",
+          "faderDescription": "Sets the attack time of the envelope follower",
+          "faderPlusShiftTitle": "Offset",
+          "faderPlusShiftDescription": "Applies a DC offset to the input signal",
+          "faderPlusFnTitle": "Input Gain",
+          "faderPlusFnDescription": "Adjusts input gain from 1x to 3x using Button 1 + Fader 1",
+          "fnPlusShiftTitle": "Reset Offset",
+          "fnPlusShiftDescription": "Shift + Button 1 resets offset to neutral",
+          "ledTop": "Positive input",
+          "ledBottom": "Negative input"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Outputs ±5V envelope signal",
+          "faderTitle": "Decay",
+          "faderDescription": "Sets the decay time of the envelope follower",
+          "faderPlusShiftTitle": "Attenuverter",
+          "faderPlusShiftDescription": "Scales and inverts the envelope signal (max gain 2x)",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press (no shift) mutes/unmutes the output",
+          "fnPlusShiftTitle": "Reset Attenuation",
+          "fnPlusShiftDescription": "Shift + Button 2 resets attenuation to unity",
+          "ledTop": "Positive output",
+          "ledBottom": "Negative output"
+        }
+      ]
+    },
+    "14": {
+      "id": 14,
+      "name": "Quantizer",
+      "blurb": "Quantize CV passing through",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Semitone Shift — Shifts the CV by 0–12 semitones before quantization",
+            "<strong>Ch1 Main</strong> — Octave Shift — Shifts the CV by ±5 octaves before quantization"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Toggle Semitone Shift — Enables/disables semitone shift",
+            "<strong>Ch1 Btn</strong> — Toggle Octave Shift — Enables/disables octave shift"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "Accepts ±5V or 0–10V CV signals (set by Range)",
+          "faderTitle": "Semitone Shift",
+          "faderDescription": "Shifts the CV by 0–12 semitones before quantization",
+          "fnTitle": "Toggle Semitone Shift",
+          "fnDescription": "Enables/disables semitone shift",
+          "ledTop": "Displays semitone level"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Outputs quantized ±5V or 0–10V CV signals (set by Range)",
+          "faderTitle": "Octave Shift",
+          "faderDescription": "Shifts the CV by ±5 octaves before quantization",
+          "fnTitle": "Toggle Octave Shift",
+          "fnDescription": "Enables/disables octave shift",
+          "ledTop": "Positive output",
+          "ledBottom": "Negative output"
+        }
+      ]
+    },
+    "15": {
+      "id": 15,
+      "name": "MIDI to CV",
+      "blurb": "Multifunctional MIDI to CV",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Offset — Offset in CC and Aftertouch mode, Octave shift in V/oct mode",
+            "<strong>Alt</strong> — Attenuation — Attenuates the CV input signal in CC and Aftertouch mode"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute — Mutes the output"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output",
+          "jackDescription": "0–10V (+/- 5V in Pitch bend mode)",
+          "faderTitle": "Offset",
+          "faderDescription": "Offset in CC and Aftertouch mode, Octave shift in V/oct mode",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Attenuates the CV input signal in CC and Aftertouch mode",
+          "fnTitle": "Mute",
+          "fnDescription": "Mutes the output",
+          "ledTop": "Positive level",
+          "ledBottom": "Negative level"
+        }
+      ]
+    },
+    "16": {
+      "id": 16,
+      "name": "CV2MIDI",
+      "blurb": "CV to MIDI CC",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Offset — Adjusts the offset of the incoming CV signal",
+            "<strong>Alt</strong> — Attenuation — Attenuates the CV input signal"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute — Button 1 mutes the MIDI output"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Input",
+          "jackDescription": "Accepts CV signals (±5V or 0–10V depending on configuration)",
+          "faderTitle": "Offset",
+          "faderDescription": "Adjusts the offset of the incoming CV signal",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Attenuates the CV input signal",
+          "fnTitle": "Mute",
+          "fnDescription": "Button 1 mutes the MIDI output",
+          "ledTop": "Positive level",
+          "ledBottom": "Negative level"
+        }
+      ]
+    },
+    "17": {
+      "id": 17,
+      "name": "CV/OCT to MIDI",
+      "blurb": "CV and gate to MIDI note converter",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Semitone Shift — Shifts pitch CV by 0–12 semitones before MIDI conversion",
+            "<strong>Ch1 Main</strong> — Octave Shift — Shifts pitch CV by ±5 octaves before MIDI conversion"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Toggle Semitone Offset — Button 1 enables/disables semitone offset",
+            "<strong>Ch1 Btn</strong> — Mute — Button 2 mutes MIDI output"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "V/oct Input",
+          "jackDescription": "Accepts pitch CV (±5V)",
+          "faderTitle": "Semitone Shift",
+          "faderDescription": "Shifts pitch CV by 0–12 semitones before MIDI conversion",
+          "fnTitle": "Toggle Semitone Offset",
+          "fnDescription": "Button 1 enables/disables semitone offset",
+          "ledTop": "Pitch CV activity",
+          "ledBottom": "Pitch CV activity"
+        },
+        {
+          "jackTitle": "Gate Input",
+          "jackDescription": "Triggers MIDI note-on events",
+          "faderTitle": "Octave Shift",
+          "faderDescription": "Shifts pitch CV by ±5 octaves before MIDI conversion",
+          "fnTitle": "Mute",
+          "fnDescription": "Button 2 mutes MIDI output",
+          "ledTop": "Gate activity"
+        }
+      ]
+    },
+    "18": {
+      "id": 18,
+      "name": "Clock Divider",
+      "blurb": "Simple clock divider",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Division — 32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar, 2 bars, 4 bars",
+            "<strong>Alt</strong> — Maximum division",
+            "<strong>Third</strong> — Minimum division"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Mute"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Trigger out",
+          "jackDescription": "Sends triggers on clock",
+          "faderTitle": "Division",
+          "faderDescription": "32ndT, 32nd, 16thT, 16th, 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar, 2 bars, 4 bars",
+          "faderPlusShiftTitle": "Maximum division",
+          "faderPlusFnTitle": "Minimum division",
+          "fnTitle": "Mute",
+          "ledTop": "Trigger activity indicator",
+          "ledTopPlusShift": "Maximum division (orange: triplet, blue: straight)"
+        }
+      ]
+    },
+    "19": {
+      "id": 19,
+      "name": "Panner",
+      "blurb": "Use with 2 VCA to do panning or cross fading with internal LFO for modulation",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Volume — Controls overall output level",
+            "<strong>Ch0 Alt</strong> — Attenuation level — Reduces the CV and CC range",
+            "<strong>Ch1 Main</strong> — Volume — Controls overall output level",
+            "<strong>Ch1 Alt</strong> — LFO amount — Add LFO modulation to the pan",
+            "<strong>Ch1 Third</strong> — LFO Speed"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Mute",
+            "<strong>Ch1 Btn</strong> — None",
+            "<strong>Ch1 Shift+Btn</strong> — LFO Waveform selection — Sine (yellow), triangle (pink), ramp down (cyan), ramp up (red), and square (white)"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Out 1",
+          "jackDescription": "CV output for VCA 1",
+          "faderTitle": "Volume",
+          "faderDescription": "Controls overall output level",
+          "faderPlusShiftTitle": "Attenuation level",
+          "faderPlusShiftDescription": "Reduces the CV and CC range",
+          "fnTitle": "Mute",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        },
+        {
+          "jackTitle": "Out 1",
+          "jackDescription": "CV output for VCA 1",
+          "faderTitle": "Volume",
+          "faderDescription": "Controls overall output level",
+          "faderPlusShiftTitle": "LFO amount",
+          "faderPlusShiftDescription": "Add LFO modulation to the pan",
+          "faderPlusFnTitle": "LFO Speed",
+          "fnTitle": "None",
+          "fnPlusShiftTitle": "LFO Waveform selection",
+          "fnPlusShiftDescription": "Sine (yellow), triangle (pink), ramp down (cyan), ramp up (red), and square (white)",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        }
+      ]
+    },
+    "20": {
+      "id": 20,
+      "name": "Random+",
+      "blurb": "Random CC/CV with assignable CV input",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — CV attenuation — Attenuates the incoming CV",
+            "<strong>Ch1 Main</strong> — Speed — Sets base random speed",
+            "<strong>Ch1 Alt</strong> — Attenuation — Reduces output range",
+            "<strong>Ch1 Third</strong> — Slew — Sets random transition smoothing"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — CV input mute — Mutes/unmutes the CV lane",
+            "<strong>Ch0 Shift+Btn</strong> — CV destination — Speed (yellow), ext clock (pink), slew (cyan)",
+            "<strong>Ch1 Btn</strong> — Mute — Short press mutes/unmutes output",
+            "<strong>Ch1 Shift+Btn</strong> — Clock mode — Long press toggles free-running/clocked"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "-5V to 5V CV in",
+          "faderTitle": "CV attenuation",
+          "faderDescription": "Attenuates the incoming CV",
+          "fnTitle": "CV input mute",
+          "fnDescription": "Mutes/unmutes the CV lane",
+          "fnPlusShiftTitle": "CV destination",
+          "fnPlusShiftDescription": "Speed (yellow), ext clock (pink), slew (cyan)",
+          "ledTop": "Positive input level indicator",
+          "ledTopPlusShift": "Destination color on button",
+          "ledBottom": "Negative input level indicator"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "Random CV out (0–10V or -5V to +5V)",
+          "faderTitle": "Speed",
+          "faderDescription": "Sets base random speed",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Reduces output range",
+          "faderPlusFnTitle": "Slew",
+          "faderPlusFnDescription": "Sets random transition smoothing",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press mutes/unmutes output",
+          "fnPlusShiftTitle": "Clock mode",
+          "fnPlusShiftDescription": "Long press toggles free-running/clocked",
+          "ledTop": "Positive output level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative output level indicator"
+        }
+      ]
+    },
+    "21": {
+      "id": 21,
+      "name": "Clock Divider+",
+      "blurb": "Clock divider with assignable CV input",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — CV attenuation — Attenuates incoming CV before destination processing",
+            "<strong>Ch1 Main</strong> — Division — Sets divider amount within the active min/max range",
+            "<strong>Ch1 Alt</strong> — Maximum division — Sets the upper divider limit",
+            "<strong>Ch1 Third</strong> — Minimum division — Sets the lower divider limit"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — CV input mute",
+            "<strong>Ch0 Shift+Btn</strong> — CV destination — Division (yellow), External clock (pink)",
+            "<strong>Ch1 Btn</strong> — Mute"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "-5V to 5V CV in",
+          "faderTitle": "CV attenuation",
+          "faderDescription": "Attenuates incoming CV before destination processing",
+          "fnTitle": "CV input mute",
+          "fnPlusShiftTitle": "CV destination",
+          "fnPlusShiftDescription": "Division (yellow), External clock (pink)",
+          "ledTop": "Positive input level indicator",
+          "ledBottom": "Negative input level indicator"
+        },
+        {
+          "jackTitle": "Trigger out",
+          "jackDescription": "Sends clock-divided triggers and optional MIDI note events",
+          "faderTitle": "Division",
+          "faderDescription": "Sets divider amount within the active min/max range",
+          "faderPlusShiftTitle": "Maximum division",
+          "faderPlusShiftDescription": "Sets the upper divider limit",
+          "faderPlusFnTitle": "Minimum division",
+          "faderPlusFnDescription": "Sets the lower divider limit",
+          "fnTitle": "Mute",
+          "ledTop": "Trigger activity indicator",
+          "ledTopPlusShift": "Maximum division indicator"
+        }
+      ]
+    },
+    "22": {
+      "id": 22,
+      "name": "LFO+",
+      "blurb": "Multi shape LFO",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — CV attenuation — Attenuates the incoming CV",
+            "<strong>Ch1 Main</strong> — LFO speed — Sets the LFO speed, top is maximum and bottom slowest",
+            "<strong>Ch1 Alt</strong> — Attenuation — Reduces the output range"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — CV input Mute",
+            "<strong>Ch0 Shift+Btn</strong> — CV destination — Speed (yellow), phase (pink), amplitude (cyan), reset (red)",
+            "<strong>Ch1 Btn</strong> — Waveform / Mute — Short: cycle waveform. Long (no shift): mute output",
+            "<strong>Ch1 Shift+Btn</strong> — Reset / Clocked mode — Short: reset LFO. Long: toggle clocked mode"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Input",
+          "jackDescription": "-5V to 5V CV in",
+          "faderTitle": "CV attenuation",
+          "faderDescription": "Attenuates the incoming CV",
+          "fnTitle": "CV input Mute",
+          "fnPlusShiftTitle": "CV destination",
+          "fnPlusShiftDescription": "Speed (yellow), phase (pink), amplitude (cyan), reset (red)",
+          "ledTop": "Positive level indicator",
+          "ledBottom": "Negative level indicator"
+        },
+        {
+          "jackTitle": "Output",
+          "jackDescription": "-5V to 5V LFO out",
+          "faderTitle": "LFO speed",
+          "faderDescription": "Sets the LFO speed, top is maximum and bottom slowest",
+          "faderPlusShiftTitle": "Attenuation",
+          "faderPlusShiftDescription": "Reduces the output range",
+          "fnTitle": "Waveform / Mute",
+          "fnDescription": "Short: cycle waveform. Long (no shift): mute output",
+          "fnPlusShiftTitle": "Reset / Clocked mode",
+          "fnPlusShiftDescription": "Short: reset LFO. Long: toggle clocked mode",
+          "ledTop": "Positive level indicator",
+          "ledTopPlusShift": "Attenuation level in red",
+          "ledBottom": "Negative level indicator"
+        }
+      ]
+    },
+    "23": {
+      "id": 23,
+      "name": "FP-Grids",
+      "blurb": "Emilie Gillet's renowned Mutable Instruments Grids topographic drum sequencer for the ATOV Faderpunk, with an extra Drum n' Bass mode",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Density 1 / Fill 1 / Kick Probability — Drums: note density for trigger 1. Euclidean: fill amount (0 to current length). DnB: kick trigger probability.",
+            "<strong>Ch0 Alt</strong> — Map X / Euclidean Length 1 — Drums: interpolating scan through drum map X axis. Euclidean: pattern length 1-16 steps. DnB: no function.",
+            "<strong>Ch1 Main</strong> — Density 2 / Fill 2 / Snare Probability — Drums: note density for trigger 2. Euclidean: fill amount (0 to current length). DnB: snare trigger probability.",
+            "<strong>Ch1 Alt</strong> — Map Y / Euclidean Length 2 — Drums: interpolating scan through drum map Y axis. Euclidean: pattern length 1-16 steps. DnB: no function.",
+            "<strong>Ch2 Main</strong> — Density 3 / Fill 3 / DnB Pattern Select — Drums: note density for trigger 3. Euclidean: fill amount (0 to current length). DnB: selects one of 12 patterns (change takes effect at next bar).",
+            "<strong>Ch2 Alt</strong> — Euclidean Length 3 — Euclidean: pattern length 1-16 steps. Drums / DnB: no function.",
+            "<strong>Ch3 Main</strong> — Chaos / Ghost Probability — Drums / Euclidean: pattern randomisation and humanisation. DnB: ghost snare trigger probability.",
+            "<strong>Ch3 Alt</strong> — Resolution — Sets clock resolution (Drums / Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode."
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Mute 1 — Mute trigger 1",
+            "<strong>Ch0 Shift+Btn</strong> — Euclidean Offset 1 / Vary DnB Pattern — Euclidean: Shift + Button 1 rotates pattern 1 by one step. DnB: Shift + Button 1 randomly varies the current pattern.",
+            "<strong>Ch1 Btn</strong> — Mute 2 — Mute trigger 2",
+            "<strong>Ch1 Shift+Btn</strong> — Euclidean Offset 2 / Restore DnB Pattern — Euclidean: Shift + Button 2 rotates pattern 2 by one step. DnB: Shift + Button 2 restores the pattern to the base.",
+            "<strong>Ch2 Btn</strong> — Mute 3 — Mute trigger 3",
+            "<strong>Ch2 Shift+Btn</strong> — Euclidean Offset 3 — Euclidean: Shift + Button 3 rotates pattern 3 by one step. Drums / DnB: no function.",
+            "<strong>Ch3 Btn</strong> — Accent / Ghost Mute — Mute accent (Drums / Euclidean) or ghost snare (DnB)",
+            "<strong>Ch3 Shift+Btn</strong> — Cycle Output Mode — Cycles through output modes: Light Blue = Drums, Pink = Euclidean, Sand = DnB"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Trigger output 1",
+          "jackDescription": "Bass drum / Euclidean Ch1 / Kick gate output",
+          "faderTitle": "Density 1 / Fill 1 / Kick Probability",
+          "faderDescription": "Drums: note density for trigger 1. Euclidean: fill amount (0 to current length). DnB: kick trigger probability.",
+          "faderPlusShiftTitle": "Map X / Euclidean Length 1",
+          "faderPlusShiftDescription": "Drums: interpolating scan through drum map X axis. Euclidean: pattern length 1-16 steps. DnB: no function.",
+          "fnTitle": "Mute 1",
+          "fnDescription": "Mute trigger 1",
+          "fnPlusShiftTitle": "Euclidean Offset 1 / Vary DnB Pattern",
+          "fnPlusShiftDescription": "Euclidean: Shift + Button 1 rotates pattern 1 by one step. DnB: Shift + Button 1 randomly varies the current pattern.",
+          "ledTop": "Gate output 1",
+          "ledBottom": "Density / Fill / Probability level"
+        },
+        {
+          "jackTitle": "Trigger output 2",
+          "jackDescription": "Snare / Euclidean Ch2 / Snare gate output",
+          "faderTitle": "Density 2 / Fill 2 / Snare Probability",
+          "faderDescription": "Drums: note density for trigger 2. Euclidean: fill amount (0 to current length). DnB: snare trigger probability.",
+          "faderPlusShiftTitle": "Map Y / Euclidean Length 2",
+          "faderPlusShiftDescription": "Drums: interpolating scan through drum map Y axis. Euclidean: pattern length 1-16 steps. DnB: no function.",
+          "fnTitle": "Mute 2",
+          "fnDescription": "Mute trigger 2",
+          "fnPlusShiftTitle": "Euclidean Offset 2 / Restore DnB Pattern",
+          "fnPlusShiftDescription": "Euclidean: Shift + Button 2 rotates pattern 2 by one step. DnB: Shift + Button 2 restores the pattern to the base.",
+          "ledTop": "Gate output 2",
+          "ledBottom": "Density / Fill / Probability level"
+        },
+        {
+          "jackTitle": "Trigger output 3",
+          "jackDescription": "Hi-Hat / Euclidean Ch3 / Hi-Hat gate output",
+          "faderTitle": "Density 3 / Fill 3 / DnB Pattern Select",
+          "faderDescription": "Drums: note density for trigger 3. Euclidean: fill amount (0 to current length). DnB: selects one of 12 patterns (change takes effect at next bar).",
+          "faderPlusShiftTitle": "Euclidean Length 3",
+          "faderPlusShiftDescription": "Euclidean: pattern length 1-16 steps. Drums / DnB: no function.",
+          "fnTitle": "Mute 3",
+          "fnDescription": "Mute trigger 3",
+          "fnPlusShiftTitle": "Euclidean Offset 3",
+          "fnPlusShiftDescription": "Euclidean: Shift + Button 3 rotates pattern 3 by one step. Drums / DnB: no function.",
+          "ledTop": "Gate output 3",
+          "ledBottom": "Density / Fill / Pattern number"
+        },
+        {
+          "jackTitle": "Accent / Accent / Ghost Snare gate output",
+          "jackDescription": "Global accent gate output (Drums / Euclidean) or Ghost Snare gate output (DnB)",
+          "faderTitle": "Chaos / Ghost Probability",
+          "faderDescription": "Drums / Euclidean: pattern randomisation and humanisation. DnB: ghost snare trigger probability.",
+          "faderPlusShiftTitle": "Resolution",
+          "faderPlusShiftDescription": "Sets clock resolution (Drums / Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode.",
+          "fnTitle": "Accent / Ghost Mute",
+          "fnDescription": "Mute accent (Drums / Euclidean) or ghost snare (DnB)",
+          "fnPlusShiftTitle": "Cycle Output Mode",
+          "fnPlusShiftDescription": "Cycles through output modes: Light Blue = Drums, Pink = Euclidean, Sand = DnB",
+          "ledTop": "Accent / Ghost Snare gate output",
+          "ledBottom": "Chaos / Ghost Probability level"
+        }
+      ]
+    },
+    "24": {
+      "id": 24,
+      "name": "TB-3PO",
+      "blurb": "TB-303 acid pattern generator",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Density — Controls gate density and pitch variety. Low = sparse/monotone, high = dense/chromatic.",
+            "<strong>Ch0 Third</strong> — Clock resolution — Hold Button 1 to select clock resolution: whole note → fast 32nds (8 steps, orange = straight, blue = triplet)",
+            "<strong>Ch1 Main</strong> — Sequence length — Sets the number of active steps (1–32)",
+            "<strong>Ch2 Main</strong> — Transpose — Transposes the pattern ±24 semitones",
+            "<strong>Ch2 Third</strong> — Octave transpose — Hold Shift while moving Fader 3 to transpose by whole octaves (−4 to +4). Both offsets are summed."
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Re-seed — Short press: generate a new random pattern.",
+            "<strong>Ch1 Btn</strong> — Toggle accents — Short press toggles accents on/off.",
+            "<strong>Ch2 Btn</strong> — Mute — Short press mutes/unmutes. Inhibit-only: current note rings out, pitch CV holds, no new gates until unmuted."
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Pitch CV",
+          "jackDescription": "0–10V quantized pitch output (1V/oct)",
+          "faderTitle": "Density",
+          "faderDescription": "Controls gate density and pitch variety. Low = sparse/monotone, high = dense/chromatic.",
+          "faderPlusFnTitle": "Clock resolution",
+          "faderPlusFnDescription": "Hold Button 1 to select clock resolution: whole note → fast 32nds (8 steps, orange = straight, blue = triplet)",
+          "fnTitle": "Re-seed",
+          "fnDescription": "Short press: generate a new random pattern.",
+          "ledTop": "Density level",
+          "ledBottom": "In resolution mode: division flash."
+        },
+        {
+          "jackTitle": "Gate",
+          "jackDescription": "Gate output",
+          "faderTitle": "Sequence length",
+          "faderDescription": "Sets the number of active steps (1–32)",
+          "fnTitle": "Toggle accents",
+          "fnDescription": "Short press toggles accents on/off.",
+          "ledTop": "Gate open (user color)",
+          "ledBottom": "Step progress — bright at step 1, dims toward end of sequence"
+        },
+        {
+          "jackTitle": "Accent CV",
+          "jackDescription": "High when the current gated step is accented, 0 otherwise",
+          "faderTitle": "Transpose",
+          "faderDescription": "Transposes the pattern ±24 semitones",
+          "faderPlusFnTitle": "Octave transpose",
+          "faderPlusFnDescription": "Hold Shift while moving Fader 3 to transpose by whole octaves (−4 to +4). Both offsets are summed.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press mutes/unmutes. Inhibit-only: current note rings out, pitch CV holds, no new gates until unmuted.",
+          "ledTop": "Orange when an accented gate is firing",
+          "ledBottom": "Transpose distance from center — dim = no offset, bright = far from center."
+        }
+      ]
+    },
+    "25": {
+      "id": 25,
+      "name": "Automator",
+      "blurb": "CV gesture looper",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — CV level (passthrough) / Loop offset (playing) — In passthrough: controls CV output directly. While a loop is playing: offsets the loop output up or down from center.",
+            "<strong>Alt</strong> — Loop attenuator — While a loop is playing: reduces the output range. Has no effect in passthrough."
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Btn</strong> — Hold to record — Hold to capture a gesture, release to commit it as a loop. Commits automatically if the maximum length is reached. Hold again to re-record. Button turns red while recording, then flashes white for one clock tick at the start of each loop cycle.",
+            "<strong>Shift+Btn</strong> — Clear loop — Clears the loop and returns to passthrough. Works from any state."
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "CV output — fader direct in passthrough, loop playback when playing",
+          "faderTitle": "CV level (passthrough) / Loop offset (playing)",
+          "faderDescription": "In passthrough: controls CV output directly. While a loop is playing: offsets the loop output up or down from center.",
+          "faderPlusShiftTitle": "Loop attenuator",
+          "faderPlusShiftDescription": "While a loop is playing: reduces the output range. Has no effect in passthrough.",
+          "fnTitle": "Hold to record",
+          "fnDescription": "Hold to capture a gesture, release to commit it as a loop. Commits automatically if the maximum length is reached. Hold again to re-record. Button turns red while recording, then flashes white for one clock tick at the start of each loop cycle.",
+          "fnPlusShiftTitle": "Clear loop",
+          "fnPlusShiftDescription": "Clears the loop and returns to passthrough. Works from any state.",
+          "ledTop": "Output level — app color in passthrough, red while recording, green while playing",
+          "ledBottom": "Output level (bipolar range only)"
+        }
+      ]
+    },
+    "26": {
+      "id": 26,
+      "name": "GenSeq",
+      "blurb": "Generative sequencer with Turing machine registers",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Pitch range — Spread between lowest and highest notes",
+            "<strong>Ch0 Alt</strong> — Octave shift — −2 to +2 octaves",
+            "<strong>Ch0 Third</strong> — Clock resolution — Step rate (1/1 to 1/16)",
+            "<strong>Ch1 Main</strong> — Length attenuator — Euclidean pattern length",
+            "<strong>Ch1 Alt</strong> — Legato density — How many steps slide",
+            "<strong>Ch2 Main</strong> — Beat density — How many steps trigger a gate",
+            "<strong>Ch2 Alt</strong> — Accent density — How many steps are accented",
+            "<strong>Ch2 Third</strong> — Gate length — Gate duration (1–99%)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Mutate pitch — Hold to mutate, release to lock",
+            "<strong>Ch1 Btn</strong> — Mutate length — Hold to mutate rhythm",
+            "<strong>Ch2 Btn</strong> — Toggle mute — Tap to toggle mute"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Output",
+          "jackDescription": "Quantized pitch, 0–10V",
+          "faderTitle": "Pitch range",
+          "faderDescription": "Spread between lowest and highest notes",
+          "faderPlusShiftTitle": "Octave shift",
+          "faderPlusShiftDescription": "−2 to +2 octaves",
+          "faderPlusFnTitle": "Clock resolution",
+          "faderPlusFnDescription": "Step rate (1/1 to 1/16)",
+          "fnTitle": "Mutate pitch",
+          "fnDescription": "Hold to mutate, release to lock",
+          "ledTop": "Current note height",
+          "ledBottom": "Clock flash (Button 3 layer)"
+        },
+        {
+          "jackTitle": "Gate Output",
+          "jackDescription": "Gate signal, 0–10V",
+          "faderTitle": "Length attenuator",
+          "faderDescription": "Euclidean pattern length",
+          "faderPlusShiftTitle": "Legato density",
+          "faderPlusShiftDescription": "How many steps slide",
+          "fnTitle": "Mutate length",
+          "fnDescription": "Hold to mutate rhythm",
+          "ledTop": "Gate open",
+          "ledBottom": "Length TM cycle progress"
+        },
+        {
+          "jackTitle": "Accent CV Output",
+          "jackDescription": "10V on accented steps, 0V otherwise",
+          "faderTitle": "Beat density",
+          "faderDescription": "How many steps trigger a gate",
+          "faderPlusShiftTitle": "Accent density",
+          "faderPlusShiftDescription": "How many steps are accented",
+          "faderPlusFnTitle": "Gate length",
+          "faderPlusFnDescription": "Gate duration (1–99%)",
+          "fnTitle": "Toggle mute",
+          "fnDescription": "Tap to toggle mute",
+          "ledTop": "Legato slide",
+          "ledBottom": "Euclidean cycle progress"
+        }
+      ]
+    },
+    "27": {
+      "id": 27,
+      "name": "Bernoulli Gate",
+      "blurb": "Two-output Bernoulli gate synced to internal clock",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Ch0 Main</strong> — Probability — Sets the chance Output A fires on each clock pulse",
+            "<strong>Ch1 Main</strong> — Resolution — Sets the clock division shared by both outputs"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 Btn</strong> — Mute — Mutes Output A",
+            "<strong>Ch1 Btn</strong> — Mute — Mutes Output B"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Output A",
+          "jackDescription": "Gate + MIDI note when the coin flip favors A",
+          "faderTitle": "Probability",
+          "faderDescription": "Sets the chance Output A fires on each clock pulse",
+          "fnTitle": "Mute",
+          "fnDescription": "Mutes Output A",
+          "ledTop": "Output A activity indicator",
+          "ledBottom": "Probability level"
+        },
+        {
+          "jackTitle": "Output B",
+          "jackDescription": "Gate + MIDI note when the coin flip favors B",
+          "faderTitle": "Resolution",
+          "faderDescription": "Sets the clock division shared by both outputs",
+          "fnTitle": "Mute",
+          "fnDescription": "Mutes Output B",
+          "ledTop": "Output B activity indicator",
+          "ledBottom": "Flashes with clock (orange: triplet, blue: straight)"
+        }
+      ]
+    },
     "29": {
       "id": 29,
       "name": "Heat Pump",
