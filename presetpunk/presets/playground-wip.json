@@ -14,6 +14,7 @@
         { "app": "arp_de_levy", "fader": 5 },
         { "app": "echolot", "fader": 6 },
         { "app": "super_lfo", "fader": 7 },
+        { "app": "bassment", "fader": 8 },
         { "app": "fibonacci_gate", "fader": 9 },
         { "app": "grooves", "fader": 10 },
         { "app": "heat_pump", "fader": 11 },

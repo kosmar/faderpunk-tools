@@ -2464,7 +2464,7 @@
         <button type="button" class="secondary dock-toggle" id="btnCopyLog" data-i18n="dock.copyLog">Copy log</button>
         <button type="button" class="secondary dock-toggle" id="btnToggleLog" data-i18n="dock.logToggle" data-i18n-title="dock.logToggleTitle" title="">Log ▴</button>
       </div>
-      <pre id="pushLog" data-i18n="dock.pushLogEmpty">No push yet. If something fails: check the Configurator Chrome window (Connect Device).</pre>
+      <pre id="pushLog" data-i18n="dock.pushLogEmpty">No push yet. If something fails: allow MIDI/SysEx in this tab and close other tabs that hold the Faderpunk.</pre>
       <div id="pushGate" class="push-gate" hidden>
         <div class="gate-msg" id="pushGateMsg"></div>
         <button type="button" class="secondary" id="btnPushStop" data-i18n="dock.stop">Stop</button>
@@ -2770,14 +2770,18 @@
       bernoulli: 4,
       heat_pump: 4,
       grooves: 4,
+      bassment: 4,
       fibonacci_gate: 4,
       super_lfo: 4,
       echolot: 4,
       arp_de_levy: 4,
       vamp: 4,
-      hold_sam: 16,
+      hold_sam: 4,
       harmonica: 4,
       loop_de_cay: 4,
+      control_issues: 4,
+      // 2-channel app: firmware uses 16/CHANNELS → 8 instances.
+      venn: 8,
     };
 
     /** Shared Note/CC column forced to "—" even when catalog has MidiNote/MidiCc. */
@@ -9221,6 +9225,39 @@
       if (!file) return;
       try {
         const data = JSON.parse(await file.text());
+        // Bank / editor-row packs (localStorage shape) — not device layout[].
+        const bankPack = parseBankPayload(data);
+        if (bankPack) {
+          bank = bankPack.presets;
+          active = bankPack.active;
+          saveBank();
+          syncFieldsFromPreset();
+          render();
+          setStatus(
+            "ok",
+            t("status.bankFromServer", {
+              n: bank.length,
+              tab: presetGlyphFor(preset()),
+            }),
+          );
+          return;
+        }
+        if (Array.isArray(data?.rows)) {
+          const sc = preset();
+          sc.name = data.name || sc.name;
+          sc.desc = data.desc || sc.desc;
+          if (data.port) sc.port = normalizePortKey(data.port);
+          sc.rows = data.rows.map((r) => ({
+            ...r,
+            app: canonicalizeAppSlug(r.app),
+          }));
+          if (data.global) sc.global = normalizeGlobal(data.global);
+          saveBank();
+          syncFieldsFromPreset();
+          render();
+          setStatus("ok", t("status.jsonImport", { index: presetGlyphFor(sc), n: sc.rows.length }));
+          return;
+        }
         const sc = preset();
         const n = applySetupToPreset(data, sc);
         syncFieldsFromPreset();
