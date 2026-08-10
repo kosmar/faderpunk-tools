@@ -224,6 +224,18 @@
           "value": {
             "name": "MIDI retrigger"
           }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "MidiNrpn"
         }
       ]
     },
@@ -4026,7 +4038,8 @@
               "1/16",
               "1/16T",
               "1/32",
-              "1/32T"
+              "1/32T",
+              "1/64T"
             ]
           }
         }
