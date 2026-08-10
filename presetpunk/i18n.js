@@ -64,7 +64,7 @@
         "Saves the default port and clears row overrides — all rows use default again",
       "bar.pull": "Pull from Punk",
       "bar.pullTitle":
-        "Reads layout + params + global from the connected Faderpunk (via Configurator Save Setup)",
+        "Reads layout + params + global config from the Faderpunk over Web MIDI",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",
@@ -120,7 +120,7 @@
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Expand / collapse push log",
       "dock.pushLogEmpty":
-        "No push yet. If something fails: check the Configurator Chrome window (Connect Device).",
+        "No push yet. If something fails: allow MIDI/SysEx in this tab and close other tabs that hold the Faderpunk.",
       "dock.stop": "Stop",
       "dock.next": "Continue →",
 
@@ -277,11 +277,11 @@
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
       "pull.confirm":
-        "Read current layout + params + global config from the Faderpunk?\n\nNew preset = keep the active one.\nReplace = overwrite the active preset.\n\nDevice must be connected in the Configurator.",
+        "Read current layout + params + global config from the Faderpunk?\n\nNew preset = keep the active one.\nReplace = overwrite the active preset.\n\nDevice must be connected in this tab (Web MIDI).",
       "pull.asNew": "New preset",
       "pull.replace": "Replace",
       "pull.firstRun":
-        "This editor starts empty — no studio presets are shipped.\n\nRead the current layout from your Faderpunk now?\n\nDevice must be connected in the Configurator.",
+        "This editor starts empty — no studio presets are shipped.\n\nRead the current layout from your Faderpunk now?\n\nDevice must be connected in this tab (Web MIDI).",
       "pull.title": "Pull from Punk",
       "status.emptyBank": "Empty editor — add rows or read from device",
       "modal.later": "Not now",
@@ -295,7 +295,7 @@
       "pull.failAlert":
         "{msg}\n\n• Server running? (npm start)\n• Check push log",
       "pull.failTips":
-        "{msg}\n\nTips:\n• Configurator open, device connected\n• Layout with at least one app\n• Check push log",
+        "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk\n• Layout with at least one app\n• Check push log",
       "tour.confirm":
         "Load all {n} presets one by one?\n\nThis overwrites the device layout each time.\nUseful for auditioning.",
       "tour.title": "Presets one by one",
@@ -411,7 +411,7 @@
         "Speichert den Default-Port und löscht Zeilen-Overrides — alle nutzen wieder Default",
       "bar.pull": "Pull vom Punk",
       "bar.pullTitle":
-        "Liest Layout+Params+Global vom verbundenen Faderpunk (via Configurator Save Setup)",
+        "Liest Layout + Params + Global Config vom Faderpunk per Web MIDI",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",
@@ -467,7 +467,7 @@
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Push-Log ein-/ausklappen",
       "dock.pushLogEmpty":
-        "Noch kein Push. Bei Problemen: Chrome-Fenster vom Configurator prüfen (Connect Device).",
+        "Noch kein Push. Bei Problemen: MIDI/SysEx in diesem Tab erlauben und andere Tabs mit dem Faderpunk schließen.",
       "dock.stop": "Stop",
       "dock.next": "Weiter →",
 
@@ -601,11 +601,11 @@
         "{msg}\n\n• Server läuft? (npm start)\n• Push-Log unten prüfen",
       "push.doneSec": "✓ fertig in {sec}s",
       "pull.confirm":
-        "Aktuelles Layout + Params + Global Config vom Faderpunk lesen?\n\nNeues Preset = aktives behalten.\nErsetzen = aktives Preset überschreiben.\n\nGerät muss im Configurator verbunden sein.",
+        "Aktuelles Layout + Params + Global Config vom Faderpunk lesen?\n\nNeues Preset = aktives behalten.\nErsetzen = aktives Preset überschreiben.\n\nGerät muss in diesem Tab per Web MIDI verbunden sein.",
       "pull.asNew": "Neues Preset",
       "pull.replace": "Ersetzen",
       "pull.firstRun":
-        "Der Editor startet leer — es werden keine Studio-Presets mitgeliefert.\n\nAktuelles Layout jetzt vom Faderpunk lesen?\n\nGerät muss im Configurator verbunden sein.",
+        "Der Editor startet leer — es werden keine Studio-Presets mitgeliefert.\n\nAktuelles Layout jetzt vom Faderpunk lesen?\n\nGerät muss in diesem Tab per Web MIDI verbunden sein.",
       "pull.title": "Pull vom Punk",
       "status.emptyBank": "Leerer Editor — Zeilen hinzufügen oder vom Gerät lesen",
       "modal.later": "Später",
@@ -708,7 +708,7 @@
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
       "pull.failTips":
-        "{msg}\n\nTipps:\n• Configurator offen, Device verbunden\n• Layout mit mind. einer App\n• Push-Log prüfen",
+        "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen\n• Layout mit mind. einer App\n• Push-Log prüfen",
       "dock.done": "Fertig",
       "dock.waitContinue": "Warte auf Weiter …",
       "inst.nameMissing": "Name fehlt",
@@ -774,7 +774,7 @@
         "Enregistre le port par défaut et efface les overrides — toutes les lignes utilisent le défaut",
       "bar.pull": "Pull du Punk",
       "bar.pullTitle":
-        "Lit layout + params + global depuis le Faderpunk connecté (via Configurator Save Setup)",
+        "Lit layout + params + config globale depuis le Faderpunk via Web MIDI",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",
@@ -830,7 +830,7 @@
       "dock.logToggleOpen": "Log ▾",
       "dock.logToggleTitle": "Afficher / masquer le journal push",
       "dock.pushLogEmpty":
-        "Pas encore de push. En cas de problème : vérifier la fenêtre Chrome du Configurator (Connect Device).",
+        "Pas encore de push. En cas de problème : autoriser MIDI/SysEx dans cet onglet et fermer les autres onglets qui tiennent le Faderpunk.",
       "dock.stop": "Stop",
       "dock.next": "Continuer →",
 
@@ -964,11 +964,11 @@
         "{msg}\n\n• Serveur lancé ? (npm start)\n• Vérifier le journal push",
       "push.doneSec": "✓ terminé en {sec}s",
       "pull.confirm":
-        "Lire le layout + params + config globale actuels depuis le Faderpunk ?\n\nNouveau preset = garder l’actif.\nRemplacer = écraser le preset actif.\n\nL’appareil doit être connecté dans le Configurator.",
+        "Lire le layout + params + config globale actuels depuis le Faderpunk ?\n\nNouveau preset = garder l’actif.\nRemplacer = écraser le preset actif.\n\nL’appareil doit être connecté dans cet onglet (Web MIDI).",
       "pull.asNew": "Nouveau preset",
       "pull.replace": "Remplacer",
       "pull.firstRun":
-        "L’éditeur démarre vide — aucun preset studio n’est fourni.\n\nLire le layout actuel depuis le Faderpunk maintenant ?\n\nL’appareil doit être connecté dans le Configurator.",
+        "L’éditeur démarre vide — aucun preset studio n’est fourni.\n\nLire le layout actuel depuis le Faderpunk maintenant ?\n\nL’appareil doit être connecté dans cet onglet (Web MIDI).",
       "pull.title": "Pull du Punk",
       "status.emptyBank": "Éditeur vide — ajoutez des lignes ou lisez depuis l’appareil",
       "modal.later": "Plus tard",
@@ -1071,7 +1071,7 @@
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",
       "pull.failTips":
-        "{msg}\n\nConseils :\n• Configurator ouvert, appareil connecté\n• Layout avec au moins une app\n• Vérifier le journal",
+        "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk\n• Layout avec au moins une app\n• Vérifier le journal",
       "dock.done": "Terminé",
       "dock.waitContinue": "En attente de Continuer …",
       "inst.nameMissing": "Nom requis",
