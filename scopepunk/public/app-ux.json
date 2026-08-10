@@ -558,7 +558,7 @@
           "heading": "Buttons",
           "items": [
             "<strong>Ch0 Btn</strong> — Kill Offset — Button 1 disables the offset",
-            "<strong>Ch1 Btn</strong> — Kill Attenuverter — Button 2 disables the attenuvertion and set to unity gain"
+            "<strong>Ch1 Btn</strong> — Kill Attenuverter — Button 2 disables the attenuvertion and sets to unity gain"
           ]
         }
       ],
@@ -579,7 +579,7 @@
           "faderTitle": "Attenuverter",
           "faderDescription": "Scales and inverts the input signal (max gain 2x)",
           "fnTitle": "Kill Attenuverter",
-          "fnDescription": "Button 2 disables the attenuvertion and set to unity gain",
+          "fnDescription": "Button 2 disables the attenuvertion and sets to unity gain",
           "ledTop": "Positive output",
           "ledBottom": "Negative output"
         }
@@ -878,7 +878,7 @@
     "19": {
       "id": 19,
       "name": "Panner",
-      "blurb": "Use with 2 VCA to do panning or cross fading with internal LFO for modulation",
+      "blurb": "Use with 2 VCAs to do panning or cross fading with internal LFO for modulation",
       "sections": [
         {
           "heading": "Faders",
@@ -947,7 +947,7 @@
           "heading": "Buttons",
           "items": [
             "<strong>Ch0 Btn</strong> — CV input mute — Mutes/unmutes the CV lane",
-            "<strong>Ch0 Shift+Btn</strong> — CV destination — Speed (yellow), ext clock (pink), slew (cyan)",
+            "<strong>Ch0 Shift+Btn</strong> — CV destination — Speed (yellow), ext clock (pink), slew (cyan), sample & hold (white)",
             "<strong>Ch1 Btn</strong> — Mute — Short press mutes/unmutes output",
             "<strong>Ch1 Shift+Btn</strong> — Clock mode — Long press toggles free-running/clocked"
           ]
@@ -962,7 +962,7 @@
           "fnTitle": "CV input mute",
           "fnDescription": "Mutes/unmutes the CV lane",
           "fnPlusShiftTitle": "CV destination",
-          "fnPlusShiftDescription": "Speed (yellow), ext clock (pink), slew (cyan)",
+          "fnPlusShiftDescription": "Speed (yellow), ext clock (pink), slew (cyan), sample & hold (white)",
           "ledTop": "Positive input level indicator",
           "ledTopPlusShift": "Destination color on button",
           "ledBottom": "Negative input level indicator"
@@ -1103,7 +1103,7 @@
             "<strong>Ch2 Main</strong> — Density 3 / Fill 3 / DnB Pattern Select — Drums: note density for trigger 3. Euclidean: fill amount (0 to current length). DnB: selects one of 12 patterns (change takes effect at next bar).",
             "<strong>Ch2 Alt</strong> — Euclidean Length 3 — Euclidean: pattern length 1-16 steps. Drums / DnB: no function.",
             "<strong>Ch3 Main</strong> — Chaos / Ghost Probability — Drums / Euclidean: pattern randomisation and humanisation. DnB: ghost snare trigger probability.",
-            "<strong>Ch3 Alt</strong> — Resolution — Sets clock resolution (Drums / Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode."
+            "<strong>Ch3 Alt</strong> — Resolution — Sets clock resolution (Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode."
           ]
         },
         {
@@ -1169,7 +1169,7 @@
           "faderTitle": "Chaos / Ghost Probability",
           "faderDescription": "Drums / Euclidean: pattern randomisation and humanisation. DnB: ghost snare trigger probability.",
           "faderPlusShiftTitle": "Resolution",
-          "faderPlusShiftDescription": "Sets clock resolution (Drums / Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode.",
+          "faderPlusShiftDescription": "Sets clock resolution (Euclidean only): 32ndT, 32nd, 16thT, 16th (default), 8thT, 8th, 4thT, 4th, 2nd, note, half bar, bar. No effect in DnB mode.",
           "fnTitle": "Accent / Ghost Mute",
           "fnDescription": "Mute accent (Drums / Euclidean) or ghost snare (DnB)",
           "fnPlusShiftTitle": "Cycle Output Mode",
@@ -1467,9 +1467,9 @@
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short</strong> — Reset to downbeat",
-            "<strong>Long</strong> — Mute (notes off)",
+            "<strong>Short</strong> — Mute (notes off)",
             "<strong>Shift+Short</strong> — Reverse swing",
+            "<strong>Long</strong> — Reset to downbeat",
             "<strong>Shift+Long</strong> — Toggle jack Any ↔ Stacked (yellow/violet flash)"
           ]
         },
@@ -1775,7 +1775,7 @@
             "<strong>Shift+Short (Perform)</strong> — Capture last N bars → Auto+Play",
             "<strong>Shift+Short (Auto)</strong> — Return to Perform",
             "<strong>Auto Long</strong> — Clear clip, reseed genre phrase",
-            "<strong>Shift+Long (Auto)</strong> — Panic"
+            "<strong>Shift+Long</strong> — Panic (both modes)"
           ]
         },
         {
@@ -1839,8 +1839,8 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — Chord type",
-            "<strong>Alt</strong> — Spread / voicing width",
+            "<strong>Main</strong> — Chord type (Unison · Power · Min · Maj · Sus4 · Min7 · Dom7 · Maj7 · Min9 · Add9)",
+            "<strong>Alt</strong> — Inversion (0–2) / open (top + octave)",
             "<strong>Third</strong> — Velocity"
           ]
         },
@@ -1853,7 +1853,22 @@
           ]
         }
       ],
-      "channels": []
+      "channels": [
+        {
+          "jackTitle": "Root / chord out",
+          "jackDescription": "MIDI or CV root in; up to four MIDI chord voices out (MIDI→CV follows highest)",
+          "faderTitle": "Chord type",
+          "faderDescription": "Unison through Add9 (incl. Maj7 / Min9)",
+          "faderPlusShiftTitle": "Inversion / open",
+          "faderPlusShiftDescription": "Steps 0–2 = root / 1st / 2nd inversion; step 3 = open top",
+          "faderPlusFnTitle": "Velocity",
+          "faderPlusFnDescription": "MIDI velocity for sounding voices",
+          "fnTitle": "Mute / octave / preset",
+          "fnDescription": "Short mute; Alt+Short harmony octave; Alt+Long voicing preset",
+          "ledTop": "Layer spectrum / chord activity",
+          "ledBottom": "Spectrum / mute red"
+        }
+      ]
     },
     "38": {
       "id": 38,
@@ -1923,13 +1938,13 @@
     "40": {
       "id": 40,
       "name": "Venn",
-      "blurb": "Dual Euclidean layers + boolean logic; generative melody via Extent",
+      "blurb": "Dual Euclidean layers + boolean logic; scale-aware melody via Extent",
       "sections": [
         {
           "heading": "Faders",
           "items": [
             "<strong>Main</strong> — F0 pulses A · F1 pulses B (density; absolute pulse count, Bjorklund redistributes)",
-            "<strong>Alt</strong> (Shift) — F0 Extent (melodic span 0–24 st from Note A) · F1 Interval (0–12 st above the line for Ch2)",
+            "<strong>Alt</strong> (Shift) — F0 Extent (scale-degree span 0–24 from Note A) · F1 Interval (0–12 diatonic steps above the line for Ch2)",
             "<strong>Third</strong> (Btn1 or Btn2 hold) — F0 length A · F1 length B (2–32; independent)",
             "Rotation fixed at 0 (slots freed for Extent / Interval)",
             "<strong>Division</strong> (config) — note values 4/1 … 1/32T (default 1/16)"
@@ -1947,8 +1962,8 @@
         {
           "heading": "Melody / LEDs",
           "items": [
-            "Note A (config) = root; each Length-A step maps into 0…Extent semitones; Ch2 = same line + Interval",
-            "Extent 0 = monotone Note A; higher = wider ascending line through the A cycle",
+            "Note A (config) = degree 0 of the device quantizer key; Length-A walks an arch through 0…Extent scale degrees; Ch2 = same line + diatonic Interval",
+            "Extent 0 = monotone Note A; higher = wider arch through the A cycle (device key)",
             "Division (note values), GATE %, Prob %, Humanize (Vel jitter; 0 = fixed max), MIDI CH / Note A / Interval B / Out, Color",
             "Color = App Color on Btn1; Btn0 = Logic hue; Top A/B = App Color / complement (layer hits)",
             "Main Btn: logic / app color · density bright · soft hit dip",
@@ -1961,11 +1976,11 @@
       "channels": [
         {
           "jackTitle": "Logic out",
-          "jackDescription": "Gate + melodic MIDI (Note A + step→Extent) for the primary boolean result",
+          "jackDescription": "Gate + scale-aware melodic MIDI (Note A + degree arch) for the primary boolean result",
           "faderTitle": "Pulses A",
           "faderDescription": "Number of pulses in Euclidean layer A (density)",
           "faderPlusShiftTitle": "Extent",
-          "faderPlusShiftDescription": "Melodic span above Note A (0–24 semitones)",
+          "faderPlusShiftDescription": "Scale-degree span above Note A (0–24 degrees, device key)",
           "faderPlusFnTitle": "Length A",
           "faderPlusFnDescription": "Cycle length for layer A and melody phase (2–32)",
           "fnTitle": "Third / Logic",
@@ -1975,11 +1990,11 @@
         },
         {
           "jackTitle": "Coupled out",
-          "jackDescription": "Secondary gate + same melodic line + Interval",
+          "jackDescription": "Secondary gate + same melodic line + diatonic Interval",
           "faderTitle": "Pulses B",
           "faderDescription": "Number of pulses in Euclidean layer B (density)",
           "faderPlusShiftTitle": "Interval",
-          "faderPlusShiftDescription": "Semitones above the melodic line for Ch2 (0–12)",
+          "faderPlusShiftDescription": "Diatonic steps above the melodic line for Ch2 (0–12)",
           "faderPlusFnTitle": "Length B",
           "faderPlusFnDescription": "Cycle length for layer B (2–32)",
           "fnTitle": "Mute / Invert",
@@ -2012,17 +2027,17 @@
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short</strong> — Reset to downbeat",
-            "<strong>Long</strong> — Mute (notes off)",
+            "<strong>Short</strong> — Mute (notes off)",
             "<strong>Shift+Short</strong> — Reverse swing",
-            "<strong>Shift+Long</strong> — Cycle Voice (historical era order; flash = voice color)"
+            "<strong>Long</strong> — Next Voice (flash = voice color)",
+            "<strong>Shift+Long</strong> — Previous Voice"
           ]
         },
         {
           "heading": "Jack params",
           "items": [
             "Jack: CV Out (pitch V/Oct) / CV In",
-            "CV Dest: Density · Feel · Reset (Configurator)",
+            "CV Dest: Density · Feel · Reset (Configurator) — Reset now lives here only",
             "Range, V/Oct, CV Att"
           ]
         },
@@ -2038,7 +2053,7 @@
             "<strong>Flabba</strong> Lime — roots walk, roomy gates",
             "<strong>Flea</strong> Red — staccato + aggressive jumps",
             "<strong>Claypool</strong> Yellow — quirky leaps + chromatic nudges",
-            "Button: genre hue in play; Shift+Long flash = voice color; hits duck Mid→Low"
+            "Button: genre hue in play; Long / Shift+Long flash = voice color; hits duck Mid→Low"
           ]
         }
       ],
@@ -2061,9 +2076,9 @@
           "heading": "Buttons",
           "items": [
             "<strong>Short</strong> — mute / unmute",
-            "<strong>Shift+short</strong> — previous scale set",
+            "<strong>Shift+Short</strong> — octave span 1→2→3→4",
             "<strong>Long</strong> — next scale set",
-            "<strong>Shift+long</strong> — octave span 1→2→3→4"
+            "<strong>Shift+Long</strong> — previous scale set"
           ]
         },
         {
@@ -2087,11 +2102,11 @@
           "faderPlusFnTitle": "Density",
           "faderPlusFnDescription": "How often notes fire vs rests — bottom sparse, top continuous",
           "fnTitle": "Mute",
-          "fnDescription": "Short press mutes/unmutes. Long press cycles the scale set.",
-          "fnPlusShiftTitle": "Scale / octaves",
-          "fnPlusShiftDescription": "Shift+short = previous scale set · Shift+long = octave span 1→4",
+          "fnDescription": "Short press mutes/unmutes. Long press steps to the next scale set.",
+          "fnPlusShiftTitle": "Octaves / scale",
+          "fnPlusShiftDescription": "Shift+Short = octave span 1→4 · Shift+Long = previous scale set",
           "ledTop": "Gate / note-on cue (app color)",
-          "ledTopPlusShift": "Octave-span color blink after Shift+long",
+          "ledTopPlusShift": "Octave-span color blink after Shift+Short",
           "ledBottom": "Pitch height within the current span"
         }
       ]

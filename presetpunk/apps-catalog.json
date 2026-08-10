@@ -3364,7 +3364,12 @@
           }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Strum ms",
+            "min": 0,
+            "max": 200
+          }
         }
       ]
     },
@@ -3648,7 +3653,7 @@
       "module": "venn",
       "channels": 2,
       "name": "Venn",
-      "description": "Dual Euclidean layers with generative melody (Extent / Interval)",
+      "description": "Dual Euclidean layers with scale-aware melody (Extent / Interval)",
       "color": "Cyan",
       "icon": "Euclid",
       "params": [
