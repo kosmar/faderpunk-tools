@@ -193,14 +193,28 @@ function is_CONFIG_MSG_IN(v) {
          v.value.values.every((v) => (v !== undefined &&
          is_VALUE(v)) ||
          v === undefined) &&
-         v.value.values.length === 16))
+         v.value.values.length === 16) ||
+         (v.tag === "MeasureVoOct" &&
+         typeof v.value === "object" &&
+         check_integer_type(v.value.output_jack, U8_BYTES, false, true) &&
+         check_integer_type(v.value.aux_input, U8_BYTES, false, true) &&
+         check_integer_type(v.value.dac_counts, U16_BYTES, false, true)) ||
+         (v.tag === "SetVoOctOutput" &&
+         typeof v.value === "object" &&
+         check_integer_type(v.value.output_jack, U8_BYTES, false, true) &&
+         check_integer_type(v.value.dac_counts, U16_BYTES, false, true)) ||
+         (v.tag === "ReleaseVoOctOutput" &&
+         typeof v.value === "object" &&
+         check_integer_type(v.value.output_jack, U8_BYTES, false, true)))
 }
 
 function is_CONFIG_MSG_OUT(v) {
     return (typeof v === "object" &&
          "tag" in v &&
          v.tag === "Pong" ||
-         v.tag === "BatchMsgEnd") ||
+         v.tag === "BatchMsgEnd" ||
+         v.tag === "VoOctCalError" ||
+         v.tag === "VoOctOutputSet") ||
          (typeof v === "object" &&
          "tag" in v &&
          "value" in v &&
@@ -234,7 +248,11 @@ function is_CONFIG_MSG_OUT(v) {
          typeof v.value === "object" &&
          check_integer_type(v.value.major, U8_BYTES, false, true) &&
          check_integer_type(v.value.minor, U8_BYTES, false, true) &&
-         check_integer_type(v.value.patch, U8_BYTES, false, true)))
+         check_integer_type(v.value.patch, U8_BYTES, false, true)) ||
+         (v.tag === "VoOctFrequency" &&
+         typeof v.value === "object" &&
+         typeof v.value.freq_hz === "number" &&
+         Number.isFinite(v.value.freq_hz)))
 }
 
 function is_CURVE(v) {
@@ -242,7 +260,13 @@ function is_CURVE(v) {
          "tag" in v &&
          v.tag === "Linear" ||
          v.tag === "Logarithmic" ||
-         v.tag === "Exponential")
+         v.tag === "Exponential" ||
+         v.tag === "Deadzone")
+}
+
+function is_CUSTOM_VO_OCT_CURVE(v) {
+    return typeof v === "object" &&
+         check_integer_type(v.counts_per_oct, U16_BYTES, false, true);
 }
 
 function is_GLOBAL_CONFIG(v) {
@@ -255,7 +279,10 @@ function is_GLOBAL_CONFIG(v) {
          check_integer_type(v.led_brightness, U8_BYTES, false, true) &&
          is_MIDI_CONFIG(v.midi) &&
          is_QUANTIZER_CONFIG(v.quantizer) &&
-         is_latch_TAKEOVER_MODE(v.takeover_mode);
+         is_latch_TAKEOVER_MODE(v.takeover_mode) &&
+         Array.isArray(v.custom_voct_curves) &&
+         v.custom_voct_curves.every((v) => is_CUSTOM_VO_OCT_CURVE(v)) &&
+         v.custom_voct_curves.length === 4;
 }
 
 function is_I_2_C_MODE(v) {
@@ -534,7 +561,12 @@ function is_VOLT_PER_OCT(v) {
     return (typeof v === "object" &&
          "tag" in v &&
          v.tag === "Standard" ||
-         v.tag === "Buchla")
+         v.tag === "Buchla") ||
+         (typeof v === "object" &&
+         "tag" in v &&
+         "value" in v &&
+         (v.tag === "Custom" &&
+         check_integer_type(v.value, U8_BYTES, false, true)))
 }
 
 function is_WAVEFORM(v) {
@@ -808,11 +840,30 @@ function serialize_CONFIG_MSG_IN(s, v) {
     case "GetVersion":
         s.serialize_number(U32_BYTES, false, 10);
         break;
+    case "MeasureVoOct":
+        {
+            s.serialize_number(U32_BYTES, false, 11);
+            s.serialize_number(U8_BYTES, false, v.value.output_jack);
+            s.serialize_number(U8_BYTES, false, v.value.aux_input);
+            s.serialize_number(U16_BYTES, false, v.value.dac_counts);
+        }
+        break;
+    case "SetVoOctOutput":
+        {
+            s.serialize_number(U32_BYTES, false, 12);
+            s.serialize_number(U8_BYTES, false, v.value.output_jack);
+            s.serialize_number(U16_BYTES, false, v.value.dac_counts);
+        }
+        break;
+    case "ReleaseVoOctOutput":
+        s.serialize_number(U32_BYTES, false, 13);
+        s.serialize_number(U8_BYTES, false, v.value.output_jack);
+        break;
     case "HoldPerfMute":
-        s.serialize_number(U32_BYTES, false, 11);
+        s.serialize_number(U32_BYTES, false, 14);
         break;
     case "ReleasePerfMute":
-        s.serialize_number(U32_BYTES, false, 12);
+        s.serialize_number(U32_BYTES, false, 15);
         break;
     default:
         throw "variant not implemented"
@@ -873,6 +924,16 @@ function serialize_CONFIG_MSG_OUT(s, v) {
             s.serialize_number(U8_BYTES, false, v.value.patch);
         }
         break;
+    case "VoOctFrequency":
+        s.serialize_number(U32_BYTES, false, 8);
+        s.serialize_number_float(U32_BYTES, v.value.freq_hz);
+        break;
+    case "VoOctCalError":
+        s.serialize_number(U32_BYTES, false, 9);
+        break;
+    case "VoOctOutputSet":
+        s.serialize_number(U32_BYTES, false, 10);
+        break;
     default:
         throw "variant not implemented"
     }
@@ -889,9 +950,16 @@ function serialize_CURVE(s, v) {
     case "Exponential":
         s.serialize_number(U32_BYTES, false, 2);
         break;
+    case "Deadzone":
+        s.serialize_number(U32_BYTES, false, 3);
+        break;
     default:
         throw "variant not implemented"
     }
+}
+
+function serialize_CUSTOM_VO_OCT_CURVE(s, v) {
+    s.serialize_number(U16_BYTES, false, v.counts_per_oct);
 }
 
 function serialize_GLOBAL_CONFIG(s, v) {
@@ -905,6 +973,10 @@ function serialize_GLOBAL_CONFIG(s, v) {
     serialize_MIDI_CONFIG(s, v.midi);
     serialize_QUANTIZER_CONFIG(s, v.quantizer);
     serialize_latch_TAKEOVER_MODE(s, v.takeover_mode);
+    const lambda_v_custom_voct_curves = (s, v) => {
+        serialize_CUSTOM_VO_OCT_CURVE(s, v)
+    };
+    s.serialize_array(lambda_v_custom_voct_curves, v.custom_voct_curves, 4);
 }
 
 function serialize_I_2_C_MODE(s, v) {
@@ -1367,6 +1439,10 @@ function serialize_VOLT_PER_OCT(s, v) {
     case "Buchla":
         s.serialize_number(U32_BYTES, false, 1);
         break;
+    case "Custom":
+        s.serialize_number(U32_BYTES, false, 2);
+        s.serialize_number(U8_BYTES, false, v.value);
+        break;
     default:
         throw "variant not implemented"
     }
@@ -1467,6 +1543,13 @@ function serialize(type, value) {
             serialize_CURVE(s, value);
         } else {
             throw new Error("Value " + "Curve" + " has wrong format");
+        }
+        break;
+    case "CustomVoOctCurve":
+        if (is_CUSTOM_VO_OCT_CURVE(value)) {
+            serialize_CUSTOM_VO_OCT_CURVE(s, value);
+        } else {
+            throw new Error("Value " + "CustomVoOctCurve" + " has wrong format");
         }
         break;
     case "GlobalConfig":
@@ -1957,9 +2040,33 @@ function deserialize_CONFIG_MSG_IN(d) {
         };
     case 11:
         return {
-            tag: "HoldPerfMute"
+            tag: "MeasureVoOct",
+            value: {
+                output_jack: d.deserialize_number(U8_BYTES, false),
+                aux_input: d.deserialize_number(U8_BYTES, false),
+                dac_counts: d.deserialize_number(U16_BYTES, false)
+            }
         };
     case 12:
+        return {
+            tag: "SetVoOctOutput",
+            value: {
+                output_jack: d.deserialize_number(U8_BYTES, false),
+                dac_counts: d.deserialize_number(U16_BYTES, false)
+            }
+        };
+    case 13:
+        return {
+            tag: "ReleaseVoOctOutput",
+            value: {
+                output_jack: d.deserialize_number(U8_BYTES, false)
+            }
+        };
+    case 14:
+        return {
+            tag: "HoldPerfMute"
+        };
+    case 15:
         return {
             tag: "ReleasePerfMute"
         };
@@ -2026,6 +2133,21 @@ function deserialize_CONFIG_MSG_OUT(d) {
                 patch: d.deserialize_number(U8_BYTES, false)
             }
         };
+    case 8:
+        return {
+            tag: "VoOctFrequency",
+            value: {
+                freq_hz: d.deserialize_number_float(U32_BYTES)
+            }
+        };
+    case 9:
+        return {
+            tag: "VoOctCalError"
+        };
+    case 10:
+        return {
+            tag: "VoOctOutputSet"
+        };
     default:
         throw "variant not implemented"
     }
@@ -2045,9 +2167,19 @@ function deserialize_CURVE(d) {
         return {
             tag: "Exponential"
         };
+    case 3:
+        return {
+            tag: "Deadzone"
+        };
     default:
         throw "variant not implemented"
     }
+}
+
+function deserialize_CUSTOM_VO_OCT_CURVE(d) {
+    return {
+        counts_per_oct: d.deserialize_number(U16_BYTES, false)
+    };
 }
 
 function deserialize_GLOBAL_CONFIG(d) {
@@ -2058,7 +2190,8 @@ function deserialize_GLOBAL_CONFIG(d) {
         led_brightness: d.deserialize_number(U8_BYTES, false),
         midi: deserialize_MIDI_CONFIG(d),
         quantizer: deserialize_QUANTIZER_CONFIG(d),
-        takeover_mode: deserialize_latch_TAKEOVER_MODE(d)
+        takeover_mode: deserialize_latch_TAKEOVER_MODE(d),
+        custom_voct_curves: d.deserialize_array(() => deserialize_CUSTOM_VO_OCT_CURVE(d), 4)
     };
 }
 
@@ -2604,6 +2737,11 @@ function deserialize_VOLT_PER_OCT(d) {
         return {
             tag: "Buchla"
         };
+    case 2:
+        return {
+            tag: "Custom",
+            value: d.deserialize_number(U8_BYTES, false)
+        };
     default:
         throw "variant not implemented"
     }
@@ -2675,6 +2813,9 @@ function deserialize(type, bytes) {
         break;
     case "Curve":
         return_value = deserialize_CURVE(d);
+        break;
+    case "CustomVoOctCurve":
+        return_value = deserialize_CUSTOM_VO_OCT_CURVE(d);
         break;
     case "GlobalConfig":
         return_value = deserialize_GLOBAL_CONFIG(d);
