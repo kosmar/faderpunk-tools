@@ -1,0 +1,41 @@
+{
+  "version": 20,
+  "savedAt": "2026-08-07T20:28:00.000Z",
+  "active": 0,
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "Stress Dense Pools",
+      "desc": "Edge case: four heaviest 1-channel WIP apps at their Embassy pool_size=4 ceiling, filling all 16 faders. Probes cumulative static task-pool RAM.",
+      "port": "usb",
+      "rows": [
+        { "app": "harmonica", "fader": 1 },
+        { "app": "harmonica", "fader": 2 },
+        { "app": "harmonica", "fader": 3 },
+        { "app": "harmonica", "fader": 4 },
+        { "app": "heat_pump", "fader": 5 },
+        { "app": "heat_pump", "fader": 6 },
+        { "app": "heat_pump", "fader": 7 },
+        { "app": "heat_pump", "fader": 8 },
+        { "app": "hold_sam", "fader": 9 },
+        { "app": "hold_sam", "fader": 10 },
+        { "app": "hold_sam", "fader": 11 },
+        { "app": "hold_sam", "fader": 12 },
+        { "app": "vamp", "fader": 13 },
+        { "app": "vamp", "fader": 14 },
+        { "app": "vamp", "fader": 15 },
+        { "app": "vamp", "fader": 16 }
+      ],
+      "global": {
+        "clock": {
+          "clock_src": { "tag": "Internal" },
+          "ext_ppqn": 24,
+          "reset_src": { "tag": "None" },
+          "internal_bpm": 126,
+          "swing_amount": 0
+        }
+      }
+    }
+  ]
+}
