@@ -2087,14 +2087,15 @@
             "Flat list of named 12-TET sets (Ionian…Folk) — conventional interval-pattern labels, not cultural claims",
             "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
             "Per-set melodic feel (contour / leap / sustain) — expressivity is not a fader",
-            "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)"
+            "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
+            "Jack = CV Out (pitch) or CV In — Dest Density / Interval / Reset (Configurator); CV Att scales input"
           ]
         }
       ],
       "channels": [
         {
-          "jackTitle": "Pitch CV",
-          "jackDescription": "Quantized melodic pitch (1V/oct / range param). Gate is MIDI note on/off.",
+          "jackTitle": "Pitch CV / CV In",
+          "jackDescription": "CV Out: quantized melodic pitch (1V/oct / range). CV In: modulates Density or Interval, or Reset (gate) — Dest + Att in Configurator. Gate is MIDI note on/off.",
           "faderTitle": "Interval",
           "faderDescription": "Max scale-degree step — bottom stays stepwise, top opens wide leaps",
           "faderPlusShiftTitle": "Phrase length",

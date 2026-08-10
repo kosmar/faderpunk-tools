@@ -4047,6 +4047,35 @@
               "1/64T"
             ]
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack",
+            "variants": [
+              "CV Out",
+              "CV In"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "CV Dest",
+            "variants": [
+              "Density",
+              "Interval",
+              "Reset"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CV Att",
+            "min": 0,
+            "max": 100
+          }
         }
       ]
     }
