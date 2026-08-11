@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import {
   buildSendLayout,
   compareSpawnOrder,
+  ensureWireGlobalConfig,
   normalizeValueForWire,
   padParams,
   partitionBySpawnWeight,
@@ -310,4 +311,118 @@ test("unpadded values throw in serialize (documents why padParams exists)", () =
       value: { layout_id: 0, values: [{ tag: "i32", value: 5 }] },
     }),
   );
+});
+
+// ---- wire regression: SetGlobalConfig must include custom_voct_curves --------
+
+function sampleGlobalConfigWithoutCurves() {
+  // Shape historically emitted by Presetpunk buildSetup before V/Oct curves
+  // landed in GlobalConfig — missing custom_voct_curves.
+  return {
+    aux: [
+      { tag: "ClockOut", value: { tag: "_1" } },
+      { tag: "None" },
+      { tag: "None" },
+    ],
+    clock: {
+      clock_src: { tag: "Internal" },
+      ext_ppqn: 24,
+      reset_src: { tag: "None" },
+      internal_bpm: 120,
+      swing_amount: 0,
+    },
+    i2c_mode: { tag: "Leader" },
+    led_brightness: 150,
+    midi: {
+      outs: [
+        { send_clock: true, send_transport: true, mode: { tag: "Local" } },
+        { send_clock: true, send_transport: true, mode: { tag: "Local" } },
+        { send_clock: true, send_transport: true, mode: { tag: "Local" } },
+      ],
+    },
+    quantizer: { key: { tag: "Chromatic" }, tonic: { tag: "C" } },
+    takeover_mode: { tag: "Pickup" },
+  };
+}
+
+test("SetGlobalConfig without custom_voct_curves fails serialize", () => {
+  // Regression: Live clock/presettings push → "Value ConfigMsgIn has wrong format"
+  assert.throws(
+    () =>
+      serialize("ConfigMsgIn", {
+        tag: "SetGlobalConfig",
+        value: sampleGlobalConfigWithoutCurves(),
+      }),
+    /ConfigMsgIn.*wrong format/,
+  );
+});
+
+test("ensureWireGlobalConfig pads curves so SetGlobalConfig serializes", () => {
+  const wire = ensureWireGlobalConfig(sampleGlobalConfigWithoutCurves());
+  assert.equal(wire.custom_voct_curves.length, 4);
+  assert.deepEqual(wire.custom_voct_curves[0], { counts_per_oct: 0 });
+  const bytes = serialize("ConfigMsgIn", {
+    tag: "SetGlobalConfig",
+    value: wire,
+  });
+  assert.ok(bytes.length > 0);
+});
+
+test("ensureWireGlobalConfig preserves existing curve counts", () => {
+  const src = sampleGlobalConfigWithoutCurves();
+  src.custom_voct_curves = [
+    { counts_per_oct: 1000 },
+    { counts_per_oct: 2000 },
+    { counts_per_oct: 3000 },
+    { counts_per_oct: 4000 },
+  ];
+  const wire = ensureWireGlobalConfig(src);
+  assert.deepEqual(wire.custom_voct_curves, src.custom_voct_curves);
+});
+
+test("ensureWireGlobalConfig rebuilds from editor-shaped / partial global", () => {
+  // Regression: showcase JSON stored wire clock under global.clock only;
+  // LaunchAgent used to serve a tree without curves → ConfigMsgIn fail.
+  const wire = ensureWireGlobalConfig({
+    clock: {
+      clock_src: { tag: "MidiUsb" },
+      ext_ppqn: 24,
+      reset_src: { tag: "None" },
+      internal_bpm: 124,
+      swing_amount: 8,
+    },
+    midi: [
+      { mode: "Local", sendClock: true, sendTransport: true },
+      {
+        mode: "MidiMerge",
+        sendClock: true,
+        sendTransport: true,
+        sourceUsb: false,
+        sourceDin: true,
+      },
+      {
+        mode: "MidiMerge",
+        sendClock: true,
+        sendTransport: true,
+        sourceUsb: false,
+        sourceDin: true,
+      },
+    ],
+    scale: "Mixolydian",
+    tonic: "DSharp",
+    takeover: "Scale",
+  });
+  assert.equal(wire.clock.clock_src.tag, "MidiUsb");
+  assert.equal(wire.clock.internal_bpm, 124);
+  assert.equal(wire.clock.swing_amount, 8);
+  assert.equal(wire.quantizer.key.tag, "Mixolydian");
+  assert.equal(wire.quantizer.tonic.tag, "DSharp");
+  assert.equal(wire.takeover_mode.tag, "Scale");
+  assert.equal(wire.midi.outs[1].mode.tag, "MidiMerge");
+  assert.deepEqual(wire.midi.outs[1].mode.value.sources, [[false, true]]);
+  const bytes = serialize("ConfigMsgIn", {
+    tag: "SetGlobalConfig",
+    value: wire,
+  });
+  assert.ok(bytes.length > 0);
 });

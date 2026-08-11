@@ -250,6 +250,265 @@ function toPlainJson(value) {
   );
 }
 
+/** Default uncalibrated V/Oct curves — required by GlobalConfig wire shape. */
+export const DEFAULT_CUSTOM_VOCT_CURVES = Object.freeze([
+  Object.freeze({ counts_per_oct: 0 }),
+  Object.freeze({ counts_per_oct: 0 }),
+  Object.freeze({ counts_per_oct: 0 }),
+  Object.freeze({ counts_per_oct: 0 }),
+]);
+
+const CLOCK_SRC_TAGS = new Set([
+  "None",
+  "Atom",
+  "Meteor",
+  "Cube",
+  "Internal",
+  "MidiIn",
+  "MidiUsb",
+]);
+const RESET_SRC_TAGS = new Set(["None", "Atom", "Meteor", "Cube"]);
+const CLOCK_DIV_TAGS = new Set([
+  "_1",
+  "_2",
+  "_4",
+  "_6",
+  "_8",
+  "_12",
+  "_24",
+  "_96",
+  "_192",
+  "_384",
+]);
+const AUX_MODE_TAGS = new Set(["None", "ClockOut", "ResetOut"]);
+const MIDI_OUT_MODE_TAGS = new Set(["None", "Local", "MidiThru", "MidiMerge"]);
+const I2C_MODE_TAGS = new Set(["Calibration", "Leader", "Follower"]);
+const TAKEOVER_TAGS = new Set(["Pickup", "Jump", "Scale"]);
+const KEY_TAGS = new Set([
+  "Chromatic",
+  "Ionian",
+  "Dorian",
+  "Phrygian",
+  "Lydian",
+  "Mixolydian",
+  "Aeolian",
+  "Locrian",
+  "BluesMaj",
+  "BluesMin",
+  "PentatonicMaj",
+  "PentatonicMin",
+  "Folk",
+  "Japanese",
+  "Gamelan",
+  "HungarianMin",
+  "Off",
+]);
+const NOTE_TAGS = new Set([
+  "C",
+  "CSharp",
+  "D",
+  "DSharp",
+  "E",
+  "F",
+  "FSharp",
+  "G",
+  "GSharp",
+  "A",
+  "ASharp",
+  "B",
+]);
+
+function tagOr(v, allowed, fallback) {
+  const tag = typeof v === "string" ? v : v?.tag;
+  return allowed.has(tag) ? tag : fallback;
+}
+
+function normalizeWireAux(aux) {
+  const src = Array.isArray(aux) ? aux : [];
+  const defaults = [
+    { tag: "ClockOut", value: { tag: "_1" } },
+    { tag: "None" },
+    { tag: "None" },
+  ];
+  return [0, 1, 2].map((i) => {
+    const a = src[i];
+    // Editor shape: { mode, div }
+    if (a && typeof a === "object" && "mode" in a) {
+      const mode = tagOr(a.mode, AUX_MODE_TAGS, defaults[i].tag);
+      if (mode === "ClockOut") {
+        return {
+          tag: "ClockOut",
+          value: { tag: tagOr(a.div, CLOCK_DIV_TAGS, "_1") },
+        };
+      }
+      return { tag: mode };
+    }
+    const mode = tagOr(a, AUX_MODE_TAGS, defaults[i].tag);
+    if (mode === "ClockOut") {
+      return {
+        tag: "ClockOut",
+        value: {
+          tag: tagOr(a?.value ?? a?.div, CLOCK_DIV_TAGS, "_1"),
+        },
+      };
+    }
+    return { tag: mode };
+  });
+}
+
+function normalizeWireMidiOut(out, index) {
+  const o = out && typeof out === "object" ? out : {};
+  const send_clock =
+    typeof o.send_clock === "boolean"
+      ? o.send_clock
+      : typeof o.sendClock === "boolean"
+        ? o.sendClock
+        : true;
+  const send_transport =
+    typeof o.send_transport === "boolean"
+      ? o.send_transport
+      : typeof o.sendTransport === "boolean"
+        ? o.sendTransport
+        : true;
+  const modeTag = tagOr(
+    o.mode?.tag ?? o.mode,
+    MIDI_OUT_MODE_TAGS,
+    "Local",
+  );
+  if (modeTag === "MidiThru" || modeTag === "MidiMerge") {
+    const sources = o.mode?.value?.sources?.[0];
+    const sourceUsb =
+      index === 0
+        ? false
+        : Array.isArray(sources)
+          ? !!sources[0]
+          : typeof o.sourceUsb === "boolean"
+            ? o.sourceUsb
+            : false;
+    const sourceDin =
+      index === 0
+        ? true
+        : Array.isArray(sources)
+          ? !!sources[1]
+          : typeof o.sourceDin === "boolean"
+            ? o.sourceDin
+            : true;
+    return {
+      send_clock,
+      send_transport,
+      mode: {
+        tag: modeTag,
+        value: { sources: [[sourceUsb, sourceDin]] },
+      },
+    };
+  }
+  return { send_clock, send_transport, mode: { tag: modeTag } };
+}
+
+function normalizeWireCurves(curves) {
+  const src = Array.isArray(curves) ? curves : [];
+  return [0, 1, 2, 3].map((i) => {
+    const n = Number(src[i]?.counts_per_oct);
+    return {
+      counts_per_oct: Number.isFinite(n)
+        ? Math.max(0, Math.min(65535, Math.round(n)))
+        : 0,
+    };
+  });
+}
+
+/**
+ * Coerce partial / editor / stale GlobalConfig into a postcard-valid wire
+ * shape. Missing `custom_voct_curves` (or other required fields) → serialize
+ * throws "Value ConfigMsgIn has wrong format" on SetGlobalConfig.
+ * @param {object} config
+ * @returns {object}
+ */
+export function ensureWireGlobalConfig(config) {
+  if (!config || typeof config !== "object") {
+    throw new Error("Invalid global config");
+  }
+  // Accept editor-shaped globals accidentally passed as wire config
+  // (e.g. { clockSrc, bpm, … } or showcase `{ clock: { clock_src } }` only).
+  const clockIn =
+    config.clock && typeof config.clock === "object" ? config.clock : {};
+  const clockSrc = tagOr(
+    clockIn.clock_src ?? config.clockSrc,
+    CLOCK_SRC_TAGS,
+    "Internal",
+  );
+  const resetSrc = tagOr(
+    clockIn.reset_src ?? config.resetSrc,
+    RESET_SRC_TAGS,
+    "None",
+  );
+  let bpm = Number(clockIn.internal_bpm ?? config.bpm);
+  if (!Number.isFinite(bpm)) bpm = 120;
+  bpm = Math.max(1, Math.min(300, bpm));
+  let swing = Number(clockIn.swing_amount ?? config.swing);
+  if (!Number.isFinite(swing)) swing = 0;
+  swing = Math.max(-35, Math.min(35, Math.round(swing)));
+  let extPpqn = Number(clockIn.ext_ppqn);
+  if (!Number.isFinite(extPpqn) || extPpqn < 1) extPpqn = 24;
+  extPpqn = Math.max(1, Math.min(96, Math.round(extPpqn)));
+
+  let led = Number(config.led_brightness);
+  if (!Number.isFinite(led)) led = 150;
+  led = Math.max(100, Math.min(255, Math.round(led)));
+
+  const quantIn =
+    config.quantizer && typeof config.quantizer === "object"
+      ? config.quantizer
+      : {};
+  const midiIn =
+    config.midi && typeof config.midi === "object" ? config.midi : {};
+  const midiOuts = Array.isArray(midiIn.outs)
+    ? midiIn.outs
+    : Array.isArray(config.midi)
+      ? config.midi
+      : [];
+
+  return {
+    aux: normalizeWireAux(config.aux),
+    clock: {
+      clock_src: { tag: clockSrc },
+      ext_ppqn: extPpqn,
+      reset_src: { tag: resetSrc },
+      internal_bpm: bpm,
+      swing_amount: swing,
+    },
+    i2c_mode: {
+      tag: tagOr(config.i2c_mode ?? config.i2cMode, I2C_MODE_TAGS, "Leader"),
+    },
+    led_brightness: led,
+    midi: {
+      outs: [0, 1, 2].map((i) => normalizeWireMidiOut(midiOuts[i], i)),
+    },
+    quantizer: {
+      key: {
+        tag: tagOr(
+          quantIn.key ?? config.scale,
+          KEY_TAGS,
+          "Chromatic",
+        ),
+      },
+      tonic: {
+        tag: tagOr(quantIn.tonic ?? config.tonic, NOTE_TAGS, "C"),
+      },
+    },
+    takeover_mode: {
+      tag: tagOr(
+        config.takeover_mode ?? config.takeover,
+        TAKEOVER_TAGS,
+        "Pickup",
+      ),
+    },
+    custom_voct_curves: normalizeWireCurves(
+      config.custom_voct_curves ?? config.customVoctCurves,
+    ),
+  };
+}
+
 /** Coerce editor/JSON quirks into postcard Value shapes. */
 export function normalizeValueForWire(v) {
   if (!v || typeof v !== "object" || !("tag" in v)) return v;
@@ -1124,7 +1383,7 @@ export async function pushSetupToDevice(setup, opts = {}) {
       // Firmware does not ack SetGlobalConfig — fire-and-forget + brief settle.
       await sendMessage(config, {
         tag: "SetGlobalConfig",
-        value: setup.config,
+        value: ensureWireGlobalConfig(setup.config),
       });
       await delay(200);
     }
@@ -1149,6 +1408,7 @@ export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
   if (!globalConfig || typeof globalConfig !== "object") {
     throw new Error("Invalid global config");
   }
+  const wireConfig = ensureWireGlobalConfig(globalConfig);
   let device;
   try {
     log("Connecting via Web MIDI …");
@@ -1157,7 +1417,7 @@ export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
     log("SetGlobalConfig …");
     await sendMessage(device.config, {
       tag: "SetGlobalConfig",
-      value: globalConfig,
+      value: wireConfig,
     });
     await delay(200);
     const ms = Date.now() - t0;

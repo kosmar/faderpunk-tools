@@ -199,7 +199,16 @@ const server = createServer(async (req, res) => {
     const safe = url.pathname.replace(/\.\./g, "");
     const path = join(__dirname, safe);
     try {
-      const data = await readFile(path);
+      let data = await readFile(path);
+      // Cache-bust nested ES module imports from the stamped fp-midi entry.
+      if (safe === "/lib/fp-midi.js" || safe.endsWith("/lib/fp-midi.js")) {
+        data = Buffer.from(
+          data
+            .toString("utf8")
+            .replaceAll("./setup-io.js", `./setup-io.js?v=${BUILD_MS}`),
+          "utf8",
+        );
+      }
       res.writeHead(200, {
         "Content-Type": MIME[extname(path)] || "application/octet-stream",
         "Cache-Control":

@@ -3090,6 +3090,25 @@
       };
     }
 
+    const DEFAULT_CUSTOM_VOCT_CURVES = [
+      { counts_per_oct: 0 },
+      { counts_per_oct: 0 },
+      { counts_per_oct: 0 },
+      { counts_per_oct: 0 },
+    ];
+
+    function normalizeCustomVoctCurves(curves) {
+      const src = Array.isArray(curves) ? curves : [];
+      return [0, 1, 2, 3].map((i) => {
+        const n = Number(src[i]?.counts_per_oct);
+        return {
+          counts_per_oct: Number.isFinite(n)
+            ? Math.max(0, Math.min(65535, Math.round(n)))
+            : 0,
+        };
+      });
+    }
+
     function defaultGlobal(extra = {}) {
       const baseAux = [
         { mode: "ClockOut", div: "_1" },
@@ -3114,31 +3133,57 @@
       merged.midi = [0, 1, 2].map((i) =>
         defaultMidiOut(i, { ...baseMidi[i], ...(extra.midi?.[i] || {}) }),
       );
+      merged.customVoctCurves = normalizeCustomVoctCurves(
+        extra.customVoctCurves || DEFAULT_CUSTOM_VOCT_CURVES,
+      );
       return merged;
     }
 
     function normalizeGlobal(g) {
       const d = defaultGlobal();
       if (!g || typeof g !== "object") return d;
-      const aux = [0, 1, 2].map((i) => ({
-        mode: g.aux?.[i]?.mode || d.aux[i].mode,
-        div: g.aux?.[i]?.div || d.aux[i].div,
-      }));
-      const midi = [0, 1, 2].map((i) => defaultMidiOut(i, g.midi?.[i] || d.midi[i]));
+      // Accept wire-shaped fragments (showcase JSON used `global.clock.clock_src`).
+      const clock = g.clock && typeof g.clock === "object" ? g.clock : null;
+      const quant = g.quantizer && typeof g.quantizer === "object" ? g.quantizer : null;
+      const aux = [0, 1, 2].map((i) => {
+        const a = g.aux?.[i];
+        if (a && typeof a === "object" && "tag" in a) {
+          return {
+            mode: a.tag || d.aux[i].mode,
+            div: a.value?.tag || d.aux[i].div,
+          };
+        }
+        return {
+          mode: a?.mode || d.aux[i].mode,
+          div: a?.div || d.aux[i].div,
+        };
+      });
+      const midiSrc = Array.isArray(g.midi)
+        ? g.midi
+        : Array.isArray(g.midi?.outs)
+          ? midiFromConfigOuts(g.midi.outs)
+          : g.midi;
+      const midi = [0, 1, 2].map((i) => defaultMidiOut(i, midiSrc?.[i] || d.midi[i]));
+      const bpmRaw = g.bpm ?? clock?.internal_bpm;
+      const swingRaw = g.swing ?? clock?.swing_amount;
       return {
-        clockSrc: g.clockSrc || d.clockSrc,
-        resetSrc: g.resetSrc || d.resetSrc,
-        bpm: Number(g.bpm) || d.bpm,
+        clockSrc: g.clockSrc || clock?.clock_src?.tag || d.clockSrc,
+        resetSrc: g.resetSrc || clock?.reset_src?.tag || d.resetSrc,
+        bpm: Number(bpmRaw) || d.bpm,
         swing: (() => {
-          const n = Number(g.swing);
+          const n = Number(swingRaw);
           if (!Number.isFinite(n)) return 0;
           return Math.max(-35, Math.min(35, Math.round(n)));
         })(),
-        scale: g.scale || d.scale,
-        tonic: g.tonic || d.tonic,
-        takeover: g.takeover || d.takeover,
+        scale: g.scale || quant?.key?.tag || d.scale,
+        tonic: g.tonic || quant?.tonic?.tag || d.tonic,
+        takeover: g.takeover || g.takeover_mode?.tag || d.takeover,
         aux,
         midi,
+        // Keep pulled V/Oct calibration across form sync / live clock edits.
+        customVoctCurves: normalizeCustomVoctCurves(
+          g.customVoctCurves || g.custom_voct_curves || d.customVoctCurves,
+        ),
       };
     }
 
@@ -3230,6 +3275,7 @@
           div: a?.value?.tag || "_1",
         })),
         midi: midiFromConfigOuts(cfg.midi?.outs),
+        customVoctCurves: cfg.custom_voct_curves,
       });
     }
 
@@ -6901,6 +6947,8 @@
             tonic: { tag: g.tonic },
           },
           takeover_mode: { tag: g.takeover },
+          // Required by fp-config GlobalConfig since custom V/Oct curves landed.
+          custom_voct_curves: normalizeCustomVoctCurves(g.customVoctCurves),
         },
       };
     }
@@ -6959,6 +7007,8 @@
           sourceUsb: i === 0 ? false : document.getElementById(`gMidi${i}SrcUsb`).checked,
           sourceDin: i === 0 ? true : document.getElementById(`gMidi${i}SrcDin`).checked,
         })),
+        // Form has no V/Oct UI — keep curves from pull / prior state.
+        customVoctCurves: sc.global?.customVoctCurves,
       });
       updateAuxDivEnabled();
       updateMidiSourcesVisible();

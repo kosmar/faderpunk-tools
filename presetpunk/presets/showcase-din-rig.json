@@ -1,0 +1,161 @@
+{
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "DIN Rig Showcase",
+      "desc": "All 14 WIP apps across Drum 3P, LXR-02, Minitaur, Vector and Hydra. Drums left, bass, lead, chords, modulation right.",
+      "port": "out1",
+      "rows": [
+        {
+          "app": "grooves",
+          "fader": 1,
+          "target": "Drum 3P",
+          "ch": 1,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 36,
+          "chs": [
+            1,
+            1,
+            1
+          ],
+          "ccs": [
+            36,
+            38,
+            42
+          ]
+        },
+        {
+          "app": "fibonacci_gate",
+          "fader": 2,
+          "target": "LXR-02",
+          "ch": 7,
+          "kind": "both",
+          "instrumentId": "",
+          "note": 39,
+          "cc": 32
+        },
+        {
+          "app": "venn",
+          "fader": 3,
+          "target": "LXR-02",
+          "ch": 7,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 43
+        },
+        {
+          "app": "hold_sam",
+          "fader": 5,
+          "target": "LXR-02",
+          "ch": 7,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 46
+        },
+        {
+          "app": "bassment",
+          "fader": 6,
+          "target": "Minitaur",
+          "ch": 13,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 36
+        },
+        {
+          "app": "control_issues",
+          "fader": 7,
+          "target": "Minitaur",
+          "ch": 13,
+          "kind": "cc",
+          "instrumentId": "",
+          "cc": 74
+        },
+        {
+          "app": "contura",
+          "fader": 8,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 48
+        },
+        {
+          "app": "arp_de_levy",
+          "fader": 9,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 52
+        },
+        {
+          "app": "echolot",
+          "fader": 10,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "both",
+          "instrumentId": "",
+          "note": 48,
+          "cc": 91
+        },
+        {
+          "app": "super_lfo",
+          "fader": 11,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "cc",
+          "instrumentId": "",
+          "cc": 1
+        },
+        {
+          "app": "vamp",
+          "fader": 13,
+          "target": "Hydra",
+          "ch": 16,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 48
+        },
+        {
+          "app": "harmonica",
+          "fader": 14,
+          "target": "Hydra",
+          "ch": 16,
+          "kind": "none",
+          "instrumentId": "",
+          "cc": 32
+        },
+        {
+          "app": "loop_de_cay",
+          "fader": 15,
+          "target": "Hydra",
+          "ch": 16,
+          "kind": "note",
+          "instrumentId": "",
+          "cc": 60
+        },
+        {
+          "app": "heat_pump",
+          "fader": 16,
+          "target": "Hydra",
+          "ch": 16,
+          "kind": "cc",
+          "instrumentId": "",
+          "cc": 11
+        }
+      ],
+      "global": {
+        "clockSrc": "Internal",
+        "resetSrc": "None",
+        "bpm": 124,
+        "swing": 0,
+        "scale": "Chromatic",
+        "tonic": "C",
+        "takeover": "Pickup"
+      }
+    }
+  ],
+  "active": 0
+}
