@@ -3308,6 +3308,7 @@
       if (row.app === "grooves") {
         const chs = groovesChs(row);
         const notes = groovesNotes(row);
+        const gIdx = groovesIdx();
         let ni = 0;
         let stampedCh = false;
         out.forEach((p, i) => {
@@ -3317,7 +3318,7 @@
             p.value = [chs[0]];
             stampedCh = true;
           }
-          if (p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+          if (p.tag === "i32" && i === gIdx.chMap) {
             p.value = groovesChMap(chs);
           }
           if (p.tag === "MidiNote" && ni < notes.length) p.value = [notes[ni++]];
@@ -4068,6 +4069,7 @@
       if (row.app === "grooves") {
         const chs = groovesChs(row);
         const notes = groovesNotes(row);
+        const gIdx = groovesIdx();
         let ni = 0;
         let stampedCh = false;
         params.forEach((p, i) => {
@@ -4076,7 +4078,7 @@
             p.value = [chs[0]];
             stampedCh = true;
           }
-          if (p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+          if (p.tag === "i32" && i === gIdx.chMap) {
             p.value = groovesChMap(chs);
           }
           if (p.tag === "MidiNote" && ni < notes.length) p.value = [notes[ni++]];
@@ -4564,8 +4566,29 @@
       "High Tom",
       "Clap",
     ];
-    const GROOVES_CH_MAP_INDEX = 8;
     const GROOVES_VOICE_OFF = 0;
+    /**
+     * Resolve Grooves' param slots from the catalog by name/tag instead of
+     * hardcoding them — the layout shifted when the four optional voices and
+     * the packed Ch Map arrived, and stale constants silently wrote Ch Map
+     * into GATE % (which then failed to serialize).
+     */
+    function groovesIdx() {
+      const params = catalogApp("grooves")?.params || [];
+      const notes = [];
+      params.forEach((p, i) => {
+        if (p?.tag === "MidiNote") notes.push(i);
+      });
+      const find = (tag, re) =>
+        params.findIndex((p) => p?.tag === tag && re.test(String(p.value?.name || "")));
+      return {
+        notes,
+        baseCh: params.findIndex((p) => p?.tag === "MidiChannel"),
+        chMap: find("i32", /^Ch Map$/i),
+        groove: find("Enum", /^Groove$/i),
+        swing: find("i32", /^Swing max/i),
+      };
+    }
     function groovesChs(row) {
       const base = Math.max(1, Math.min(16, Number(row.ch) || 1));
       const raw = Array.isArray(row.chs) ? row.chs : null;
@@ -4721,10 +4744,9 @@
     function syncGroovesRowFromSchema(row, { midi = true } = {}) {
       if (!row || row.app !== "grooves") return;
       if (!Array.isArray(row.schemaValues) || row.schemaValues.length < 11) return;
-      // 9 Groove, 10 Swing max % — both moved when the four optional voices
-      // and the packed Ch Map arrived.
-      const g = row.schemaValues[9];
-      const sw = row.schemaValues[10];
+      const gi = groovesIdx();
+      const g = row.schemaValues[gi.groove];
+      const sw = row.schemaValues[gi.swing];
       if (g?.tag === "Enum") {
         const n = Number(g.value);
         if (Number.isFinite(n)) row.groove = Math.max(0, Math.min(8, n));
@@ -4735,16 +4757,17 @@
         if (Number.isFinite(n)) row.swingMax = Math.max(-100, Math.min(100, n));
       }
       if (midi) {
-        // 0–6 voice notes, 7 base channel, 8 packed Ch Map.
-        const notes = GROOVES_VOICES.map((_, i) => {
-          const v = row.schemaValues[i];
+        const notes = gi.notes.map((slot) => {
+          const v = row.schemaValues[slot];
           if (v?.tag !== "MidiNote") return null;
           const n = Number(Array.isArray(v.value) ? v.value[0] : v.value);
           return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
         });
-        if (notes.every((n) => n != null)) row.ccs = notes;
-        const baseV = row.schemaValues[7];
-        const mapV = row.schemaValues[GROOVES_CH_MAP_INDEX];
+        if (notes.length === GROOVES_VOICES.length && notes.every((n) => n != null)) {
+          row.ccs = notes;
+        }
+        const baseV = row.schemaValues[gi.baseCh];
+        const mapV = row.schemaValues[gi.chMap];
         if (baseV?.tag === "MidiChannel") {
           const base = Number(Array.isArray(baseV.value) ? baseV.value[0] : baseV.value);
           const map = Number(Array.isArray(mapV?.value) ? mapV.value[0] : mapV?.value);
@@ -5490,7 +5513,7 @@
           }
         }
         // Grooves keeps its per-voice channels in one packed i32.
-        if (row.app === "grooves" && p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+        if (row.app === "grooves" && p.tag === "i32" && i === groovesIdx().chMap) {
           v.value = groovesChMap(chs);
         }
       });
@@ -6195,7 +6218,13 @@
         </label>`);
       }
       if (s.app === "grooves") {
-        const names = ["Dub", "Disco", "Hip-Hop", "House", "Techno", "Trip-Hop", "UK Garage", "Dubstep"];
+        // Genre order/count comes from the firmware catalog (GENRE_NAMES) —
+        // a hardcoded copy here silently sent the wrong genre index.
+        const gi = groovesIdx();
+        const variants = catalogApp("grooves")?.params?.[gi.groove]?.value?.variants;
+        const names = Array.isArray(variants) && variants.length
+          ? variants.map((v) => (typeof v === "string" ? v : String(v?.tag ?? v)))
+          : ["Dub", "Disco", "House", "Techno", "Trip-Hop", "Hip-Hop", "Jungle", "UK Garage", "Dubstep"];
         const cur = Number.isFinite(Number(s.groove)) ? Number(s.groove) : 3;
         const swingMax = Number.isFinite(Number(s.swingMax)) ? Number(s.swingMax) : 50;
         bits.push(`<select data-i="${idx}" data-k="groove" title="${escapeAttr(t("param.groove"))}">
@@ -6210,7 +6239,8 @@
           idx,
           key: "swingMax",
           value: swingMax,
-          min: 10,
+          // Negative = reverse swing (the old Swing Dir param folded into the sign).
+          min: -100,
           max: 100,
           label: "% Swing",
           title: t("param.swingHint"),
@@ -8055,8 +8085,9 @@
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
-          if (rowRef.schemaValues[9]?.tag === "Enum") {
-            rowRef.schemaValues[9] = enumVal(rowRef.groove);
+          const gi = groovesIdx();
+          if (rowRef.schemaValues[gi.groove]?.tag === "Enum") {
+            rowRef.schemaValues[gi.groove] = enumVal(rowRef.groove);
           }
         }
       } else if (k === "swingMax") {
@@ -8064,8 +8095,9 @@
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
-          if (rowRef.schemaValues[10]?.tag === "i32") {
-            rowRef.schemaValues[10] = i32(rowRef.swingMax);
+          const gi = groovesIdx();
+          if (rowRef.schemaValues[gi.swing]?.tag === "i32") {
+            rowRef.schemaValues[gi.swing] = i32(rowRef.swingMax);
           }
         }
       } else if (k === "echoIo") {
@@ -8153,8 +8185,9 @@
         rowRef.cc = notes[0];
         if (rowRef.app === "grooves" && catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
-          if (rowRef.schemaValues[slot]?.tag === "MidiNote") {
-            rowRef.schemaValues[slot] = note(notes[slot]);
+          const pi = groovesIdx().notes[slot];
+          if (rowRef.schemaValues[pi]?.tag === "MidiNote") {
+            rowRef.schemaValues[pi] = note(notes[slot]);
           }
           applyColumnOverlaysToSchema(rowRef, sc.port);
         } else if (rowRef.app === "fp_grids" && catalogApp(rowRef.app)) {
