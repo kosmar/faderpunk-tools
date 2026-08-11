@@ -2388,6 +2388,16 @@
               "Stacked"
             ]
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Swing Dir",
+            "variants": [
+              "Normal",
+              "Reverse"
+            ]
+          }
         }
       ]
     },
