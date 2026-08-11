@@ -2378,6 +2378,16 @@
             "min": 0,
             "max": 100
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack Mode",
+            "variants": [
+              "Any",
+              "Stacked"
+            ]
+          }
         }
       ]
     },
