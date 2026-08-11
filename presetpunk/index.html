@@ -4613,6 +4613,31 @@
     }
     function ensureGroovesMidi(row) {
       if (!row || row.app !== "grooves") return;
+      // Legacy kit rows only stored three channels. When Snare/Hats already
+      // count up from Kick and the optional voices are still missing or stuck
+      // on Kick’s channel, expand so Open Hat…Clap keep counting too.
+      if (Array.isArray(row.chs) && row.chs.length > 0) {
+        const base = Math.max(1, Math.min(16, Number(row.chs[0]) || 1));
+        const kitPrefix =
+          Number(row.chs[1]) === Math.min(16, base + 1) &&
+          Number(row.chs[2]) === Math.min(16, base + 2);
+        const needsExpand =
+          row.chs.length < GROOVES_VOICES.length ||
+          (kitPrefix &&
+            GROOVES_VOICES.slice(3).every((_, i) => {
+              const v = Number(row.chs[3 + i]);
+              return !Number.isFinite(v) || v === base;
+            }));
+        if (kitPrefix && needsExpand) {
+          row.chs = GROOVES_VOICES.map((_, i) => Math.min(16, base + i));
+        }
+      }
+      if (Array.isArray(row.chsInst) && row.chsInst.length > 0) {
+        const kickId = row.chsInst[0] || row.instrumentId || "";
+        if (kickId && row.chsInst.length < GROOVES_VOICES.length) {
+          while (row.chsInst.length < GROOVES_VOICES.length) row.chsInst.push(kickId);
+        }
+      }
       row.chs = groovesChs(row);
       row.ccs = groovesNotes(row);
       row.ch = row.chs[0];
@@ -4687,8 +4712,13 @@
       row.ch = chs[1];
     }
 
-    /** Keep denormalized groove/swingMax mirrors in sync with catalog schemaValues. */
-    function syncGroovesRowFromSchema(row) {
+    /**
+     * Mirror catalog schemaValues into the denormalized Grooves row fields.
+     * `midi: true` (default on pull) also refreshes notes/channels from schema.
+     * Overlay / live-edit paths pass `midi: false` so a note click is not
+     * immediately overwritten by the still-stale schema slots.
+     */
+    function syncGroovesRowFromSchema(row, { midi = true } = {}) {
       if (!row || row.app !== "grooves") return;
       if (!Array.isArray(row.schemaValues) || row.schemaValues.length < 11) return;
       // 9 Groove, 10 Swing max % — both moved when the four optional voices
@@ -4704,19 +4734,22 @@
         // Negative caps are reverse swing, so the sign has to survive.
         if (Number.isFinite(n)) row.swingMax = Math.max(-100, Math.min(100, n));
       }
-      // 0–6 voice notes, 7 base channel, 8 packed Ch Map.
-      const notes = GROOVES_VOICES.map((_, i) => {
-        const v = row.schemaValues[i];
-        const n = Number(Array.isArray(v?.value) ? v.value[0] : v?.value);
-        return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
-      });
-      if (notes.every((n) => n != null)) row.ccs = notes;
-      const baseV = row.schemaValues[7];
-      const mapV = row.schemaValues[GROOVES_CH_MAP_INDEX];
-      if (baseV?.tag === "MidiChannel") {
-        const base = Number(Array.isArray(baseV.value) ? baseV.value[0] : baseV.value);
-        const map = Number(Array.isArray(mapV?.value) ? mapV.value[0] : mapV?.value);
-        row.chs = groovesChsFromMap(map, base);
+      if (midi) {
+        // 0–6 voice notes, 7 base channel, 8 packed Ch Map.
+        const notes = GROOVES_VOICES.map((_, i) => {
+          const v = row.schemaValues[i];
+          if (v?.tag !== "MidiNote") return null;
+          const n = Number(Array.isArray(v.value) ? v.value[0] : v.value);
+          return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
+        });
+        if (notes.every((n) => n != null)) row.ccs = notes;
+        const baseV = row.schemaValues[7];
+        const mapV = row.schemaValues[GROOVES_CH_MAP_INDEX];
+        if (baseV?.tag === "MidiChannel") {
+          const base = Number(Array.isArray(baseV.value) ? baseV.value[0] : baseV.value);
+          const map = Number(Array.isArray(mapV?.value) ? mapV.value[0] : mapV?.value);
+          row.chs = groovesChsFromMap(map, base);
+        }
       }
       ensureGroovesMidi(row);
     }
@@ -5257,6 +5290,12 @@
       }
     }
 
+    /** True when every slot’s wire tag still matches the catalog (length alone is not enough — Grooves stayed at 16 while the layout changed). */
+    function schemaTagsMatchCatalog(sv, cat) {
+      if (!Array.isArray(sv) || !cat?.params || sv.length !== cat.params.length) return false;
+      return cat.params.every((p, i) => sv[i]?.tag === p.tag);
+    }
+
     function ensureSchemaValues(row, portKey) {
       const cat = catalogApp(row.app);
       if (!cat) return null;
@@ -5264,16 +5303,17 @@
       if (APPS_WITH_COLOR.has(row.app) && row.color && !APP_PARAM_COLORS.has(row.color)) {
         row.color = coerceAppParamColor(row.color);
       }
-      const n = cat.params.length;
-      if (Array.isArray(row.schemaValues) && row.schemaValues.length === n) {
+      if (Array.isArray(row.schemaValues) && schemaTagsMatchCatalog(row.schemaValues, cat)) {
         healControlIssuesSchemaValues(row, cat);
         return row.schemaValues;
       }
-      if (Array.isArray(row.rawParams) && row.rawParams.length === n) {
+      if (Array.isArray(row.rawParams) && schemaTagsMatchCatalog(row.rawParams, cat)) {
         row.schemaValues = structuredClone(row.rawParams);
         healControlIssuesSchemaValues(row, cat);
         return row.schemaValues;
       }
+      // Length can match while tags drifted (Grooves 3→7 voices). Rebuild from
+      // catalog defaults, then re-apply the denormalized column fields.
       row.schemaValues = cat.params.map((p) => defaultValueForParam(p, row, portKey));
       if (row.app === "super_lfo") {
         // Only seed a newly-created schema from legacy fields. Once present,
@@ -5367,10 +5407,11 @@
         }
       }
       if (row.app === "grooves") {
-        // 6 Groove / 7 Swing live in schemaValues (catalog UI). Do NOT
-        // clobber them from stale row.groove / row.swingMax — those fields
-        // are denormalized mirrors updated on pull / schema edit only.
-        syncGroovesRowFromSchema(row);
+        // Expand legacy 3-voice kits, then mirror Groove/Swing only — never
+        // pull notes/chs from schema here, or a fresh Note/CH edit is wiped
+        // before it can be stamped back.
+        ensureGroovesMidi(row);
+        syncGroovesRowFromSchema(row, { midi: false });
       }
       if (row.app === "fibonacci_gate") {
         // 4 Speed, 11 Mode
@@ -7748,7 +7789,7 @@
           if (rowRef.groove == null) rowRef.groove = 3;
           if (rowRef.instrumentId && !Array.isArray(rowRef.chsInst)) {
             const id = rowRef.instrumentId;
-            rowRef.chsInst = [id, id, id];
+            rowRef.chsInst = GROOVES_VOICES.map(() => id);
           }
         } else if (el.value === "echolot") {
           ensureEcholotMidi(rowRef);
@@ -7784,12 +7825,10 @@
           }
           if (rowRef.app === "grooves") {
             const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
-            rowRef.chs = [
-              base,
-              Math.min(16, base + 1),
-              Math.min(16, base + 2),
-            ];
-            rowRef.chsInst = [inst.id, inst.id, inst.id];
+            // Kick sets the kit base; every voice counts up from it so drum
+            // machines with a channel per voice light up in order.
+            rowRef.chs = GROOVES_VOICES.map((_, i) => Math.min(16, base + i));
+            rowRef.chsInst = GROOVES_VOICES.map(() => inst.id);
             ensureGroovesMidi(rowRef);
           }
           if (rowRef.app === "echolot") {
@@ -7845,13 +7884,9 @@
           if (rowRef.app === "grooves") {
             const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
             if (slot === 0) {
-              // Kick = kit preset: same instrument on all voices, CH / +1 / +2.
-              rowRef.chs = [
-                base,
-                Math.min(16, base + 1),
-                Math.min(16, base + 2),
-              ];
-              rowRef.chsInst = [inst.id, inst.id, inst.id];
+              // Kick = kit preset: same instrument on all voices, CH / +1 / …
+              rowRef.chs = GROOVES_VOICES.map((_, i) => Math.min(16, base + i));
+              rowRef.chsInst = GROOVES_VOICES.map(() => inst.id);
             } else {
               chs[slot] = base;
               rowRef.chs = chs;
@@ -8016,21 +8051,21 @@
         rowRef.bypassQ = !!el.checked;
         delete rowRef.rawParams;
       } else if (k === "groove") {
-        rowRef.groove = Math.max(0, Math.min(7, Number(el.value) || 0));
+        rowRef.groove = Math.max(0, Math.min(8, Number(el.value) || 0));
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
-          if (rowRef.schemaValues[6]?.tag === "Enum") {
-            rowRef.schemaValues[6] = enumVal(rowRef.groove);
+          if (rowRef.schemaValues[9]?.tag === "Enum") {
+            rowRef.schemaValues[9] = enumVal(rowRef.groove);
           }
         }
       } else if (k === "swingMax") {
-        rowRef.swingMax = Math.max(10, Math.min(100, Number(el.value) || 50));
+        rowRef.swingMax = Math.max(-100, Math.min(100, Number(el.value) || 50));
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
-          if (rowRef.schemaValues[7]?.tag === "i32") {
-            rowRef.schemaValues[7] = i32(rowRef.swingMax);
+          if (rowRef.schemaValues[10]?.tag === "i32") {
+            rowRef.schemaValues[10] = i32(rowRef.swingMax);
           }
         }
       } else if (k === "echoIo") {
@@ -8102,14 +8137,30 @@
           ensureEcholotMidi(rowRef);
           ensureSchemaValues(rowRef);
           applyColumnOverlaysToSchema(rowRef, sc.port);
+        } else if (rowRef.app === "grooves") {
+          ensureGroovesMidi(rowRef);
+          ensureSchemaValues(rowRef);
+          applyColumnOverlaysToSchema(rowRef, sc.port);
         }
         delete rowRef.rawParams;
       } else if (k === "ccs") {
         const slot = Number(el.dataset.slot);
         const notes = rowRef.app === "grooves" ? groovesNotes(rowRef) : gridsNotes(rowRef);
-        notes[slot] = Math.max(0, Math.min(127, Number(el.value) || 0));
+        // Keep 0 as Off — `|| 0` would also collapse NaN, which is fine.
+        notes[slot] = Math.max(0, Math.min(127, Number(el.value)));
+        if (!Number.isFinite(notes[slot])) notes[slot] = 0;
         rowRef.ccs = notes;
         rowRef.cc = notes[0];
+        if (rowRef.app === "grooves" && catalogApp(rowRef.app)) {
+          ensureSchemaValues(rowRef);
+          if (rowRef.schemaValues[slot]?.tag === "MidiNote") {
+            rowRef.schemaValues[slot] = note(notes[slot]);
+          }
+          applyColumnOverlaysToSchema(rowRef, sc.port);
+        } else if (rowRef.app === "fp_grids" && catalogApp(rowRef.app)) {
+          ensureSchemaValues(rowRef);
+          applyColumnOverlaysToSchema(rowRef, sc.port);
+        }
         delete rowRef.rawParams;
       } else if (k === "note") {
         rowRef.note = Math.max(0, Math.min(127, Number(el.value) || 0));

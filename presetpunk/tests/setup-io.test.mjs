@@ -282,19 +282,20 @@ test("SetAppParams with padded grooves vector serializes", () => {
   // vectors used to blow up in postcard serialize.
   const groovesRow = [
     { tag: "MidiNote", value: [36] },
-    { tag: "MidiChannel", value: [7] },
     { tag: "MidiNote", value: [38] },
-    { tag: "MidiChannel", value: [8] },
     { tag: "MidiNote", value: [42] },
-    { tag: "MidiChannel", value: [9] },
+    { tag: "MidiNote", value: [0] },
+    { tag: "MidiNote", value: [0] },
+    { tag: "MidiNote", value: [0] },
+    { tag: "MidiNote", value: [39] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "i32", value: 0 }, // Ch Map — 0 = follow base
     { tag: "Enum", value: [5] }, // array form on purpose
     { tag: "i32", value: [21] },
     { tag: "i32", value: 100 },
-    { tag: "Color", value: { tag: "Pink" } },
     { tag: "MidiOut", value: [true, true, true] }, // flat form on purpose
     { tag: "Enum", value: 0 },
     { tag: "Range", value: { tag: "_0_10V" } },
-    { tag: "Enum", value: 0 },
     { tag: "i32", value: 50 },
   ];
   const bytes = serialize("ConfigMsgIn", {
@@ -302,6 +303,37 @@ test("SetAppParams with padded grooves vector serializes", () => {
     value: { layout_id: 0, values: padParams(groovesRow) },
   });
   assert.ok(bytes.length > 0);
+});
+
+test("SetAppParams rejects stale Grooves schema tags (pre-7-voice layout)", () => {
+  // Length stayed 16 while tags moved — overlay used to stamp MidiOut flags
+  // into a Range slot and blow up serialize with ConfigMsgIn wrong format.
+  const stale = [
+    { tag: "MidiNote", value: [36] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "MidiNote", value: [38] },
+    { tag: "MidiChannel", value: [8] },
+    { tag: "MidiNote", value: [42] },
+    { tag: "MidiChannel", value: [9] },
+    { tag: "Enum", value: 3 },
+    { tag: "i32", value: 50 },
+    { tag: "i32", value: 40 },
+    { tag: "Color", value: { tag: "Pink" } },
+    { tag: "MidiOut", value: [[true, false, false]] },
+    { tag: "Enum", value: 0 },
+    { tag: "Range", value: [[true, false, false]] }, // MidiOut flags written into Range
+    { tag: "Enum", value: 0 },
+    { tag: "i32", value: 100 },
+    { tag: "Enum", value: 0 },
+  ];
+  assert.throws(
+    () =>
+      serialize("ConfigMsgIn", {
+        tag: "SetAppParams",
+        value: { layout_id: 0, values: padParams(stale) },
+      }),
+    /ConfigMsgIn.*wrong format/,
+  );
 });
 
 test("unpadded values throw in serialize (documents why padParams exists)", () => {
