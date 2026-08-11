@@ -5254,6 +5254,17 @@
           claimed.add(i);
           return;
         }
+        // Grooves' Ch Map is the bit-packed form of the CH column, which already
+        // shows all seven channels. As a generic 0…268435455 slider it looked
+        // frozen (one channel step is 16) and dragging it scrambled every voice.
+        if (
+          row.app === "grooves" &&
+          p.tag === "i32" &&
+          /^Ch Map$/i.test(String(p.value?.name || ""))
+        ) {
+          claimed.add(i);
+          return;
+        }
         if (p.tag === "MidiChannel") {
           // Multi-CH apps render every MidiChannel in the CH column (chCellHtml).
           if (specialMulti || multiMidiCh || firstCh) {
