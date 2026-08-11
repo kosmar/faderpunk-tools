@@ -3927,6 +3927,16 @@
             "min": 0,
             "max": 100
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Swing Dir",
+            "variants": [
+              "Normal",
+              "Reverse"
+            ]
+          }
         }
       ]
     },
