@@ -2271,21 +2271,9 @@
           }
         },
         {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI Channel Kick"
-          }
-        },
-        {
           "tag": "MidiNote",
           "value": {
             "name": "MIDI Note Snare"
-          }
-        },
-        {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI Channel Snare"
           }
         },
         {
@@ -2295,9 +2283,41 @@
           }
         },
         {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note Open Hat"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note Low Tom"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note High Tom"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note Clap"
+          }
+        },
+        {
           "tag": "MidiChannel",
           "value": {
-            "name": "MIDI Channel Hats"
+            "name": "MIDI Ch"
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Ch Map",
+            "min": 0,
+            "max": 268435455
           }
         },
         {
@@ -2321,7 +2341,7 @@
           "tag": "i32",
           "value": {
             "name": "Swing max %",
-            "min": 10,
+            "min": -100,
             "max": 100
           }
         },
@@ -2341,8 +2361,11 @@
           "value": {
             "name": "Jack",
             "variants": [
-              "CV Out",
-              "CV In"
+              "CV Out Any",
+              "CV Out Stacked",
+              "CV In Density",
+              "CV In Feel",
+              "CV In Reset"
             ]
           }
         },
@@ -2361,42 +2384,11 @@
           }
         },
         {
-          "tag": "Enum",
-          "value": {
-            "name": "CV Dest",
-            "variants": [
-              "Density",
-              "Feel",
-              "Reset"
-            ]
-          }
-        },
-        {
           "tag": "i32",
           "value": {
             "name": "CV Att",
             "min": 0,
             "max": 100
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Jack Mode",
-            "variants": [
-              "Any",
-              "Stacked"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Swing Dir",
-            "variants": [
-              "Normal",
-              "Reverse"
-            ]
           }
         }
       ]
@@ -3123,7 +3115,8 @@
             "name": "Jack",
             "variants": [
               "CV Out",
-              "CV In"
+              "CV In Macro",
+              "CV In Panic"
             ]
           }
         },
@@ -3143,16 +3136,6 @@
         },
         {
           "tag": "VoltPerOct"
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "CV Dest",
-            "variants": [
-              "Macro",
-              "Panic"
-            ]
-          }
         },
         {
           "tag": "i32",
@@ -3870,7 +3853,7 @@
           "tag": "i32",
           "value": {
             "name": "Groove max %",
-            "min": 10,
+            "min": -100,
             "max": 100
           }
         },
@@ -3888,7 +3871,9 @@
             "name": "Jack",
             "variants": [
               "CV Out",
-              "CV In"
+              "CV In Density",
+              "CV In Feel",
+              "CV In Reset"
             ]
           }
         },
@@ -3910,32 +3895,11 @@
           "tag": "VoltPerOct"
         },
         {
-          "tag": "Enum",
-          "value": {
-            "name": "CV Dest",
-            "variants": [
-              "Density",
-              "Feel",
-              "Reset"
-            ]
-          }
-        },
-        {
           "tag": "i32",
           "value": {
             "name": "CV Att",
             "min": 0,
             "max": 100
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Swing Dir",
-            "variants": [
-              "Normal",
-              "Reverse"
-            ]
           }
         }
       ]
@@ -4084,18 +4048,9 @@
             "name": "Jack",
             "variants": [
               "CV Out",
-              "CV In"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "CV Dest",
-            "variants": [
-              "Density",
-              "Interval",
-              "Reset"
+              "CV In Density",
+              "CV In Interval",
+              "CV In Reset"
             ]
           }
         },

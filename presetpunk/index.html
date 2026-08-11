@@ -3308,17 +3308,24 @@
       if (row.app === "grooves") {
         const chs = groovesChs(row);
         const notes = groovesNotes(row);
-        let ci = 0;
         let ni = 0;
-        for (const p of out) {
-          if (!p || typeof p !== "object") continue;
-          if (p.tag === "MidiChannel" && ci < 3) p.value = [chs[ci++]];
-          if (p.tag === "MidiNote" && ni < 3) p.value = [notes[ni++]];
-          // Genre / Swing / Jack / CV Dest stay in the vector (schema path).
+        let stampedCh = false;
+        out.forEach((p, i) => {
+          if (!p || typeof p !== "object") return;
+          // One shared channel plus the packed per-voice map.
+          if (p.tag === "MidiChannel" && !stampedCh) {
+            p.value = [chs[0]];
+            stampedCh = true;
+          }
+          if (p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+            p.value = groovesChMap(chs);
+          }
+          if (p.tag === "MidiNote" && ni < notes.length) p.value = [notes[ni++]];
+          // Genre / Swing / Jack stay in the vector (schema path).
           // Never stamp row.groove onto every Enum — that corrupted Jack/Dest.
           if (p.tag === "MidiOut") p.value = [flagsFromPort(wantPort)];
           if (p.tag === "Color" && appCol?.value?.tag) p.value = { tag: appCol.value.tag };
-        }
+        });
         return out;
       }
       if (row.app === "echolot") {
@@ -3892,24 +3899,23 @@
             enumVal(gateMode),
           ];
         }
-        // Grooves: Note+CH×3, Groove, Swing, GATE %, Color, Out, Jack, Range, CV Dest, CV Att
+        // Grooves: Note×7, MIDI Ch, Ch Map, Groove, Swing max %, GATE %, Out,
+        // Jack, Range, CV Att
         case "grooves": {
           const notes = groovesNotes(row);
           const chs = groovesChs(row);
           const groove = Number.isFinite(Number(row.groove)) ? Number(row.groove) : 3;
           const swingMax = Number.isFinite(Number(row.swingMax)) ? Number(row.swingMax) : 50;
           return [
-            note(notes[0]), ch(chs[0]),
-            note(notes[1]), ch(chs[1]),
-            note(notes[2]), ch(chs[2]),
-            enumVal(Math.max(0, Math.min(7, groove))),
-            i32(Math.max(10, Math.min(100, swingMax))),
+            ...notes.map((n) => note(n)),
+            ch(chs[0]),
+            i32(groovesChMap(chs)),
+            enumVal(Math.max(0, Math.min(8, groove))),
+            i32(Math.max(-100, Math.min(100, swingMax))),
             i32(40),
-            appCol,
             out,
             enumVal(0),
             range(cvR === "_Neg5_5V" ? cvR : "_0_10V"),
-            enumVal(0),
             i32(100),
           ];
         }
@@ -4062,18 +4068,24 @@
       if (row.app === "grooves") {
         const chs = groovesChs(row);
         const notes = groovesNotes(row);
-        let ci = 0;
         let ni = 0;
-        for (const p of params) {
-          if (!p || typeof p !== "object") continue;
-          if (p.tag === "MidiChannel" && ci < 3) p.value = [chs[ci++]];
-          if (p.tag === "MidiNote" && ni < 3) p.value = [notes[ni++]];
-          // Leave Enum / i32 (Groove, Swing, GATE, Jack, Dest, Att) alone —
+        let stampedCh = false;
+        params.forEach((p, i) => {
+          if (!p || typeof p !== "object") return;
+          if (p.tag === "MidiChannel" && !stampedCh) {
+            p.value = [chs[0]];
+            stampedCh = true;
+          }
+          if (p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+            p.value = groovesChMap(chs);
+          }
+          if (p.tag === "MidiNote" && ni < notes.length) p.value = [notes[ni++]];
+          // Leave the other Enum / i32 (Groove, Swing, GATE, Jack, Att) alone —
           // catalog schemaValues are what the UI edits.
           if (p.tag === "Color") {
             p.value = colorForApp(row.instrumentId || row.app, resolveColor(row, 0)).value;
           }
-        }
+        });
         return params;
       }
       if (row.app === "echolot") {
@@ -4354,8 +4366,9 @@
             row.ch = chs[1];
             ensureHarmonicaMidi(row);
           } else if (row.app === "grooves") {
+            const voices = GROOVES_VOICES.length;
             const ids = Array.isArray(row.chsInst) ? [...row.chsInst] : [];
-            while (ids.length < 3) ids.push("");
+            while (ids.length < voices) ids.push("");
             const legacy =
               row.instrumentId === instrumentId &&
               ids.every((id) => !id || id === instrumentId);
@@ -4364,11 +4377,12 @@
             let next = chs.slice();
             let changed = false;
             if (kickLinked) {
-              next = [ch, Math.min(16, ch + 1), Math.min(16, ch + 2)];
-              changed =
-                next[0] !== chs[0] || next[1] !== chs[1] || next[2] !== chs[2];
+              // Kick sets the base; the other voices count up from it, which is
+              // how drum machines with a channel per voice are usually wired.
+              next = GROOVES_VOICES.map((_, i) => Math.min(16, ch + i));
+              changed = next.some((n, i) => n !== chs[i]);
             } else {
-              for (let s = 1; s < 3; s++) {
+              for (let s = 1; s < voices; s++) {
                 if (ids[s] === instrumentId && next[s] !== ch) {
                   next[s] = ch;
                   changed = true;
@@ -4511,39 +4525,87 @@
       return midiNoteName(n);
     }
 
-    function noteOptionsHtml(selected) {
+    function noteOptionsHtml(selected, zeroLabel = null) {
       const cur = Math.max(0, Math.min(127, Number(selected) || 0));
       let html = "";
       // High notes first (top), low notes last (bottom) — like a keyboard
       for (let i = 127; i >= 0; i--) {
-        html += `<option value="${i}" ${i === cur ? "selected" : ""}>${escapeHtml(midiNoteLabel(i))}</option>`;
+        const lab = i === 0 && zeroLabel ? zeroLabel : midiNoteLabel(i);
+        html += `<option value="${i}" ${i === cur ? "selected" : ""}>${escapeHtml(lab)}</option>`;
       }
       return html;
     }
 
-    function noteSelectHtml(idx, value, { key = "cc", slot = null, title = "" } = {}) {
+    function noteSelectHtml(
+      idx,
+      value,
+      { key = "cc", slot = null, title = "", zeroLabel = null } = {},
+    ) {
       const slotAttr = slot == null ? "" : ` data-slot="${slot}"`;
       const titleAttr = title ? ` title="${escapeAttr(title)}"` : "";
-      return `<select data-i="${idx}" data-k="${key}" data-note="1"${slotAttr}${titleAttr}>${noteOptionsHtml(value)}</select>`;
+      return `<select data-i="${idx}" data-k="${key}" data-note="1"${slotAttr}${titleAttr}>${noteOptionsHtml(value, zeroLabel)}</select>`;
     }
 
     /** FP Grids: 4 voices → 4× MidiNote + 4× MidiChannel (firmware order). */
 
-    const GROOVES_VOICES = ["Kick", "Snare", "Hats"];
+    /**
+     * Grooves: 7 voices → 7× MidiNote, one shared MidiChannel, and a packed
+     * “Ch Map” i32 (param 8) holding one nibble per voice. Firmware reads the
+     * whole map as “follow the base channel” while it is 0; any other value
+     * makes every nibble an explicit channel (nibble + 1). Note 0 is the
+     * off switch for a voice, which is how the four optional ones ship.
+     */
+    const GROOVES_VOICES = [
+      "Kick",
+      "Snare",
+      "Hats",
+      "Open Hat",
+      "Low Tom",
+      "High Tom",
+      "Clap",
+    ];
+    const GROOVES_CH_MAP_INDEX = 8;
+    const GROOVES_VOICE_OFF = 0;
     function groovesChs(row) {
       const base = Math.max(1, Math.min(16, Number(row.ch) || 1));
       const raw = Array.isArray(row.chs) ? row.chs : null;
-      return [0, 1, 2].map((i) => {
+      return GROOVES_VOICES.map((_, i) => {
         const v = Number(raw?.[i]);
         return Number.isFinite(v) && v >= 1 && v <= 16 ? v : base;
       });
     }
+    /** Pack per-voice channels; 0 when they all follow the base channel. */
+    function groovesChMap(chs) {
+      const list = Array.isArray(chs) ? chs : [];
+      const base = Math.max(1, Math.min(16, Number(list[0]) || 1));
+      if (GROOVES_VOICES.every((_, i) => (Number(list[i]) || base) === base)) return 0;
+      return GROOVES_VOICES.reduce((acc, _, i) => {
+        const ch = Math.max(1, Math.min(16, Number(list[i]) || base));
+        return acc + ((ch - 1) << (4 * i));
+      }, 0);
+    }
+    /** Inverse of groovesChMap; a zero map means every voice follows base. */
+    function groovesChsFromMap(map, baseCh) {
+      const base = Math.max(1, Math.min(16, Number(baseCh) || 1));
+      const m = Number(map);
+      if (!Number.isFinite(m) || m <= 0) return GROOVES_VOICES.map(() => base);
+      return GROOVES_VOICES.map((_, i) => ((m >> (4 * i)) & 0xf) + 1);
+    }
     function groovesNotes(row) {
       const base = Number(row.cc);
       const b = Number.isFinite(base) ? base : 36;
-      const defaults = [b, b + 2, b + 6]; // 36/38/42 if base 36
+      // 36/38/42 if base 36; the four optional voices ship off (note 0).
+      const defaults = [
+        b,
+        b + 2,
+        b + 6,
+        GROOVES_VOICE_OFF,
+        GROOVES_VOICE_OFF,
+        GROOVES_VOICE_OFF,
+        GROOVES_VOICE_OFF,
+      ];
       const raw = Array.isArray(row.ccs) ? row.ccs : null;
-      return [0, 1, 2].map((i) => {
+      return GROOVES_VOICES.map((_, i) => {
         const v = Number(raw?.[i]);
         const n = Number.isFinite(v) ? v : defaults[i];
         return Math.max(0, Math.min(127, n));
@@ -4628,17 +4690,35 @@
     /** Keep denormalized groove/swingMax mirrors in sync with catalog schemaValues. */
     function syncGroovesRowFromSchema(row) {
       if (!row || row.app !== "grooves") return;
-      if (!Array.isArray(row.schemaValues) || row.schemaValues.length < 8) return;
-      const g = row.schemaValues[6];
-      const sw = row.schemaValues[7];
+      if (!Array.isArray(row.schemaValues) || row.schemaValues.length < 11) return;
+      // 9 Groove, 10 Swing max % — both moved when the four optional voices
+      // and the packed Ch Map arrived.
+      const g = row.schemaValues[9];
+      const sw = row.schemaValues[10];
       if (g?.tag === "Enum") {
         const n = Number(g.value);
-        if (Number.isFinite(n)) row.groove = Math.max(0, Math.min(7, n));
+        if (Number.isFinite(n)) row.groove = Math.max(0, Math.min(8, n));
       }
       if (sw?.tag === "i32") {
         const n = Number(Array.isArray(sw.value) ? sw.value[0] : sw.value);
-        if (Number.isFinite(n)) row.swingMax = Math.max(10, Math.min(100, n));
+        // Negative caps are reverse swing, so the sign has to survive.
+        if (Number.isFinite(n)) row.swingMax = Math.max(-100, Math.min(100, n));
       }
+      // 0–6 voice notes, 7 base channel, 8 packed Ch Map.
+      const notes = GROOVES_VOICES.map((_, i) => {
+        const v = row.schemaValues[i];
+        const n = Number(Array.isArray(v?.value) ? v.value[0] : v?.value);
+        return Number.isFinite(n) ? Math.max(0, Math.min(127, n)) : null;
+      });
+      if (notes.every((n) => n != null)) row.ccs = notes;
+      const baseV = row.schemaValues[7];
+      const mapV = row.schemaValues[GROOVES_CH_MAP_INDEX];
+      if (baseV?.tag === "MidiChannel") {
+        const base = Number(Array.isArray(baseV.value) ? baseV.value[0] : baseV.value);
+        const map = Number(Array.isArray(mapV?.value) ? mapV.value[0] : mapV?.value);
+        row.chs = groovesChsFromMap(map, base);
+      }
+      ensureGroovesMidi(row);
     }
 
     /** Echolot CH labels: Single → Out; Ping-Pong → Ping / Pong. */
@@ -4714,7 +4794,7 @@
       if (!id && row.instrumentId && row.app === "harmonica") {
         if (slot === harmonicaInstrumentSlot(row)) id = row.instrumentId;
       } else if (!id && row.app === "grooves" && row.instrumentId) {
-        // Legacy single-instrument rows → all three voices.
+        // Legacy single-instrument rows → every voice.
         id = row.instrumentId;
       } else if (!id && slot === 1 && row.instrumentId) {
         id = row.instrumentId;
@@ -4896,7 +4976,13 @@
         const rows = GROOVES_VOICES.map((lab, slot) => {
           const n = notes[slot];
           return `<span class="vm">${lab}</span>
-            ${noteSelectHtml(idx, n, { key: "ccs", slot, title: t("midi.noteLabel", { lab }) })}`;
+            ${noteSelectHtml(idx, n, {
+              key: "ccs",
+              slot,
+              title: t("midi.noteLabel", { lab }),
+              // Note 0 silences a voice; the four optional ones ship that way.
+              zeroLabel: "Off",
+            })}`;
         }).join("");
         return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesNoteTitle"))}">${rows}</div>`;
       }
@@ -5361,6 +5447,10 @@
           } else if (row.kind === "note" || row.kind === "both") {
             v.value = [rowNoteNum(row)];
           }
+        }
+        // Grooves keeps its per-voice channels in one packed i32.
+        if (row.app === "grooves" && p.tag === "i32" && i === GROOVES_CH_MAP_INDEX) {
+          v.value = groovesChMap(chs);
         }
       });
     }
