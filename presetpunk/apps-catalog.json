@@ -3901,6 +3901,12 @@
             "min": 0,
             "max": 100
           }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "Filter CC"
+          }
         }
       ]
     },
