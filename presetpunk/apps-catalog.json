@@ -2962,6 +2962,12 @@
             "min": 0,
             "max": 100
           }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
         }
       ]
     },
@@ -3143,6 +3149,12 @@
             "name": "CV Att",
             "min": 0,
             "max": 100
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
           }
         }
       ]
@@ -3771,6 +3783,12 @@
               }
             ]
           }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
         }
       ]
     },
@@ -3906,6 +3924,18 @@
           "tag": "MidiCc",
           "value": {
             "name": "Filter CC"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
           }
         }
       ]
