@@ -949,6 +949,19 @@
       gap: 4px;
       align-items: center;
     }
+    td .app-extras .param-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    td .app-extras .param-name {
+      min-width: 1.1rem;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
     td input[data-k="target"] { width: 7.5rem; max-width: 12rem; }
     .multi-midi {
       display: grid; grid-template-columns: auto auto;
@@ -5206,6 +5219,11 @@
         if (/^MIDI Rate$/i.test(pname)) {
           return enumVal(3);
         }
+        // Manifold: B=CV, C=Gate, D=Trigger (matches firmware spawn defaults).
+        if (row?.app === "manifold") {
+          if (/^Mode C$/i.test(pname)) return enumVal(1);
+          if (/^Mode D$/i.test(pname)) return enumVal(2);
+        }
         return enumVal(0);
       }
       if (tag === "i32") {
@@ -5236,8 +5254,12 @@
       }
       if (tag === "bool") return bool(false);
       if (tag === "Range") {
-        const want = row?.cvRange;
         const vars = (param.value?.variants || []).map((v) => v.tag || v);
+        // Manifold defaults to ±5 V (LFO-friendly), matching firmware.
+        if (row?.app === "manifold" && vars.includes("_Neg5_5V")) {
+          return range("_Neg5_5V");
+        }
+        const want = row?.cvRange;
         const pick = vars.includes(want) ? want : vars[0] || "_0_10V";
         return range(pick);
       }
@@ -5762,6 +5784,20 @@
         return out;
       }
 
+      // Manifold: Color, In Range, Mode/Range B, Mode/Range C, Mode/Range D.
+      // Range only applies in CV mode — hide it for Gate/Trigger.
+      if (row.app === "manifold") {
+        const modePairs = [
+          [2, 3], // Mode B / Range B
+          [4, 5], // Mode C / Range C
+          [6, 7], // Mode D / Range D
+        ];
+        for (const [modeI, rangeI] of modePairs) {
+          if (schemaEnumIndex(row, modeI) !== 0) hide.add(rangeI);
+        }
+        return out;
+      }
+
       return out;
     }
 
@@ -6064,6 +6100,27 @@
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
           ${mainHtml ? `<span class="extras-row">${mainHtml}</span>` : ""}
           ${jackHtml ? `<span class="extras-row">${jackHtml}</span>` : ""}
+        </span>`;
+      }
+
+      // Manifold: labeled In / B / C / D rows (Mode + Range when CV).
+      if (s.app === "manifold") {
+        const byName = Object.fromEntries(bits.map((b) => [b.name, b]));
+        const field = (lab, bit, title) => {
+          if (!bit) return "";
+          return `<span class="param-field" title="${escapeAttr(title || bit.name)}"><span class="param-name">${escapeHtml(lab)}</span>${bit.html}</span>`;
+        };
+        const outRow = (letter, modeName, rangeName) => {
+          const mode = byName[modeName];
+          const range = byName[rangeName];
+          if (!mode && !range) return "";
+          return `<span class="extras-row">${field(letter, mode, modeName)}${field("Rng", range, rangeName)}</span>`;
+        };
+        return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
+          <span class="extras-row">${field("In", byName["In Range"], "In Range")}</span>
+          ${outRow("B", "Mode B", "Range B")}
+          ${outRow("C", "Mode C", "Range C")}
+          ${outRow("D", "Mode D", "Range D")}
         </span>`;
       }
 
