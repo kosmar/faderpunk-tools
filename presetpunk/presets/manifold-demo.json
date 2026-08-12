@@ -1,0 +1,67 @@
+{
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "Manifold Demo",
+      "desc": "Super LFO → Manifold → three destinations. Patch Manifold’s outs into Bassment Density, Contura Interval and Heat Pump Depth; set one out to Trigger for a Reset. Firmware defaults for params.",
+      "port": "usb",
+      "global": {
+        "clock": {
+          "clock_src": {
+            "tag": "Internal"
+          },
+          "ext_ppqn": 24,
+          "reset_src": {
+            "tag": "None"
+          },
+          "internal_bpm": 126,
+          "swing_amount": -2
+        }
+      },
+      "rows": [
+        {
+          "app": "super_lfo",
+          "fader": 1
+        },
+        {
+          "app": "manifold",
+          "fader": 3
+        },
+        {
+          "app": "bassment",
+          "fader": 7
+        },
+        {
+          "app": "contura",
+          "fader": 8
+        },
+        {
+          "app": "grooves",
+          "fader": 9
+        },
+        {
+          "app": "heat_pump",
+          "fader": 10
+        },
+        {
+          "app": "venn",
+          "fader": 11
+        },
+        {
+          "app": "hold_sam",
+          "fader": 13
+        },
+        {
+          "app": "echolot",
+          "fader": 14
+        },
+        {
+          "app": "quantizer",
+          "fader": 15
+        }
+      ]
+    }
+  ],
+  "active": 0
+}
