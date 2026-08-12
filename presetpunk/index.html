@@ -2885,6 +2885,33 @@
       return APP_ALIASES[slug] || slug;
     }
 
+    /** Catalog has no MidiOut param (CV-only port / no MIDI emit). */
+    function appHasNoMidiOut(app) {
+      return APPS_NO_MIDIOUT.has(canonicalizeAppSlug(app));
+    }
+
+    /**
+     * Mute Instrument / CH / CC columns: no MidiOut and also no MIDI
+     * channel/note/cc/in (true CV-only). midi2cv keeps CH (and instrument)
+     * because it still has MidiChannel / MidiIn despite lacking MidiOut.
+     */
+    function appMidiRoutingColsInactive(app) {
+      if (!appHasNoMidiOut(app)) return false;
+      const cat = catalogApp(app);
+      const tags = new Set((cat?.params || []).map((p) => p?.tag));
+      return !(
+        tags.has("MidiChannel") ||
+        tags.has("MidiCc") ||
+        tags.has("MidiNote") ||
+        tags.has("MidiIn") ||
+        tags.has("MidiMode")
+      );
+    }
+
+    function midiInactiveCellHtml(titleKey) {
+      return `<span class="led-muted" title="${escapeAttr(t(titleKey))}">—</span>`;
+    }
+
     function poolMaxForApp(slug) {
       const app = canonicalizeAppSlug(slug);
       if (APP_POOL_MAX[app] != null) return APP_POOL_MAX[app];
@@ -2993,6 +3020,9 @@
     }
 
     function portBitsHtml(s, idx, defaultPort) {
+      if (appHasNoMidiOut(s.app)) {
+        return midiInactiveCellHtml("midi.noMidiOutCol");
+      }
       const isDefault = !s.port;
       const flags = flagsFromPort(s.port || defaultPort);
       const bits = isDefault
@@ -4911,6 +4941,9 @@
     }
 
     function chCellHtml(s, idx) {
+      if (appMidiRoutingColsInactive(s.app)) {
+        return midiInactiveCellHtml("midi.cvOnlyCols");
+      }
       if (s.app === "fp_grids") {
         const chs = gridsChs(s);
         const rows = FP_GRIDS_VOICES.map((lab, slot) => {
@@ -5018,6 +5051,9 @@
     }
 
     function ccCellHtml(s, idx) {
+      if (appMidiRoutingColsInactive(s.app)) {
+        return midiInactiveCellHtml("midi.cvOnlyCols");
+      }
       if (s.app === "fp_grids") {
         const notes = gridsNotes(s);
         const rows = FP_GRIDS_VOICES.map((lab, slot) => {
@@ -6284,6 +6320,9 @@
     }
 
     function instrumentSelectHtml(s, idx) {
+      if (appMidiRoutingColsInactive(s.app)) {
+        return midiInactiveCellHtml("midi.cvOnlyCols");
+      }
       // Harmonica / Echolot / Grooves: one instrument select per voice/slot.
       if (s.app === "harmonica" || s.app === "echolot") {
         const slots =
