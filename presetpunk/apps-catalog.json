@@ -4099,6 +4099,139 @@
           }
         }
       ]
+    },
+    {
+      "id": 43,
+      "slug": "manifold",
+      "module": "manifold",
+      "channels": 4,
+      "name": "Manifold",
+      "description": "One CV in, three shaped outs with comparator modes",
+      "color": "Violet",
+      "icon": "Attenuate",
+      "params": [
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "In Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Mode B",
+            "variants": [
+              "CV",
+              "Gate",
+              "Trigger"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range B",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Mode C",
+            "variants": [
+              "CV",
+              "Gate",
+              "Trigger"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range C",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Mode D",
+            "variants": [
+              "CV",
+              "Gate",
+              "Trigger"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range D",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        }
+      ]
     }
   ]
 }
