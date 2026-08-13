@@ -1451,7 +1451,7 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — Density (extra hits)",
+            "<strong>Main</strong> — Density (extra hits; at high values sparse doubles, flams, triplets and rolls layer as sub-strokes within the 16th)",
             "<strong>Alt</strong> — Genre scrub (shared axis with Chord Vamp)",
             "<strong>Third</strong> — Swing (capped by Swing max %)"
           ]
@@ -1488,7 +1488,7 @@
           "jackTitle": "CV Out / CV In",
           "jackDescription": "CV Out: drum-activity gate. CV In: modulates Density, Swing, or Reset.",
           "faderTitle": "Density",
-          "faderDescription": "Reveals extra kick, snare, and hat hits in the pattern.",
+          "faderDescription": "Reveals extra kick, snare, and hat hits; at high values sparse doubles, flams, triplets and rolls land as sub-strokes inside the same 16th (kick conservative; hats genre-typical).",
           "faderPlusShiftTitle": "Swing",
           "faderPlusShiftDescription": "Swing amount (capped by Swing max % parameter).",
           "faderPlusFnTitle": "Jack mode",
@@ -2015,7 +2015,7 @@
           "items": [
             "<strong>Main</strong> — Density (extra onsets + freer degrees)",
             "<strong>Alt</strong> — Genre scrub (shared axis with Grooves / Chord Vamp)",
-            "<strong>Third</strong> — Feel / Groove (swing · microtiming · velocity · ghosts · gate; capped by Groove max %)"
+            "<strong>Third</strong> — Feel / Groove (swing · microtiming · velocity · ghosts · gate; at high Density + Feel: genre-weighted sub-strokes — repeat, approach, ghost or octave pickup by Voice; filter CC on main strike only; capped by Groove max %)"
           ]
         },
         {
@@ -2092,7 +2092,8 @@
             "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
             "Per-set melodic feel (contour / leap / sustain) — expressivity is not a fader",
             "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
-            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input"
+            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input",
+            "Scale feel drives brief ornaments — grace neighbours, turns or echoes — when the clock division leaves enough space (disabled on the finest grids)"
           ]
         }
       ],
@@ -2126,40 +2127,51 @@
           "items": [
             "<strong>Main</strong> — input trim on channel 0; attenuverter (CV) or threshold (Gate/Trigger) on channels 1–3",
             "<strong>Alt</strong> (Shift) — input offset on channel 0; output offset (CV) or hysteresis (Gate/Trigger) on channels 1–3",
-            "<strong>Third</strong> (Btn hold) — input slew on channel 0; output slew (CV), minimum gate length (Gate) or pulse length (Trigger) on channels 1–3"
+            "<strong>Third</strong> (Btn hold) — input slew on channel 0; output slew (CV), minimum gate length (Gate) or pulse length (Trigger) on channels 1–3",
+            "<strong>Channel 0 while the internal LFO runs</strong> — the three layers become morph, LFO speed and skew instead of trim, offset and slew"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
             "<strong>Channel 0 short</strong> — freeze the conditioned input value",
-            "<strong>Channels 1–3 short</strong> — mute/unmute that output; fader scrub while the button is held cancels the tap"
+            "<strong>Channel 0 Shift + short</strong> — while the internal LFO runs: free-running or clock-synced (the button flashes when sync engages)",
+            "<strong>Channels 1–3 short</strong> — mute/unmute that output (Shift not held); fader scrub while the button is held cancels the tap",
+            "<strong>Channels 1–3 Shift + long</strong> — cycle that out through CV → Gate → Trigger; the new mode colour appears immediately and the configurator follows"
           ]
         },
         {
           "heading": "Signal / LEDs",
           "items": [
             "One CV input on channel 0, three outputs B/C/D on channels 1–3",
+            "With nothing patched into the input, channel 0 becomes an internal morphing LFO that feeds B/C/D — <em>Source</em> forces CV In or Internal LFO instead of that auto fallback",
+            "Channel 0 LEDs take the morph colour while the LFO runs; <em>LFO Speed</em> shifts the whole speed range to Slow or Slowest",
             "CV mode uses the configured Range; Gate and Trigger modes drive the jack as a digital GPO and ignore Range",
-            "Channel 0 LEDs show the conditioned input level; channels 1–3 show output level (CV) or gate state (Gate/Trigger)",
-            "Button LED on channel 0 lights while frozen; channels 1–3 light when the output is unmuted"
+            "Defaults: B = CV, C = Gate, D = Trigger (±5 V on the CV path)",
+            "Channel 0 LEDs dim with the conditioned input amplitude in the app colour",
+            "Out LEDs are colour-coded by type: CV = app colour, Gate = Yellow, Trigger = Orange",
+            "CV outs dim with the shaped output level; Gate/Trigger meter the conditioned input while low and flash full when high",
+            "Button LEDs use the same type colours and breathe with their signal level: channel 0 stays bright when frozen; channels 1–3 turn off when muted",
+            "Channel identities use equidistant open-spectrum hues blue → cyan → lime → orange across channels 0–3; channel 0 shifts to its morph colour while the internal LFO runs"
           ]
         }
       ],
       "channels": [
         {
           "jackTitle": "CV In",
-          "jackDescription": "CV input. Set In Range to 0–10 V for unipolar sources or ±5 V for bipolar sources.",
-          "faderTitle": "Input Trim",
-          "faderDescription": "Attenuverter on the input signal: centre is zero, left inverts, right passes through.",
-          "faderPlusShiftTitle": "Input Offset",
-          "faderPlusShiftDescription": "Shifts the conditioned input up or down before the per-output stages.",
-          "faderPlusFnTitle": "Input Slew",
-          "faderPlusFnDescription": "Smooths changes on the conditioned input.",
+          "jackDescription": "CV input. Set In Range to 0–10 V for unipolar sources or ±5 V for bipolar sources. With nothing patched, the internal LFO takes over as the source.",
+          "faderTitle": "Input Trim / Morph",
+          "faderDescription": "CV: attenuverter on the input signal — centre is zero, left inverts, right passes through. Internal LFO: morphs the wave from ramp through triangle, sine and square into chaos.",
+          "faderPlusShiftTitle": "Input Offset / LFO Speed",
+          "faderPlusShiftDescription": "CV: shifts the conditioned input up or down before the per-output stages. Internal LFO: rate, or the clock division when sync is on.",
+          "faderPlusFnTitle": "Input Slew / Skew",
+          "faderPlusFnDescription": "CV: smooths changes on the conditioned input. Internal LFO: skews the wave towards rising or falling.",
           "fnTitle": "Freeze",
           "fnDescription": "Short tap holds the conditioned input value; all outputs stop moving.",
-          "ledTop": "Conditioned input level",
-          "ledBottom": "Conditioned input level"
+          "fnPlusShiftTitle": "LFO Clock Sync",
+          "fnPlusShiftDescription": "While the internal LFO runs, toggles between free-running and clock-synced. The button flashes when sync engages; a stopped transport parks the wave.",
+          "ledTop": "Input amplitude (app colour), or the morph colour while the LFO runs",
+          "ledBottom": "Input amplitude (app colour), or the morph colour while the LFO runs"
         },
         {
           "jackTitle": "Output B",
@@ -2171,9 +2183,11 @@
           "faderPlusFnTitle": "Slew / Gate Length / Pulse",
           "faderPlusFnDescription": "CV: output slew. Gate: minimum gate length. Trigger: pulse length.",
           "fnTitle": "Mute",
-          "fnDescription": "Short tap mutes the output. Scrubbing the fader while the button is held prevents the tap.",
-          "ledTop": "Output level or gate state",
-          "ledBottom": "Output level or gate state"
+          "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
+          "fnPlusShiftTitle": "Out Mode",
+          "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
+          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
         },
         {
           "jackTitle": "Output C",
@@ -2185,9 +2199,11 @@
           "faderPlusFnTitle": "Slew / Gate Length / Pulse",
           "faderPlusFnDescription": "CV: output slew. Gate: minimum gate length. Trigger: pulse length.",
           "fnTitle": "Mute",
-          "fnDescription": "Short tap mutes the output. Scrubbing the fader while the button is held prevents the tap.",
-          "ledTop": "Output level or gate state",
-          "ledBottom": "Output level or gate state"
+          "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
+          "fnPlusShiftTitle": "Out Mode",
+          "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
+          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
         },
         {
           "jackTitle": "Output D",
@@ -2199,9 +2215,11 @@
           "faderPlusFnTitle": "Slew / Gate Length / Pulse",
           "faderPlusFnDescription": "CV: output slew. Gate: minimum gate length. Trigger: pulse length.",
           "fnTitle": "Mute",
-          "fnDescription": "Short tap mutes the output. Scrubbing the fader while the button is held prevents the tap.",
-          "ledTop": "Output level or gate state",
-          "ledBottom": "Output level or gate state"
+          "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
+          "fnPlusShiftTitle": "Out Mode",
+          "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
+          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
         }
       ]
     }
