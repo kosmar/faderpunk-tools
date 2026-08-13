@@ -1451,7 +1451,7 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — Density (extra hits; at high values sparse doubles, flams, triplets and rolls layer as sub-strokes within the 16th)",
+            "<strong>Main</strong> — Density (extra hits)",
             "<strong>Alt</strong> — Genre scrub (shared axis with Chord Vamp)",
             "<strong>Third</strong> — Swing (capped by Swing max %)"
           ]
@@ -1488,7 +1488,7 @@
           "jackTitle": "CV Out / CV In",
           "jackDescription": "CV Out: drum-activity gate. CV In: modulates Density, Swing, or Reset.",
           "faderTitle": "Density",
-          "faderDescription": "Reveals extra kick, snare, and hat hits; at high values sparse doubles, flams, triplets and rolls land as sub-strokes inside the same 16th (kick conservative; hats genre-typical).",
+          "faderDescription": "Reveals extra kick, snare, and hat hits in the pattern.",
           "faderPlusShiftTitle": "Swing",
           "faderPlusShiftDescription": "Swing amount (capped by Swing max % parameter).",
           "faderPlusFnTitle": "Jack mode",
@@ -2015,7 +2015,7 @@
           "items": [
             "<strong>Main</strong> — Density (extra onsets + freer degrees)",
             "<strong>Alt</strong> — Genre scrub (shared axis with Grooves / Chord Vamp)",
-            "<strong>Third</strong> — Feel / Groove (swing · microtiming · velocity · ghosts · gate; at high Density + Feel: genre-weighted sub-strokes — repeat, approach, ghost or octave pickup by Voice; filter CC on main strike only; capped by Groove max %)"
+            "<strong>Third</strong> — Feel / Groove (swing · microtiming · velocity · ghosts · gate; capped by Groove max %)"
           ]
         },
         {
@@ -2042,7 +2042,8 @@
             "One enum — a CV In destination and CV Out were never live at once",
             "Range, V/Oct, CV Att",
             "Filter CC — cutoff number (0 = off; 74 is typical); brightness = genre base + Voice bite + accent dynamics, lifted by fill / solo",
-            "Groove max % carries the swing direction in its sign — negative swings the offbeats early"
+            "Groove max % carries the swing direction in its sign — negative swings the offbeats early",
+            "High Density + Feel: genre ornaments (≤3 strokes/onset) — Voice shapes repeat, approach, ghost or octave pickup; filter CC only on the main strike"
           ]
         },
         {
@@ -2090,10 +2091,10 @@
           "items": [
             "Flat list of named 12-TET sets (Ionian…Folk) — conventional interval-pattern labels, not cultural claims",
             "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
-            "Per-set melodic feel (contour / leap / sustain) — expressivity is not a fader",
+            "Per-set melodic feel (contour / leap / sustain / ornament) — expressivity is not a fader",
+            "Ornaments = short grace, turn or repeat from feel + phrase position — not genre clichés; off when Division is too fine",
             "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
-            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input",
-            "Scale feel drives brief ornaments — grace neighbours, turns or echoes — when the clock division leaves enough space (disabled on the finest grids)"
+            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input"
           ]
         }
       ],
@@ -2137,22 +2138,22 @@
             "<strong>Channel 0 short</strong> — freeze the conditioned input value",
             "<strong>Channel 0 Shift + short</strong> — while the internal LFO runs: free-running or clock-synced (the button flashes when sync engages)",
             "<strong>Channels 1–3 short</strong> — mute/unmute that output (Shift not held); fader scrub while the button is held cancels the tap",
-            "<strong>Channels 1–3 Shift + long</strong> — cycle that out through CV → Gate → Trigger; the new mode colour appears immediately and the configurator follows"
+            "<strong>Channels 1–3 Shift + long</strong> — cycle that out through CV → Gate → Trigger; the new mode hue appears immediately and the configurator follows"
           ]
         },
         {
           "heading": "Signal / LEDs",
           "items": [
             "One CV input on channel 0, three outputs B/C/D on channels 1–3",
+            "Five equidistant hues from blue through violet and red to orange, one per operating mode: channel 0 on CV in, channel 0 on the internal LFO, then CV, Gate and Trigger on the outs",
+            "Channel 0 is blue while CV in is active and one step warmer when the internal LFO runs; each out takes the hue of its current mode, so a mode swap shows up immediately",
             "With nothing patched into the input, channel 0 becomes an internal morphing LFO that feeds B/C/D — <em>Source</em> forces CV In or Internal LFO instead of that auto fallback",
-            "Channel 0 LEDs take the morph colour while the LFO runs; <em>LFO Speed</em> shifts the whole speed range to Slow or Slowest",
+            "<em>LFO Speed</em> shifts the whole speed range to Slow or Slowest",
             "CV mode uses the configured Range; Gate and Trigger modes drive the jack as a digital GPO and ignore Range",
             "Defaults: B = CV, C = Gate, D = Trigger (±5 V on the CV path)",
-            "Channel 0 LEDs dim with the conditioned input amplitude in the app colour",
-            "Out LEDs are colour-coded by type: CV = app colour, Gate = Yellow, Trigger = Orange",
+            "Channel 0 LEDs dim with the active source amplitude in the source hue",
             "CV outs dim with the shaped output level; Gate/Trigger meter the conditioned input while low and flash full when high",
-            "Button LEDs use the same type colours and breathe with their signal level: channel 0 stays bright when frozen; channels 1–3 turn off when muted",
-            "Channel identities use equidistant open-spectrum hues blue → cyan → lime → orange across channels 0–3; channel 0 shifts to its morph colour while the internal LFO runs"
+            "Button LEDs use the same mode hues and breathe with their signal level: channel 0 stays bright when frozen; channels 1–3 turn off when muted"
           ]
         }
       ],
@@ -2170,8 +2171,8 @@
           "fnDescription": "Short tap holds the conditioned input value; all outputs stop moving.",
           "fnPlusShiftTitle": "LFO Clock Sync",
           "fnPlusShiftDescription": "While the internal LFO runs, toggles between free-running and clock-synced. The button flashes when sync engages; a stopped transport parks the wave.",
-          "ledTop": "Input amplitude (app colour), or the morph colour while the LFO runs",
-          "ledBottom": "Input amplitude (app colour), or the morph colour while the LFO runs"
+          "ledTop": "Input amplitude in the source hue (blue for CV in, one step warmer while the internal LFO runs)",
+          "ledBottom": "Input amplitude in the source hue (blue for CV in, one step warmer while the internal LFO runs)"
         },
         {
           "jackTitle": "Output B",
@@ -2186,8 +2187,8 @@
           "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
           "fnPlusShiftTitle": "Out Mode",
           "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
-          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
-          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
+          "ledTop": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)"
         },
         {
           "jackTitle": "Output C",
@@ -2202,8 +2203,8 @@
           "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
           "fnPlusShiftTitle": "Out Mode",
           "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
-          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
-          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
+          "ledTop": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)"
         },
         {
           "jackTitle": "Output D",
@@ -2218,8 +2219,8 @@
           "fnDescription": "Short tap without Shift mutes the output. Scrubbing the fader while the button is held prevents the tap, and Shift is reserved for the mode swap.",
           "fnPlusShiftTitle": "Out Mode",
           "fnPlusShiftDescription": "Shift + long press cycles this out through CV → Gate → Trigger. The mode is stored as a parameter, so the configurator follows.",
-          "ledTop": "Type colour × amplitude (CV out / Gate–Trigger input or flash)",
-          "ledBottom": "Type colour × amplitude (CV out / Gate–Trigger input or flash)"
+          "ledTop": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)",
+          "ledBottom": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)"
         }
       ]
     }
