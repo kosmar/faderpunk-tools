@@ -1680,7 +1680,7 @@
     },
     "34": {
       "id": 34,
-      "name": "Arp de Lévy",
+      "name": "Arp de Levy",
       "blurb": "Lévy-flight arp — evolve, texture, flight character",
       "sections": [
         {
@@ -2094,14 +2094,14 @@
             "Per-set melodic feel (contour / leap / sustain / ornament) — expressivity is not a fader",
             "Ornaments = short grace, turn or repeat from feel + phrase position — not genre clichés; off when Division is too fine",
             "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
-            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input"
+            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset · CV In Phrase — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input"
           ]
         }
       ],
       "channels": [
         {
           "jackTitle": "Pitch CV / CV In",
-          "jackDescription": "CV Out: quantized melodic pitch (1V/oct / range). CV In: modulates Density or Interval, or Reset (gate) — Dest + Att in Configurator. Gate is MIDI note on/off.",
+          "jackDescription": "CV Out: quantized melodic pitch (1V/oct / range). CV In: modulates Density, Interval or Phrase, or Reset (gate) — Dest + Att in Configurator. Gate is MIDI note on/off.",
           "faderTitle": "Interval",
           "faderDescription": "Max scale-degree step — bottom stepwise, mid already leaps, top wanders 2–3 octaves when octave span allows",
           "faderPlusShiftTitle": "Phrase length",

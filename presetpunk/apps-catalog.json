@@ -2399,7 +2399,7 @@
       "module": "fibonacci_gate",
       "channels": 1,
       "name": "Golden Gate",
-      "description": "Fibonacci-spaced gates \u2014 successive ratios approach \u03c6",
+      "description": "Fibonacci-spaced gates - successive ratios approach phi",
       "color": "Violet",
       "icon": "SequenceSquare",
       "params": [
@@ -2702,9 +2702,9 @@
           "value": {
             "name": "I/O",
             "variants": [
-              "MIDI\u2192MIDI",
-              "MIDI\u2192CV",
-              "CV\u2192MIDI"
+              "MIDI->MIDI",
+              "MIDI->CV",
+              "CV->MIDI"
             ]
           }
         },
@@ -2754,8 +2754,8 @@
             "variants": [
               "Pitch",
               "Gate",
-              "CV\u2192CC",
-              "Gate\u2192Note"
+              "CV->CC",
+              "Gate->Note"
             ]
           }
         },
@@ -2848,8 +2848,8 @@
       "slug": "arp_de_levy",
       "module": "arp_de_levy",
       "channels": 1,
-      "name": "Arp de L\u00e9vy",
-      "description": "L\u00e9vy-flight generative arpeggiator \u2014 evolve, texture, and flight character",
+      "name": "Arp de Levy",
+      "description": "Levy-flight generative arpeggiator - evolve, texture, and flight character",
       "color": "Rose",
       "icon": "SoftRandom",
       "params": [
@@ -2977,7 +2977,7 @@
       "module": "vamp",
       "channels": 1,
       "name": "Chord Vamp",
-      "description": "Chord progressions \u2014 perform, shift+tap capture, or auto vamp",
+      "description": "Chord progressions - perform, shift+tap capture, or auto vamp",
       "color": "Violet",
       "icon": "NoteGrid",
       "params": [
@@ -3272,7 +3272,7 @@
       "module": "harmonica",
       "channels": 1,
       "name": "Harmonica",
-      "description": "One MIDI/CV root \u2192 chord out",
+      "description": "One MIDI/CV root -> chord out",
       "color": "Orange",
       "icon": "Note",
       "params": [
@@ -3281,9 +3281,9 @@
           "value": {
             "name": "I/O",
             "variants": [
-              "MIDI\u2192MIDI",
-              "MIDI\u2192CV",
-              "CV\u2192MIDI"
+              "MIDI->MIDI",
+              "MIDI->CV",
+              "CV->MIDI"
             ]
           }
         },
@@ -3403,11 +3403,11 @@
           "value": {
             "name": "Mode",
             "variants": [
-              "Pitch\u2192MIDI",
-              "Gate\u2192MIDI",
-              "MIDI\u2192MIDI",
-              "MIDI\u2192CV",
-              "Fader\u2192Both"
+              "Pitch->MIDI",
+              "Gate->MIDI",
+              "MIDI->MIDI",
+              "MIDI->CV",
+              "Fader->Both"
             ]
           }
         },
@@ -4086,7 +4086,8 @@
               "CV Out",
               "CV In Density",
               "CV In Interval",
-              "CV In Reset"
+              "CV In Reset",
+              "CV In Phrase"
             ]
           }
         },
