@@ -2223,6 +2223,104 @@
           "ledBottom": "Mode hue × amplitude (CV out / Gate–Trigger input or flash)"
         }
       ]
+    },
+    "44": {
+      "id": 44,
+      "name": "Giant Steps",
+      "blurb": "Clock-driven chord sequencer over Coltrane tonal center geometry",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — approach density: bottom = centers only (3 chords), middle = V-I (6), top = full ii-V-I (9)",
+            "<strong>Alt</strong> (Shift) — reserved",
+            "<strong>Third</strong> (Btn hold) — live velocity override"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short tap</strong> — reset cycle to step 0",
+            "<strong>Hold</strong> — toggle reverse direction"
+          ]
+        },
+        {
+          "heading": "Signal / LEDs",
+          "items": [
+            "Three tonal center hues: blue, green, orange — LED shows the current center",
+            "CV Out tracks root pitch of the current step",
+            "CV In Density modulates approach depth; CV In Reset triggers cycle reset on rising edge",
+            "Button ducks briefly on each chord trigger"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Out / In",
+          "jackDescription": "CV Out sends the root pitch of the current cycle step. CV In Density modulates the approach depth; CV In Reset triggers a cycle reset on rising edge.",
+          "faderTitle": "Density",
+          "faderDescription": "Approach depth: bottom = centers only (3 chords), middle = V-I (6), top = full ii-V-I (9 chords).",
+          "faderPlusShiftTitle": "Reserved",
+          "faderPlusShiftDescription": "Reserved for future use.",
+          "faderPlusFnTitle": "Velocity",
+          "faderPlusFnDescription": "Live velocity override for all chord voices.",
+          "fnTitle": "Reset",
+          "fnDescription": "Short tap resets the cycle to step 0.",
+          "fnPlusShiftTitle": "Reverse",
+          "fnPlusShiftDescription": "Hold toggles the reverse flag, inverting Forward/Reverse direction.",
+          "ledTop": "Current tonal center hue (blue / green / orange)",
+          "ledBottom": "Current tonal center hue, dimmer"
+        }
+      ]
+    },
+    "45": {
+      "id": 45,
+      "name": "Axis Matrix",
+      "blurb": "Playable Coltrane tonal center navigator - fader position, clock trigger",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — center position: three zones with snap; approach chords sound in the transition zones at boundaries",
+            "<strong>Alt</strong> (Shift) — harmonic function: bottom = root (Maj7), middle = dominant (Dom7), top = subdominant approach (m7)",
+            "<strong>Third</strong> (Btn hold) — live velocity override"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short tap</strong> — toggle latch (chord holds until next tap)",
+            "<strong>Hold</strong> — toggle drone mode (sustain indefinitely, immediate fader response)"
+          ]
+        },
+        {
+          "heading": "Signal / LEDs",
+          "items": [
+            "Three tonal center hues: blue, green, orange — brightness dims as fader drifts from center",
+            "CV Out tracks root pitch of current position",
+            "CV In Position modulates center selection; CV In Function modulates harmonic function",
+            "Button blinks when latched, stays bright when droning, ducks on chord trigger"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Out / In",
+          "jackDescription": "CV Out sends the root pitch of the current matrix position. CV In Position modulates the center selection; CV In Function modulates the harmonic function.",
+          "faderTitle": "Center Position",
+          "faderDescription": "Selects one of three tonal centers with snap zones. Transition zones at boundaries sound approach chords.",
+          "faderPlusShiftTitle": "Function",
+          "faderPlusShiftDescription": "Harmonic function at the current center: root (Maj7), dominant (Dom7) or subdominant approach (m7).",
+          "faderPlusFnTitle": "Velocity",
+          "faderPlusFnDescription": "Live velocity override for all chord voices.",
+          "fnTitle": "Latch",
+          "fnDescription": "Short tap toggles latch: chord sustains until next tap regardless of fader movement.",
+          "fnPlusShiftTitle": "Drone",
+          "fnPlusShiftDescription": "Hold toggles drone mode: chord sustains indefinitely and updates on fader movement, ignoring the clock.",
+          "ledTop": "Center hue with brightness gradient (dims away from center)",
+          "ledBottom": "Center hue, low brightness"
+        }
+      ]
     }
   }
 }
