@@ -4423,6 +4423,18 @@
           "value": {
             "name": "Follow device scale"
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Motion",
+            "variants": [
+              "Straight",
+              "Rubato",
+              "Sheets",
+              "Free"
+            ]
+          }
         }
       ]
     },
@@ -4583,6 +4595,18 @@
           "tag": "bool",
           "value": {
             "name": "Follow device scale"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Motion",
+            "variants": [
+              "Straight",
+              "Rubato",
+              "Sheets",
+              "Free"
+            ]
           }
         }
       ]

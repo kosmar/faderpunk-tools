@@ -2232,43 +2232,46 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — approach density: bottom = centers only (3 chords), middle = V-I (6), top = full ii-V-I (9)",
+            "<strong>Main</strong> — approach density: bottom = centers only (3 chords), middle = V–I (6), top = full ii–V–I (9)",
             "<strong>Alt</strong> (Shift) — reserved",
-            "<strong>Third</strong> (Btn hold) — live velocity override"
+            "<strong>Third</strong> (Btn hold) — Feel: swing and velocity dynamics, bottom = straight and flat"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short tap</strong> — reset cycle to step 0",
-            "<strong>Hold</strong> — toggle reverse direction"
+            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
+            "<strong>Hold</strong> — toggle reverse direction",
+            "<strong>Shift + tap</strong> — reset cycle to step 0",
+            "<strong>Shift + hold</strong> — cycle Interval: minor 3rd, major 3rd, 4th, tritone"
           ]
         },
         {
           "heading": "Signal / LEDs",
           "items": [
-            "Three tonal center hues: blue, green, orange — LED shows the current center",
+            "Three tonal center hues rotated around the app colour — LED shows the current center",
             "CV Out tracks root pitch of the current step",
             "CV In Density modulates approach depth; CV In Reset triggers cycle reset on rising edge",
-            "Button ducks briefly on each chord trigger"
+            "Button ducks briefly on each chord trigger",
+            "Reverse fades the button white to none; Interval flashes one colour per step"
           ]
         }
       ],
       "channels": [
         {
           "jackTitle": "CV Out / In",
-          "jackDescription": "CV Out sends the root pitch of the current cycle step. CV In Density modulates the approach depth; CV In Reset triggers a cycle reset on rising edge.",
+          "jackDescription": "CV Out sends the root pitch of the current cycle step and parks at 0 V while muted. CV In Density modulates the approach depth; CV In Reset triggers a cycle reset on rising edge.",
           "faderTitle": "Density",
-          "faderDescription": "Approach depth: bottom = centers only (3 chords), middle = V-I (6), top = full ii-V-I (9 chords).",
+          "faderDescription": "Approach depth: bottom = centers only (3 chords), middle = V–I (6), top = full ii–V–I (9 chords).",
           "faderPlusShiftTitle": "Reserved",
           "faderPlusShiftDescription": "Reserved for future use.",
-          "faderPlusFnTitle": "Velocity",
-          "faderPlusFnDescription": "Live velocity override for all chord voices.",
-          "fnTitle": "Reset",
-          "fnDescription": "Short tap resets the cycle to step 0.",
-          "fnPlusShiftTitle": "Reverse",
-          "fnPlusShiftDescription": "Hold toggles the reverse flag, inverting Forward/Reverse direction.",
-          "ledTop": "Current tonal center hue (blue / green / orange)",
+          "faderPlusFnTitle": "Feel",
+          "faderPlusFnDescription": "Humanises the sequence: swings the off-beats and shapes velocity, accenting the tonic while approach chords lighten. Bottom is straight and flat.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles the reverse flag, inverting Forward/Reverse direction.",
+          "fnPlusShiftTitle": "Reset / Interval",
+          "fnPlusShiftDescription": "Shift + tap resets the cycle to step 0. Shift + hold cycles the Interval between minor 3rd, major 3rd, 4th and tritone.",
+          "ledTop": "Current tonal center hue",
           "ledBottom": "Current tonal center hue, dimmer"
         }
       ]
@@ -2283,40 +2286,43 @@
           "items": [
             "<strong>Main</strong> — center position: three zones with snap; approach chords sound in the transition zones at boundaries",
             "<strong>Alt</strong> (Shift) — harmonic function: bottom = root (Maj7), middle = dominant (Dom7), top = subdominant approach (m7)",
-            "<strong>Third</strong> (Btn hold) — live velocity override"
+            "<strong>Third</strong> (Btn hold) — Feel: swing and velocity dynamics, bottom = straight and flat"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short tap</strong> — toggle latch (chord holds until next tap)",
-            "<strong>Hold</strong> — toggle drone mode (sustain indefinitely, immediate fader response)"
+            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
+            "<strong>Hold</strong> — toggle drone mode (sustain indefinitely, immediate fader response)",
+            "<strong>Shift + tap</strong> — toggle latch (chord holds until tapped again)",
+            "<strong>Shift + hold</strong> — cycle Interval: minor 3rd, major 3rd, 4th, tritone"
           ]
         },
         {
           "heading": "Signal / LEDs",
           "items": [
-            "Three tonal center hues: blue, green, orange — brightness dims as fader drifts from center",
+            "Three tonal center hues rotated around the app colour — brightness dims as fader drifts from center",
             "CV Out tracks root pitch of current position",
             "CV In Position modulates center selection; CV In Function modulates harmonic function",
-            "Button blinks when latched, stays bright when droning, ducks on chord trigger"
+            "Button blinks when latched, stays bright when droning, ducks on chord trigger",
+            "Interval flashes one colour per step"
           ]
         }
       ],
       "channels": [
         {
           "jackTitle": "CV Out / In",
-          "jackDescription": "CV Out sends the root pitch of the current matrix position. CV In Position modulates the center selection; CV In Function modulates the harmonic function.",
+          "jackDescription": "CV Out sends the root pitch of the current matrix position and parks at 0 V while muted. CV In Position modulates the center selection; CV In Function modulates the harmonic function.",
           "faderTitle": "Center Position",
           "faderDescription": "Selects one of three tonal centers with snap zones. Transition zones at boundaries sound approach chords.",
           "faderPlusShiftTitle": "Function",
           "faderPlusShiftDescription": "Harmonic function at the current center: root (Maj7), dominant (Dom7) or subdominant approach (m7).",
-          "faderPlusFnTitle": "Velocity",
-          "faderPlusFnDescription": "Live velocity override for all chord voices.",
-          "fnTitle": "Latch",
-          "fnDescription": "Short tap toggles latch: chord sustains until next tap regardless of fader movement.",
-          "fnPlusShiftTitle": "Drone",
-          "fnPlusShiftDescription": "Hold toggles drone mode: chord sustains indefinitely and updates on fader movement, ignoring the clock.",
+          "faderPlusFnTitle": "Feel",
+          "faderPlusFnDescription": "Humanises the playing: swings the off-beats and shapes velocity, accenting the root chord while approach chords lighten. Bottom is straight and flat.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles drone mode: the chord sustains indefinitely and updates on fader movement, ignoring the clock.",
+          "fnPlusShiftTitle": "Latch / Interval",
+          "fnPlusShiftDescription": "Shift + tap toggles latch: the chord sustains until tapped again regardless of fader movement. Shift + hold cycles the Interval between minor 3rd, major 3rd, 4th and tritone.",
           "ledTop": "Center hue with brightness gradient (dims away from center)",
           "ledBottom": "Center hue, low brightness"
         }
