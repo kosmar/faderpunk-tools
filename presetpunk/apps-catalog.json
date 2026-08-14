@@ -4255,6 +4255,337 @@
           }
         }
       ]
+    },
+    {
+      "id": 44,
+      "slug": "giant_steps",
+      "module": "giant_steps",
+      "channels": 1,
+      "name": "Giant Steps",
+      "description": "Clock-driven chord sequencer over Coltrane tonal center geometry",
+      "color": "Blue",
+      "icon": "NoteGrid",
+      "params": [
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Root"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Division",
+            "variants": [
+              "1/1",
+              "1/2",
+              "1/4",
+              "1/8",
+              "1/16",
+              "1/32",
+              "1/4t",
+              "1/8t",
+              "1/16t",
+              "1/32t",
+              "1/64t"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Interval",
+            "variants": [
+              "Minor 3rd",
+              "Major 3rd",
+              "Perfect 4th",
+              "Tritone"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Voicing",
+            "variants": [
+              "Triad",
+              "7th",
+              "Drop-2",
+              "Quartal"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Direction",
+            "variants": [
+              "Forward",
+              "Reverse",
+              "Pendulum",
+              "Random"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Velocity",
+            "min": 1,
+            "max": 127
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack",
+            "variants": [
+              "CV Out",
+              "CV In Density",
+              "CV In Reset"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CV Att",
+            "min": 0,
+            "max": 100
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
+          }
+        }
+      ]
+    },
+    {
+      "id": 45,
+      "slug": "axis_matrix",
+      "module": "axis_matrix",
+      "channels": 1,
+      "name": "Axis Matrix",
+      "description": "Playable Coltrane tonal center navigator - fader position, clock trigger",
+      "color": "Green",
+      "icon": "NoteGrid",
+      "params": [
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Root"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Division",
+            "variants": [
+              "1/1",
+              "1/2",
+              "1/4",
+              "1/8",
+              "1/16",
+              "1/32",
+              "1/4t",
+              "1/8t",
+              "1/16t",
+              "1/32t",
+              "1/64t"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Interval",
+            "variants": [
+              "Minor 3rd",
+              "Major 3rd",
+              "Perfect 4th",
+              "Tritone"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Voicing",
+            "variants": [
+              "Triad",
+              "7th",
+              "Drop-2",
+              "Quartal"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Sustain",
+            "variants": [
+              "Clock-gated",
+              "Legato",
+              "Staccato"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Velocity",
+            "min": 1,
+            "max": 127
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack",
+            "variants": [
+              "CV Out",
+              "CV In Position",
+              "CV In Function"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
+          }
+        }
+      ]
     }
   ]
 }
