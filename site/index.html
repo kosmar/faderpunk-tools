@@ -31,14 +31,30 @@
       place-items: center;
       padding: 2rem;
     }
-    main { max-width: 36rem; width: 100%; }
+    main { max-width: 42rem; width: 100%; }
     h1 {
       font-size: clamp(1.6rem, 4vw, 2.2rem);
       font-weight: 650;
       letter-spacing: -0.03em;
       margin: 0 0 0.4rem;
     }
-    p { color: var(--muted); line-height: 1.5; margin: 0 0 1.75rem; }
+    h2 {
+      font-size: clamp(1.15rem, 2.6vw, 1.4rem);
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      margin: 0 0 0.15rem;
+    }
+    h2 + .deck {
+      color: var(--fg);
+      font-size: 0.9rem;
+      margin-bottom: 0.9rem;
+    }
+    p { color: var(--muted); line-height: 1.6; margin: 0 0 1rem; }
+    .lede { margin-bottom: 1.75rem; }
+    section { margin-top: 2.75rem; }
+    section p:last-child { margin-bottom: 0; }
+    section .more { display: inline; padding: 0; border: 0; color: var(--accent); }
     ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
     a {
       display: block;
@@ -65,21 +81,38 @@
 <body>
   <main>
     <h1>faderpunk-tools</h1>
-    <p>Personal companion apps for Faderpunk. Chromium + Web MIDI (SysEx) required. Close other tabs that hold the device ports.</p>
+    <p class="lede">Two personal companion apps for Faderpunk: a preset bank that recalls whole layouts, and a debug scope for app development. Both run in the browser and talk to the device over Web MIDI — nothing to install. Chromium with SysEx permission required; close other tabs that hold the device ports.</p>
     <ul>
       <li>
         <a href="./presetpunk/">
           <strong>Presetpunk</strong>
-          <span>Preset bank editor — pull/push layouts &amp; params over SysEx</span>
+          <span>Preset bank — recall whole layouts, not just scenes within one</span>
         </a>
       </li>
       <li>
         <a href="./scopepunk/">
           <strong>Scopepunk</strong>
-          <span>Live MIDI scopes, waveform profiles, audible monitor</span>
+          <span>Dev debug scope — per-app MIDI traces, profiles, audible monitor</span>
         </a>
       </li>
     </ul>
+
+    <section>
+      <h2>Presetpunk — presets where the device only has scenes</h2>
+      <p class="deck">On-device scenes recall settings inside a layout. Presetpunk recalls the layout itself, apps and all.</p>
+      <p>A browser editor that keeps whole Faderpunk layouts as named presets and pushes any one of them to the device over SysEx. Complementary to on-device scenes: scenes move within the apps you have loaded, presets change which apps sit on which slots.</p>
+      <p>That one level up is the point. A preset carries the full slot assignment, every app’s parameters and the global config — so switching preset doesn’t just recall settings, it turns the module into a different instrument. Build the bank, reorder it, keep it in the browser, take it to the next session.</p>
+      <p>The device stays the source of truth: <strong>Pull from Punk</strong> captures whatever you just patched, and pushing back works whole-preset, per-slot, or live while the patch runs. Instruments and a MIDI CC catalog keep a preset readable months later, and the printable cheatsheet gives you a fader-by-fader reference for the case lid. English, German, French.</p>
+    </section>
+
+    <section>
+      <h2>Scopepunk — a debug scope for people building apps</h2>
+      <p class="deck">A developer tool: visually verify what a Faderpunk app actually emits, instead of guessing from a patch cable.</p>
+      <p>A debug scope for app and firmware development, not a performance tool. It shows what your code is actually sending — per app, live.</p>
+      <p>Developing on hardware is otherwise blind: change a curve, flash, then guess from an LED and a patched-in module. Scopepunk draws notes, CC, NRPN and clock as separate labelled traces per app, so a wrong channel, a stuck value or a drifting clock shows up in the first second.</p>
+      <p>Views follow the questions you have while debugging: <em>All</em> to spot the misbehaving app, <em>Focus</em> to iterate on one, <em>Compare</em> for phase and clock-division bugs. Averaged waveform profiles reveal a modulation’s real shape when single frames are too noisy, and an audible monitor puts CC streams through a wavetable when your ears are faster than your eyes. One caveat: USB MIDI carries no CV, so Scopepunk sees only what an app mirrors with <strong>MidiOut → USB</strong> — CV-only apps stay dark. Demo mode works without hardware.</p>
+    </section>
+
     <footer>
       Source: <a href="https://github.com/kosmar/faderpunk-tools">kosmar/faderpunk-tools</a>
     </footer>
