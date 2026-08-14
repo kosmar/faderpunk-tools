@@ -81,7 +81,7 @@
 <body>
   <main>
     <h1>faderpunk-tools</h1>
-    <p class="lede">Two personal companion apps for Faderpunk: a preset bank that recalls whole layouts, and a debug scope for app development. Both run in the browser and talk to the device over Web MIDI — nothing to install. Chromium with SysEx permission required; close other tabs that hold the device ports.</p>
+    <p class="lede">Two personal companion apps for Faderpunk: a preset bank that recalls whole layouts, and a debug scope for punkapp developers. Both run in the browser and talk to the device over Web MIDI — nothing to install. Chromium with SysEx permission required; close other tabs that hold the device ports.</p>
     <ul>
       <li>
         <a href="./presetpunk/">
@@ -92,7 +92,7 @@
       <li>
         <a href="./scopepunk/">
           <strong>Scopepunk</strong>
-          <span>Dev debug scope — per-app MIDI traces, profiles, audible monitor</span>
+          <span>Debug scope for punkapp devs — per-app MIDI traces, profiles, monitor</span>
         </a>
       </li>
     </ul>
@@ -106,9 +106,9 @@
     </section>
 
     <section>
-      <h2>Scopepunk — a debug scope for people building apps</h2>
+      <h2>Scopepunk — a debug scope for punkapp developers</h2>
       <p class="deck">A developer tool: visually verify what a Faderpunk app actually emits, instead of guessing from a patch cable.</p>
-      <p>A debug scope for app and firmware development, not a performance tool. It shows what your code is actually sending — per app, live.</p>
+      <p>A debug scope for punkapp and firmware development, not a performance tool. It shows what your code is actually sending — per app, live.</p>
       <p>Developing on hardware is otherwise blind: change a curve, flash, then guess from an LED and a patched-in module. Scopepunk draws notes, CC, NRPN and clock as separate labelled traces per app, so a wrong channel, a stuck value or a drifting clock shows up in the first second.</p>
       <p>Views follow the questions you have while debugging: <em>All</em> to spot the misbehaving app, <em>Focus</em> to iterate on one, <em>Compare</em> for phase and clock-division bugs. Averaged waveform profiles reveal a modulation’s real shape when single frames are too noisy, and an audible monitor puts CC streams through a wavetable when your ears are faster than your eyes. One caveat: USB MIDI carries no CV, so Scopepunk sees only what an app mirrors with <strong>MidiOut → USB</strong> — CV-only apps stay dark. Demo mode works without hardware.</p>
     </section>
