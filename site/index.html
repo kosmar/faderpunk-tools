@@ -32,15 +32,37 @@
       padding: 2rem;
     }
     main { max-width: 42rem; width: 100%; }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+      margin-bottom: 1.25rem;
+    }
+    .brand-logo {
+      width: auto;
+      height: 72px;
+      display: block;
+      flex: 0 0 auto;
+    }
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
     h1 {
-      font-size: clamp(1.6rem, 4vw, 2.2rem);
-      font-weight: 650;
-      letter-spacing: -0.03em;
-      margin: 0 0 0.4rem;
+      margin: 0;
+      font-size: clamp(1.75rem, 5vw, 2.75rem);
+      font-weight: 200;
+      line-height: 1.05;
+      letter-spacing: 0.01em;
+      font-stretch: condensed;
+      font-variation-settings: "wdth" 75;
     }
     h2 {
       font-size: clamp(1.15rem, 2.6vw, 1.4rem);
-      font-weight: 650;
+      font-weight: 450;
       letter-spacing: -0.02em;
       color: var(--accent);
       margin: 0 0 0.15rem;
@@ -48,10 +70,16 @@
     h2 + .deck {
       color: var(--fg);
       font-size: 0.9rem;
+      font-weight: 350;
       margin-bottom: 0.9rem;
     }
     p { color: var(--muted); line-height: 1.6; margin: 0 0 1rem; }
-    .lede { margin-bottom: 1.75rem; }
+    .lede {
+      margin: 0 0 1.75rem;
+      font-size: 0.85rem;
+      font-weight: 350;
+      line-height: 1.5;
+    }
     section { margin-top: 2.75rem; }
     section p:last-child { margin-bottom: 0; }
     section .more { display: inline; padding: 0; border: 0; color: var(--accent); }
@@ -80,7 +108,12 @@
 </head>
 <body>
   <main>
-    <h1>faderpunk-tools</h1>
+    <div class="brand">
+      <img class="brand-logo" src="./presetpunk/img/fp-logo.svg" width="55" height="72" alt="Faderpunk" />
+      <div class="brand-text">
+        <h1>faderpunk-tools</h1>
+      </div>
+    </div>
     <p class="lede">Two personal companion apps for Faderpunk: a preset bank that recalls whole layouts, and a debug scope for punkapp developers. Both run in the browser and talk to the device over Web MIDI — nothing to install. Chromium with SysEx permission required; close other tabs that hold the device ports.</p>
     <ul>
       <li>
