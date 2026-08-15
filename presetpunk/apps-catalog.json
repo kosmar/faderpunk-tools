@@ -2249,7 +2249,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         }
       ]
@@ -2388,7 +2388,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         }
       ]
@@ -2522,7 +2522,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         },
         {
@@ -2960,7 +2960,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         },
         {
@@ -3148,7 +3148,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         },
         {
@@ -3917,7 +3917,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         },
         {
@@ -4096,7 +4096,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         }
       ]
@@ -4409,7 +4409,7 @@
           "value": {
             "name": "CV Att",
             "min": 0,
-            "max": 100
+            "max": 400
           }
         },
         {
