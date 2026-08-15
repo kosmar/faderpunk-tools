@@ -3076,11 +3076,34 @@
       ["HungarianMin", "Hungarian Minor"],
       ["Off", "Off (passthrough)"],
     ];
+    /** Pitch-class masks from libfp `Key::as_u16_key` — MSB = C, LSB = B. */
+    const SCALE_MASKS = {
+      Chromatic: 0b111111111111,
+      Ionian: 0b101011010101,
+      Dorian: 0b101101010110,
+      Phrygian: 0b110101011010,
+      Lydian: 0b101010110101,
+      Mixolydian: 0b101011010110,
+      Aeolian: 0b101101011010,
+      Locrian: 0b110101101010,
+      BluesMaj: 0b101110010100,
+      BluesMin: 0b100101110010,
+      PentatonicMaj: 0b101010010100,
+      PentatonicMin: 0b100101010010,
+      Folk: 0b110111011010,
+      Japanese: 0b110001011000,
+      Gamelan: 0b110100011000,
+      HungarianMin: 0b101100111001,
+      Off: 0b111111111111,
+    };
     const TONIC_OPTS = [
       ["C", "C"], ["CSharp", "C♯"], ["D", "D"], ["DSharp", "D♯"],
       ["E", "E"], ["F", "F"], ["FSharp", "F♯"], ["G", "G"],
       ["GSharp", "G♯"], ["A", "A"], ["ASharp", "A♯"], ["B", "B"],
     ];
+    const TONIC_PC = Object.fromEntries(TONIC_OPTS.map(([tag], i) => [tag, i]));
+    /** Marker for notes in Presettings scale — native <option> can’t style. */
+    const IN_SCALE_SUFFIX = " ·";
     const CLOCK_SRC_OPTS = [
       ["Internal", "Internal"], ["MidiIn", "MIDI In"], ["MidiUsb", "MIDI USB"],
       ["Atom", "Atom"], ["Meteor", "Meteor"], ["Cube", "Cube"], ["None", "None"],
@@ -4565,9 +4588,26 @@
       return `${name}${octave}`;
     }
 
-    /** Select / option label — plain pitch, no glyph or superscript. */
+    /**
+     * True if MIDI pitch class sits in Presettings quantizer key/tonic.
+     * Mask is C-relative (firmware); tonic transposes. Chromatic/Off → no mark.
+     */
+    function midiPitchInGlobalScale(midi) {
+      const g = normalizeGlobal(preset()?.global);
+      const scale = g.scale;
+      if (scale === "Chromatic" || scale === "Off") return false;
+      const mask = SCALE_MASKS[scale];
+      if (mask == null) return false;
+      const tonic = TONIC_PC[g.tonic] ?? 0;
+      const pc = ((Number(midi) || 0) % 12 + 12) % 12;
+      const deg = (pc - tonic + 12) % 12;
+      return ((mask >> (11 - deg)) & 1) !== 0;
+    }
+
+    /** Select / option label — plain pitch; · = in Presettings scale. */
     function midiNoteLabel(n) {
-      return midiNoteName(n);
+      const base = midiNoteName(n);
+      return midiPitchInGlobalScale(n) ? `${base}${IN_SCALE_SUFFIX}` : base;
     }
 
     function noteOptionsHtml(selected, zeroLabel = null) {
