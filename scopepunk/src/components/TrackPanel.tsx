@@ -417,7 +417,11 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
                   </div>
                 );
               })}
-              {outLanes.length > 0 && (
+              {outLanes.length > 0 && !track.midi.ccSpan && (
+                // Skipped for CC-span apps: the average is a pulse profile that
+                // sums the outs and folds them onto their rising edges. Those
+                // apps drive independent CV lanes with no shared onset, so the
+                // sum just saturates and the fold averages unrelated cycles.
                 <WaveProfile
                   traces={outLanes.map((lane) => ({ ring: lane.ring }))}
                   color={color}
