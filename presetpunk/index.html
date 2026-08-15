@@ -2575,6 +2575,7 @@
       <div class="modal-actions">
         <button type="button" class="secondary" id="modalCancel" data-i18n="modal.cancel">Cancel</button>
         <button type="button" class="secondary" id="modalAlt" hidden>Alt</button>
+        <button type="button" class="secondary" id="modalAlt2" hidden>Alt2</button>
         <button type="button" class="primary" id="modalOk" data-i18n="modal.ok">OK</button>
       </div>
     </div>
@@ -2681,11 +2682,14 @@
         const btnOk = document.getElementById("modalOk");
         const btnCancel = document.getElementById("modalCancel");
         const btnAlt = document.getElementById("modalAlt");
+        const btnAlt2 = document.getElementById("modalAlt2");
         document.getElementById("modalTitle").textContent = title;
         document.getElementById("modalBody").textContent = message;
         btnOk.textContent = ok;
         btnCancel.textContent = cancel;
         btnCancel.hidden = false;
+        if (btnAlt) btnAlt.hidden = true;
+        if (btnAlt2) btnAlt2.hidden = true;
         if (btnAlt) btnAlt.hidden = true;
         root.hidden = false;
 
@@ -2706,20 +2710,23 @@
       });
     }
 
-    /** Three-way choice: primary / alt / cancel → values or null */
+    /** Choice: primary / alt [/ alt2] / cancel → values or null */
     function uiChoice(message, {
       title = t("modal.confirm"),
       primary = t("modal.ok"),
       alt = t("modal.cancel"),
+      alt2 = null,
       cancel = t("modal.cancel"),
       primaryValue = "primary",
       altValue = "alt",
+      alt2Value = "alt2",
     } = {}) {
       return new Promise((resolve) => {
         const root = document.getElementById("modal");
         const btnOk = document.getElementById("modalOk");
         const btnCancel = document.getElementById("modalCancel");
         const btnAlt = document.getElementById("modalAlt");
+        const btnAlt2 = document.getElementById("modalAlt2");
         document.getElementById("modalTitle").textContent = title;
         document.getElementById("modalBody").textContent = message;
         btnOk.textContent = primary;
@@ -2727,6 +2734,14 @@
         btnCancel.hidden = false;
         btnAlt.hidden = false;
         btnAlt.textContent = alt;
+        if (btnAlt2) {
+          if (alt2) {
+            btnAlt2.hidden = false;
+            btnAlt2.textContent = alt2;
+          } else {
+            btnAlt2.hidden = true;
+          }
+        }
         root.hidden = false;
 
         const done = (v) => {
@@ -2734,12 +2749,15 @@
           btnOk.onclick = null;
           btnCancel.onclick = null;
           btnAlt.onclick = null;
+          if (btnAlt2) btnAlt2.onclick = null;
           root.onclick = null;
           btnAlt.hidden = true;
+          if (btnAlt2) btnAlt2.hidden = true;
           resolve(v);
         };
         btnOk.onclick = () => done(primaryValue);
         btnAlt.onclick = () => done(altValue);
+        if (btnAlt2 && alt2) btnAlt2.onclick = () => done(alt2Value);
         btnCancel.onclick = () => done(null);
         root.onclick = (e) => {
           if (e.target === root) done(null);
@@ -2754,11 +2772,13 @@
         const btnOk = document.getElementById("modalOk");
         const btnCancel = document.getElementById("modalCancel");
         const btnAlt = document.getElementById("modalAlt");
+        const btnAlt2 = document.getElementById("modalAlt2");
         document.getElementById("modalTitle").textContent = title;
         document.getElementById("modalBody").textContent = message;
         btnOk.textContent = ok;
         btnCancel.hidden = true;
         if (btnAlt) btnAlt.hidden = true;
+        if (btnAlt2) btnAlt2.hidden = true;
         root.hidden = false;
         const done = () => {
           root.hidden = true;
@@ -8778,9 +8798,11 @@
               title: t("connect.title"),
               primary: t("connect.pushDirty", { n: plan.count }),
               alt: t("connect.pushFull"),
+              alt2: t("connect.pull"),
               cancel: t("modal.later"),
               primaryValue: "pushDirty",
               altValue: "push",
+              alt2Value: "pull",
             },
           );
         } else {
