@@ -1446,14 +1446,14 @@
     "30": {
       "id": 30,
       "name": "Grooves",
-      "blurb": "Multi-genre MIDI drum grooves with swing",
+      "blurb": "Multi-genre MIDI drum grooves with feel and drummer personas",
       "sections": [
         {
           "heading": "Faders",
           "items": [
             "<strong>Main</strong> — Density (extra hits)",
             "<strong>Alt</strong> — Genre scrub (shared axis with Chord Vamp)",
-            "<strong>Third</strong> — Swing (capped by Swing max %)"
+            "<strong>Third</strong> — Feel (capped by Swing max %)"
           ]
         },
         {
@@ -1465,21 +1465,32 @@
           ]
         },
         {
+          "heading": "Drummers",
+          "items": [
+            "Elvin → Purdie → Clyde → Jaki → Sly → Allen → Pretty Tony → Dilla",
+            "Long press cycles; the button flashes a distinct colour per drummer",
+            "The persona reshapes the genre pattern after it is read: shuffle, ghost density, backbeat lock, tom dispersal, clave rotation, roll rate, push or pull, limb drift and a machine amount",
+            "All of it rides on Feel — at Feel 0 every drummer plays the plain genre grid, and the personality opens up as Feel rises",
+            "Sly sits on the same index as Bassment’s Robbie, so the pair lines up across both apps"
+          ]
+        },
+        {
           "heading": "Buttons",
           "items": [
-            "<strong>Short</strong> — Mute (notes off)",
+            "<strong>Short</strong> — Mute (notes off); unmuting also resets to the downbeat",
             "<strong>Shift+Tap</strong> — Genre fill until next downbeat (break at high density)",
             "<strong>Shift+Hold</strong> — Drum solo while held: 4-bar phrase (build → busier → peak → turnaround); resolves on release",
-            "<strong>Long</strong> — Reset to downbeat"
+            "<strong>Long</strong> — Next drummer (same gesture as Bassment’s bassist)"
           ]
         },
         {
           "heading": "Jack params",
           "items": [
-            "Jack: CV Out Any · CV Out Stacked · CV In Density · CV In Feel · CV In Reset",
+            "Jack: CV Out Any 0-10V · CV Out Any -5-5V · CV Out Stacked 0-10V · CV Out Stacked -5-5V · CV In Density · CV In Feel · CV In Reset",
+            "Duty and range share one param, so the sixteenth slot is free for the Drummer; stored layouts keep the duty and range they had",
             "Stacked sums families — hats 1, snare 2, kick 4 of 10 units; Open Hat counts as hats, Clap as snare, toms as kick",
             "The jack follows the groove, so it still pulses with every note switched off",
-            "Range, CV Att"
+            "CV Att"
           ]
         }
       ],

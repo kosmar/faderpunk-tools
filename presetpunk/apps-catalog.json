@@ -2361,25 +2361,13 @@
           "value": {
             "name": "Jack",
             "variants": [
-              "CV Out Any",
-              "CV Out Stacked",
+              "CV Out Any 0-10V",
+              "CV Out Any -5-5V",
+              "CV Out Stacked 0-10V",
+              "CV Out Stacked -5-5V",
               "CV In Density",
               "CV In Feel",
               "CV In Reset"
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "Range",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
             ]
           }
         },
@@ -2389,6 +2377,22 @@
             "name": "CV Att",
             "min": 0,
             "max": 400
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Drummer",
+            "variants": [
+              "Elvin",
+              "Purdie",
+              "Clyde",
+              "Jaki",
+              "Sly",
+              "Allen",
+              "Pretty Tony",
+              "Dilla"
+            ]
           }
         }
       ]
