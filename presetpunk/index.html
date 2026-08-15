@@ -634,19 +634,20 @@
     }
     select.is-device-dirty,
     input.is-device-dirty {
-      outline: 2px solid #fdc42f;
+      --dirty-mark: oklch(from var(--fader-hue, var(--fp-yellow)) 62% 0.5 h);
+      outline: 2px solid var(--dirty-mark);
       outline-offset: 1px;
-      border-color: #fdc42f;
+      border-color: var(--dirty-mark);
       box-shadow: none;
-      background: color-mix(in srgb, var(--fp-yellow) 14%, var(--panel));
+      background: color-mix(in oklab, var(--dirty-mark) 14%, var(--panel));
     }
     input[type="checkbox"].is-device-dirty,
     input[type="radio"].is-device-dirty,
     input[type="range"].is-device-dirty {
-      outline: 2px solid #fdc42f;
+      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 62% 0.5 h));
       outline-offset: 2px;
       background: transparent;
-      accent-color: #fdc42f;
+      accent-color: var(--dirty-mark, #fdc42f);
     }
     input[type="number"] { width: 5em; }
     button.primary {
