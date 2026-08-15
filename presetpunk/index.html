@@ -1028,14 +1028,18 @@
     tbody tr[data-fader-hue="magenta"] {
       --fader-hue: var(--fp-magenta);
       --fader-hue-line: var(--line-magenta);
+      --dirty-mark: oklch(from var(--fp-magenta) 62% 0.5 h);
     }
     tbody tr[data-fader-hue="yellow"] {
       --fader-hue: var(--fp-yellow);
       --fader-hue-line: var(--line-yellow);
+      /* Yellow can’t hold C0.5 @ L62 (clips to mud) — keep hue, ease C / raise L */
+      --dirty-mark: oklch(from var(--fp-yellow) 78% 0.2 h);
     }
     tbody tr[data-fader-hue="cyan"] {
       --fader-hue: var(--fp-cyan);
       --fader-hue-line: var(--line-cyan);
+      --dirty-mark: oklch(from var(--fp-cyan) 62% 0.5 h);
     }
     tbody tr[data-fader-hue] input,
     tbody tr[data-fader-hue] select,
