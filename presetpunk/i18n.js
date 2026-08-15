@@ -291,7 +291,7 @@
       "connect.pushDirty": "Push {n} changed",
       "connect.pushFull": "Full Push",
       "connect.pushDirtyQueued": "Live · pushing {n} changed field(s) …",
-      "connect.pull": "Pull from Punk…",
+      "connect.pull": "Pull from Punk …",
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
       "pull.confirm":
@@ -744,7 +744,7 @@
       "connect.pushDirty": "{n} geänderte pushen",
       "connect.pushFull": "Full Push",
       "connect.pushDirtyQueued": "Live · {n} geänderte Feld(er) …",
-      "connect.pull": "Vom Punk pullen…",
+      "connect.pull": "Vom Punk pullen …",
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
       "pull.failTips":
@@ -1127,7 +1127,7 @@
       "connect.pushDirty": "Push {n} modifié(s)",
       "connect.pushFull": "Push complet",
       "connect.pushDirtyQueued": "Live · envoi de {n} champ(s) modifié(s) …",
-      "connect.pull": "Pull du Punk…",
+      "connect.pull": "Pull du Punk …",
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",
       "pull.failTips":
