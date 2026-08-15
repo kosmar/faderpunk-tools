@@ -739,7 +739,7 @@
       "connect.reconcile":
         "Editor und Punk können abweichen.\n\nAktives Preset zum Gerät pushen, oder Layout vom Punk pullen (neues Preset oder aktives ersetzen)?",
       "connect.reconcileDirty":
-        "Du hast {n} ungepushte Feld(er) (gelbe Markierung).\n\nNur die per Live-Params pushen, Full Push des Presets, oder vom Punk pullen.",
+        "Du hast {n} ungepushte Feld(er).\n\nNur die per Live-Params pushen, Full Push des Presets, oder vom Punk pullen.",
       "connect.push": "Zum Punk pushen",
       "connect.pushDirty": "{n} geänderte pushen",
       "connect.pushFull": "Full Push",
@@ -1122,7 +1122,7 @@
       "connect.reconcile":
         "L’éditeur et le Punk peuvent différer.\n\nPousser le preset actif vers l’appareil, ou tirer le layout du Punk (nouveau preset ou remplacer l’actif) ?",
       "connect.reconcileDirty":
-        "Vous avez {n} champ(s) non poussé(s) (marques jaunes).\n\nPousser seulement ceux-là en live, faire un Push complet, ou tirer depuis le Punk.",
+        "Vous avez {n} champ(s) non poussé(s).\n\nPousser seulement ceux-là en live, faire un Push complet, ou tirer depuis le Punk.",
       "connect.push": "Push vers Punk",
       "connect.pushDirty": "Push {n} modifié(s)",
       "connect.pushFull": "Push complet",
