@@ -8738,6 +8738,7 @@
     /**
      * On plug-in: local bank is already in localStorage — offer Push vs Pull.
      * Blank bank → first-run Pull confirm only.
+     * Dirty controls → offer live push of only those rows/sections.
      */
     async function maybeOfferConnectReconcile() {
       if (
@@ -8768,16 +8769,34 @@
           return;
         }
 
-        const action = await uiChoice(t("connect.reconcile"), {
-          title: t("connect.title"),
-          primary: t("connect.push"),
-          alt: t("connect.pull"),
-          cancel: t("modal.later"),
-          primaryValue: "push",
-          altValue: "pull",
-        });
+        const plan = dirtyPushPlan();
+        let action;
+        if (plan.canLive) {
+          action = await uiChoice(
+            t("connect.reconcileDirty", { n: plan.count }),
+            {
+              title: t("connect.title"),
+              primary: t("connect.pushDirty", { n: plan.count }),
+              alt: t("connect.pushFull"),
+              cancel: t("modal.later"),
+              primaryValue: "pushDirty",
+              altValue: "push",
+            },
+          );
+        } else {
+          action = await uiChoice(t("connect.reconcile"), {
+            title: t("connect.title"),
+            primary: t("connect.push"),
+            alt: t("connect.pull"),
+            cancel: t("modal.later"),
+            primaryValue: "push",
+            altValue: "pull",
+          });
+        }
         if (!devicePortsPresent || !action) return;
-        if (action === "push") {
+        if (action === "pushDirty") {
+          pushDirtyViaLive();
+        } else if (action === "push") {
           await pushActivePresetToDevice();
         } else if (action === "pull") {
           await pullFromDevice({ ask: true, failAlert: true });
@@ -8785,6 +8804,87 @@
       } finally {
         connectReconcileBusy = false;
       }
+    }
+
+    function globalIdToSection(id) {
+      if (id === "gScale" || id === "gTonic") return "quant";
+      if (
+        id === "gClockSrc" ||
+        id === "gResetSrc" ||
+        id === "gBpm" ||
+        id === "gSwing" ||
+        id === "gTakeover"
+      ) {
+        return "clock";
+      }
+      if (String(id).startsWith("gAux")) return "aux";
+      if (String(id).startsWith("gMidi")) return "midi";
+      return null;
+    }
+
+    /** Rows / presettings sections touched by yellow dirty marks. */
+    function dirtyPushPlan() {
+      const rows = new Set();
+      const structureRows = new Set();
+      const sections = new Set();
+      let skipped = 0;
+      for (const k of deviceDirty) {
+        const rm = /^r:(\d+):([^:]+)/.exec(k);
+        if (rm) {
+          const i = Number(rm[1]);
+          const field = rm[2];
+          // Comment-only — not on device.
+          if (field === "target") {
+            skipped++;
+            continue;
+          }
+          rows.add(i);
+          if (field === "app") structureRows.add(i);
+          continue;
+        }
+        if (k.startsWith("g:")) {
+          const s = globalIdToSection(k.slice(2));
+          if (s) sections.add(s);
+        }
+      }
+      return {
+        rows: [...rows],
+        structureRows: [...structureRows],
+        sections: [...sections],
+        count: Math.max(0, deviceDirty.size - skipped),
+        canLive: rows.size > 0 || sections.size > 0,
+      };
+    }
+
+    /**
+     * Push only dirty rows/sections via live SetAppParams / SetLayout / SetGlobalConfig.
+     * force:true so it runs even with Live toggle off.
+     */
+    function pushDirtyViaLive() {
+      const plan = dirtyPushPlan();
+      if (!plan.canLive || !devicePortsPresent) return false;
+      if (plan.structureRows.length) {
+        scheduleLiveStructurePush({
+          rowIndexes: plan.structureRows,
+          immediate: true,
+          force: true,
+        });
+      }
+      const paramRows = plan.rows.filter((i) => !plan.structureRows.includes(i));
+      for (const i of paramRows) {
+        scheduleLiveParamPush(i, { force: true });
+      }
+      if (paramRows.length) {
+        scheduleLiveParamPush(paramRows[0], { immediate: true, force: true });
+      }
+      for (const s of plan.sections) {
+        scheduleLiveGlobalPush(s, { force: true });
+      }
+      if (plan.sections.length) {
+        scheduleLiveGlobalPush(plan.sections[0], { immediate: true, force: true });
+      }
+      liveNote("ok", t("connect.pushDirtyQueued", { n: plan.count }));
+      return true;
     }
 
     async function startLiveDeviceWatch() {

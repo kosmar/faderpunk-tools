@@ -285,7 +285,12 @@
       "connect.title": "Faderpunk connected",
       "connect.reconcile":
         "Editor and Punk may differ.\n\nPush the active preset to the device, or pull the device layout into the editor (new preset or replace active)?",
+      "connect.reconcileDirty":
+        "You have {n} unpushed field(s) (yellow marks).\n\nPush only those via live params, or run a full preset Push.\n\nPull is still available from the toolbar.",
       "connect.push": "Push to Punk",
+      "connect.pushDirty": "Push {n} changed",
+      "connect.pushFull": "Full Push",
+      "connect.pushDirtyQueued": "Live · pushing {n} changed field(s) …",
       "connect.pull": "Pull from Punk…",
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
@@ -733,7 +738,12 @@
       "connect.title": "Faderpunk verbunden",
       "connect.reconcile":
         "Editor und Punk können abweichen.\n\nAktives Preset zum Gerät pushen, oder Layout vom Punk pullen (neues Preset oder aktives ersetzen)?",
+      "connect.reconcileDirty":
+        "Du hast {n} ungepushte Feld(er) (gelbe Markierung).\n\nNur die per Live-Params pushen, oder Full Push des Presets.\n\nPull weiter über die Toolbar.",
       "connect.push": "Zum Punk pushen",
+      "connect.pushDirty": "{n} geänderte pushen",
+      "connect.pushFull": "Full Push",
+      "connect.pushDirtyQueued": "Live · {n} geänderte Feld(er) …",
       "connect.pull": "Vom Punk pullen…",
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
@@ -1111,7 +1121,12 @@
       "connect.title": "Faderpunk connecté",
       "connect.reconcile":
         "L’éditeur et le Punk peuvent différer.\n\nPousser le preset actif vers l’appareil, ou tirer le layout du Punk (nouveau preset ou remplacer l’actif) ?",
+      "connect.reconcileDirty":
+        "Vous avez {n} champ(s) non poussé(s) (marques jaunes).\n\nPousser seulement ceux-là en live, ou faire un Push complet.\n\nPull toujours dispo dans la barre.",
       "connect.push": "Push vers Punk",
+      "connect.pushDirty": "Push {n} modifié(s)",
+      "connect.pushFull": "Push complet",
+      "connect.pushDirtyQueued": "Live · envoi de {n} champ(s) modifié(s) …",
       "connect.pull": "Pull du Punk…",
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",
