@@ -501,7 +501,7 @@ function buildLanes(
         role: "in",
         channel,
         cc: span.inCc,
-        name: "CV In",
+        name: span.inName ?? "CV In",
         ring: scopeRing(prior?.ring),
       });
     }

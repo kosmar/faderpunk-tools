@@ -22,13 +22,15 @@ export interface AppMeta {
 }
 
 /**
- * A run of CC numbers one app occupies on a single MIDI channel (Manifold).
+ * A run of CC numbers one app occupies on a single MIDI channel.
  * `inCc` is the conditioned CV input, `outCcs` the real outputs in order.
  */
 export interface CcSpan {
   inCc: number | null;
   outCcs: number[];
   outNames: string[];
+  /** Label for the in-lane; falls back to "CV In". */
+  inName?: string;
 }
 
 export interface TrackMidi {
@@ -699,19 +701,29 @@ function computeHasMidiMirror(
   return params.some((p) => p.tag === "MidiOut" || p.tag === "MidiChannel");
 }
 
-/** Manifold: one MIDI channel, four consecutive CCs (CV in + Out B/C/D). */
-const MANIFOLD_APP_ID = 43;
-
-const MANIFOLD_OUT_NAMES = ["Out B", "Out C", "Out D"];
+/**
+ * Apps that mirror several channels onto one MIDI channel as a run of
+ * consecutive CCs: the base CC carries the input, the following ones the
+ * outputs in order.
+ */
+const CC_SPAN_APPS: Record<number, { inName?: string; outNames: string[] }> = {
+  // Manifold: CV in + Out B/C/D.
+  43: { outNames: ["Out B", "Out C", "Out D"] },
+  // Ripppple: the root (CV in or internal LFO) feeding three cascaded stages.
+  46: { inName: "Root", outNames: ["Stage 1", "Stage 2", "Stage 3"] },
+};
 
 function ccSpanFor(appId: number | undefined, cc: number | null): CcSpan | null {
-  if (appId !== MANIFOLD_APP_ID || cc === null) return null;
+  if (appId === undefined || cc === null) return null;
+  const spec = CC_SPAN_APPS[appId];
+  if (!spec) return null;
   // Base CC too high for the full run — stay on plain single-CC behaviour.
-  if (cc + MANIFOLD_OUT_NAMES.length > 127) return null;
+  if (cc + spec.outNames.length > 127) return null;
   return {
     inCc: cc,
-    outCcs: MANIFOLD_OUT_NAMES.map((_, i) => cc + 1 + i),
-    outNames: [...MANIFOLD_OUT_NAMES],
+    outCcs: spec.outNames.map((_, i) => cc + 1 + i),
+    outNames: [...spec.outNames],
+    inName: spec.inName,
   };
 }
 
