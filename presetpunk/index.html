@@ -634,9 +634,19 @@
     }
     select.is-device-dirty,
     input.is-device-dirty {
-      border-color: color-mix(in srgb, var(--fp-yellow) 65%, var(--line));
-      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fp-yellow) 28%, transparent);
-      background: color-mix(in srgb, var(--fp-yellow) 10%, var(--panel));
+      outline: 2px solid #fdc42f;
+      outline-offset: 1px;
+      border-color: #fdc42f;
+      box-shadow: none;
+      background: color-mix(in srgb, var(--fp-yellow) 14%, var(--panel));
+    }
+    input[type="checkbox"].is-device-dirty,
+    input[type="radio"].is-device-dirty,
+    input[type="range"].is-device-dirty {
+      outline: 2px solid #fdc42f;
+      outline-offset: 2px;
+      background: transparent;
+      accent-color: #fdc42f;
     }
     input[type="number"] { width: 5em; }
     button.primary {
