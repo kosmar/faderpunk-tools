@@ -34,7 +34,7 @@
   --warn-border: #5a4030;
   --warn-text: #e8c9b0;
   /* Same shell width as preset editor */
-  --layout-max: calc(80rem + 150px);
+  --layout-max: calc(87.5rem + 150px);
   --layout-gutter: 24px;
   --page-pad-x: var(--layout-gutter);
   --dock-pad-y: 10px;
@@ -51,7 +51,7 @@ html {
   overflow: hidden;
   background: var(--bg);
   /* Keep root font-size at browser default so rem matches preset editor
-     (--layout-max: 80rem + 150px ≈ 1430px at 16px root, not ~1190px at 13px). */
+     (--layout-max: 87.5rem + 150px ≈ 1550px at 16px root, not ~1290px at 13px). */
 }
 
 body,
