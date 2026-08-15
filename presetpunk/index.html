@@ -6747,8 +6747,10 @@
 
     function addPreset() {
       syncPresetFromFields();
+      persistDeviceDirtyToPreset();
       bank.push(emptyPreset());
       active = bank.length - 1;
+      loadDeviceDirtyFromPreset();
       saveBank();
       syncFieldsFromPreset();
       render();
@@ -6757,6 +6759,7 @@
 
     function duplicatePreset() {
       syncPresetFromFields();
+      persistDeviceDirtyToPreset();
       const src = preset();
       const copy = JSON.parse(JSON.stringify(src));
       const L = nextFreeLetter();
@@ -6767,6 +6770,7 @@
       copy.desc = src.desc || "";
       bank.push(copy);
       active = bank.length - 1;
+      loadDeviceDirtyFromPreset();
       saveBank();
       syncFieldsFromPreset();
       render();
@@ -6786,9 +6790,11 @@
       });
       if (!ok) return;
       syncPresetFromFields();
+      persistDeviceDirtyToPreset();
       bank.splice(i, 1);
       if (active >= bank.length) active = bank.length - 1;
       else if (active > i) active -= 1;
+      loadDeviceDirtyFromPreset();
       saveBank();
       syncFieldsFromPreset();
       render();
@@ -6798,10 +6804,12 @@
     function reorderPresets(from, to) {
       if (from === to || from < 0 || to < 0 || from >= bank.length || to >= bank.length) return;
       syncPresetFromFields();
+      persistDeviceDirtyToPreset();
       const [moved] = bank.splice(from, 1);
       bank.splice(to, 0, moved);
       // keep the moved preset selected — letter/name/index stay with the preset
       active = to;
+      loadDeviceDirtyFromPreset();
       saveBank();
       syncFieldsFromPreset();
       render();
@@ -6936,6 +6944,10 @@
       saveBank();
       scheduleLiveStructurePush({ allParams: true });
       clearDeviceDirty((k) => k.startsWith("r:"));
+      for (const k of [...deviceBaseline.keys()]) {
+        if (k.startsWith("r:")) deviceBaseline.delete(k);
+      }
+      persistDeviceDirtyToPreset();
       render();
     }
 
@@ -7425,7 +7437,9 @@
           if (ev.target.closest("[data-remove]")) return;
           if (i === active) return;
           syncPresetFromFields();
+          persistDeviceDirtyToPreset();
           active = i;
+          loadDeviceDirtyFromPreset();
           syncFieldsFromPreset();
           render({ vt: true });
         });
@@ -7847,6 +7861,7 @@
         requestAnimationFrame(restoreView);
       });
       applyDeviceDirtyMarks();
+      captureDeviceBaselines({ onlyMissing: true });
     }
 
     function reorderRows(from, to) {
@@ -7859,6 +7874,10 @@
       saveBank();
       scheduleLiveStructurePush({ allParams: true });
       clearDeviceDirty((k) => k.startsWith("r:"));
+      for (const k of [...deviceBaseline.keys()]) {
+        if (k.startsWith("r:")) deviceBaseline.delete(k);
+      }
+      persistDeviceDirtyToPreset();
       render();
     }
 
@@ -8887,10 +8906,38 @@
 
     /** Controls edited while not live-pushed (offline or Live off). */
     const deviceDirty = new Set();
+    /** Last synced / captured value per dirty key — revert clears the mark. */
+    const deviceBaseline = new Map();
+    const GLOBAL_DIRTY_IDS = [
+      "gScale", "gTonic", "gClockSrc", "gResetSrc", "gBpm", "gSwing", "gTakeover",
+      "gAux0Mode", "gAux0Div", "gAux1Mode", "gAux1Div", "gAux2Mode", "gAux2Div",
+      "gMidi0Mode", "gMidi0Clock", "gMidi0Transport",
+      "gMidi1Mode", "gMidi1Clock", "gMidi1Transport", "gMidi1SrcUsb", "gMidi1SrcDin",
+      "gMidi2Mode", "gMidi2Clock", "gMidi2Transport", "gMidi2SrcUsb", "gMidi2SrcDin",
+    ];
+
+    function controlValueSnapshot(el) {
+      if (!(el instanceof HTMLElement)) return "";
+      if (el instanceof HTMLInputElement && el.type === "checkbox") {
+        return el.checked ? "1" : "0";
+      }
+      return String(el.value ?? "");
+    }
+
+    function dirtyableControls() {
+      const out = [
+        ...document.querySelectorAll("#rows [data-k], #rowsOverflow [data-k]"),
+      ];
+      for (const id of GLOBAL_DIRTY_IDS) {
+        const el = document.getElementById(id);
+        if (el) out.push(el);
+      }
+      return out;
+    }
 
     function dirtyKeyFromControl(el) {
       if (!(el instanceof HTMLElement)) return null;
-      if (el.id && /^g[A-Z]/.test(el.id)) return `g:${el.id}`;
+      if (el.id && GLOBAL_DIRTY_IDS.includes(el.id)) return `g:${el.id}`;
       const i = el.dataset?.i;
       const k = el.dataset?.k;
       if (i == null || k == null) return null;
@@ -8917,6 +8964,47 @@
       );
     }
 
+    function persistDeviceDirtyToPreset() {
+      const sc = preset();
+      if (!sc) return;
+      sc.deviceDirty = {
+        keys: [...deviceDirty],
+        baseline: Object.fromEntries(deviceBaseline),
+      };
+    }
+
+    function loadDeviceDirtyFromPreset() {
+      deviceDirty.clear();
+      deviceBaseline.clear();
+      const sc = preset();
+      const st = sc?.deviceDirty;
+      if (!st || typeof st !== "object") return;
+      for (const k of st.keys || []) {
+        if (typeof k === "string") deviceDirty.add(k);
+      }
+      const base = st.baseline && typeof st.baseline === "object" ? st.baseline : {};
+      for (const [k, v] of Object.entries(base)) {
+        deviceBaseline.set(k, String(v));
+      }
+    }
+
+    /**
+     * Snapshot current control values as “synced” baselines.
+     * @param {{ onlyMissing?: boolean, keyFilter?: (k: string) => boolean }} [opts]
+     */
+    function captureDeviceBaselines(opts = {}) {
+      const onlyMissing = !!opts.onlyMissing;
+      const keyFilter = opts.keyFilter || null;
+      for (const el of dirtyableControls()) {
+        const key = dirtyKeyFromControl(el);
+        if (!key) continue;
+        if (keyFilter && !keyFilter(key)) continue;
+        if (onlyMissing && deviceBaseline.has(key)) continue;
+        deviceBaseline.set(key, controlValueSnapshot(el));
+      }
+      persistDeviceDirtyToPreset();
+    }
+
     function shouldMarkDeviceDirty() {
       // Offline (Live forced off) or Live sync intentionally off → unpushed edits.
       return !livePushEnabled();
@@ -8926,8 +9014,21 @@
       if (!shouldMarkDeviceDirty()) return;
       const key = dirtyKeyFromControl(el);
       if (!key) return;
-      deviceDirty.add(key);
-      paintDeviceDirtyEl(el);
+      const cur = controlValueSnapshot(el);
+      if (!deviceBaseline.has(key)) {
+        // No sync snapshot yet — treat current as baseline (no false dirty).
+        deviceBaseline.set(key, cur);
+        persistDeviceDirtyToPreset();
+        return;
+      }
+      if (cur === deviceBaseline.get(key)) {
+        deviceDirty.delete(key);
+      } else {
+        deviceDirty.add(key);
+      }
+      persistDeviceDirtyToPreset();
+      saveBank();
+      applyDeviceDirtyMarks();
     }
 
     function paintDeviceDirtyEl(el) {
@@ -8951,15 +9052,18 @@
 
     function clearDeviceDirtyAll() {
       deviceDirty.clear();
+      captureDeviceBaselines();
       applyDeviceDirtyMarks();
     }
 
     function clearDeviceDirtyForRows(indexes) {
       const set = new Set((indexes || []).map(Number));
-      clearDeviceDirty((k) => {
+      const rowFilter = (k) => {
         const m = /^r:(\d+):/.exec(k);
         return m && set.has(Number(m[1]));
-      });
+      };
+      clearDeviceDirty(rowFilter);
+      captureDeviceBaselines({ keyFilter: rowFilter });
       applyDeviceDirtyMarks();
     }
 
@@ -8988,7 +9092,9 @@
           }
         }
       }
-      clearDeviceDirty((k) => k.startsWith("g:") && ids.has(k.slice(2)));
+      const gFilter = (k) => k.startsWith("g:") && ids.has(k.slice(2));
+      clearDeviceDirty(gFilter);
+      captureDeviceBaselines({ keyFilter: gFilter });
       applyDeviceDirtyMarks();
     }
 
@@ -9512,10 +9618,12 @@
 
     function selectTab(i) {
       syncPresetFromFields();
+      persistDeviceDirtyToPreset();
       active = i;
+      loadDeviceDirtyFromPreset();
       syncFieldsFromPreset();
       markLiveLayoutDirty();
-      render();
+      render({ vt: true });
     }
 
     async function pushActivePresetToDevice() {
@@ -9984,7 +10092,11 @@
       renderInstruments();
       wireGlobalFields();
       syncFieldsFromPreset();
+      loadDeviceDirtyFromPreset();
       render();
+      captureDeviceBaselines({ onlyMissing: true });
+      persistDeviceDirtyToPreset();
+      saveBank();
       document.getElementById("btnToggleLog").onclick = () => {
         const dock = document.getElementById("statusDock");
         setStatusDockExpanded(dock.classList.contains("collapsed"));
