@@ -4275,6 +4275,22 @@
         },
         {
           "tag": "MidiNrpn"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Ch Map",
+            "min": 0,
+            "max": 65535
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CC Map",
+            "min": 0,
+            "max": 268435455
+          }
         }
       ]
     },
@@ -4803,6 +4819,22 @@
         },
         {
           "tag": "MidiNrpn"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Ch Map",
+            "min": 0,
+            "max": 65535
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CC Map",
+            "min": 0,
+            "max": 268435455
+          }
         }
       ]
     }

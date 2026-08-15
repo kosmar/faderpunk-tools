@@ -4687,6 +4687,72 @@
      * makes every nibble an explicit channel (nibble + 1). Note 0 is the
      * off switch for a voice, which is how the four optional ones ship.
      */
+    // --- packed lane maps (generic) — extracted by tests/lane-map.test.mjs ---
+    /**
+     * Apps that fan one MIDI stream out over several lanes pack the per-lane
+     * channel / CC number into a single i32: `bits` per lane, lane w at
+     * bits w*bits…, stored field + `offset` = the real value. A total map of 0
+     * means every lane follows the app's base param — that is the firmware
+     * default, so it has to survive a UI round trip bit for bit.
+     */
+    const LANE_CH_FIELD = { bits: 4, offset: 1 }; // MIDI channel 1…16
+    const LANE_CC_FIELD = { bits: 7, offset: 0 }; // CC number 0…127
+
+    /** Per-lane fallback: number, array or fn(lane) — CC follows base + lane. */
+    function laneFollowValue(follow, i) {
+      const raw =
+        typeof follow === "function"
+          ? follow(i)
+          : Array.isArray(follow)
+            ? follow[i]
+            : follow;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function clampLaneValue(n, { bits, offset = 0 }) {
+      const v = Math.round(Number(n));
+      if (!Number.isFinite(v)) return offset;
+      return Math.max(offset, Math.min(offset + (1 << bits) - 1, v));
+    }
+
+    /** null / "" in `values` means "this lane follows the base param". */
+    function packMap(values, { bits, count, offset = 0, follow = 0 }) {
+      const field = { bits, offset };
+      const lanes = [];
+      const fallbacks = [];
+      for (let i = 0; i < count; i++) {
+        const raw = Array.isArray(values) ? values[i] : undefined;
+        const n = raw == null || raw === "" ? NaN : Number(raw);
+        const fb = clampLaneValue(laneFollowValue(follow, i), field);
+        fallbacks.push(fb);
+        lanes.push(Number.isFinite(n) ? clampLaneValue(n, field) : fb);
+      }
+      if (lanes.every((v, i) => v === fallbacks[i])) return 0;
+      return lanes.reduce((acc, v, i) => acc + ((v - offset) << (bits * i)), 0);
+    }
+
+    /** Inverse of packMap; a zero map expands to the follow values. */
+    function unpackMap(map, { bits, count, offset = 0, follow = 0 }) {
+      const field = { bits, offset };
+      const m = Number(map);
+      const mask = (1 << bits) - 1;
+      const packed = Number.isFinite(m) && m > 0;
+      return Array.from({ length: count }, (_, i) =>
+        packed
+          ? ((m >> (bits * i)) & mask) + offset
+          : clampLaneValue(laneFollowValue(follow, i), field),
+      );
+    }
+
+    /** UI state: null per lane while the whole map still says "follow base". */
+    function laneValuesFromMap(map, field, count) {
+      const m = Number(map);
+      if (!Number.isFinite(m) || m <= 0) return Array.from({ length: count }, () => null);
+      return unpackMap(m, { ...field, count });
+    }
+    // --- end packed lane maps ---
+
     const GROOVES_VOICES = [
       "Kick",
       "Snare",
@@ -4729,21 +4795,74 @@
     }
     /** Pack per-voice channels; 0 when they all follow the base channel. */
     function groovesChMap(chs) {
-      const list = Array.isArray(chs) ? chs : [];
-      const base = Math.max(1, Math.min(16, Number(list[0]) || 1));
-      if (GROOVES_VOICES.every((_, i) => (Number(list[i]) || base) === base)) return 0;
-      return GROOVES_VOICES.reduce((acc, _, i) => {
-        const ch = Math.max(1, Math.min(16, Number(list[i]) || base));
-        return acc + ((ch - 1) << (4 * i));
-      }, 0);
+      const base = Math.max(1, Math.min(16, Number(chs?.[0]) || 1));
+      return packMap(chs, {
+        ...LANE_CH_FIELD,
+        count: GROOVES_VOICES.length,
+        follow: base,
+      });
     }
     /** Inverse of groovesChMap; a zero map means every voice follows base. */
     function groovesChsFromMap(map, baseCh) {
       const base = Math.max(1, Math.min(16, Number(baseCh) || 1));
-      const m = Number(map);
-      if (!Number.isFinite(m) || m <= 0) return GROOVES_VOICES.map(() => base);
-      return GROOVES_VOICES.map((_, i) => ((m >> (4 * i)) & 0xf) + 1);
+      return unpackMap(map, {
+        ...LANE_CH_FIELD,
+        count: GROOVES_VOICES.length,
+        follow: base,
+      });
     }
+    /**
+     * Lane names per app for the packed maps above. `columns: true` means the
+     * CH / CC table columns render one control per lane instead of the bare
+     * i32 number field (which would force the user to do the bit maths).
+     */
+    const APP_LANE_MAPS = {
+      grooves: { lanes: GROOVES_VOICES },
+      manifold: {
+        lanes: ["Ch0", "Out B", "Out C", "Out D"],
+        columns: true,
+      },
+      ripppple: {
+        lanes: ["Root", "Stage 1", "Stage 2", "Stage 3"],
+        columns: true,
+      },
+    };
+
+    function laneMapApp(app) {
+      const spec = APP_LANE_MAPS[app] || APP_LANE_MAPS[canonicalizeAppSlug(app)];
+      return spec?.columns ? spec : null;
+    }
+
+    /** Resolve the packed-map slots by name — param order shifts between builds. */
+    function laneMapIdx(app) {
+      const params = catalogApp(app)?.params || [];
+      const find = (re) =>
+        params.findIndex((p) => p?.tag === "i32" && re.test(String(p.value?.name || "")));
+      return {
+        baseCh: params.findIndex((p) => p?.tag === "MidiChannel"),
+        baseCc: params.findIndex((p) => p?.tag === "MidiCc"),
+        chMap: find(/^Ch Map$/i),
+        ccMap: find(/^CC Map$/i),
+      };
+    }
+
+    function laneMapValue(row, pi) {
+      if (!Number.isFinite(pi) || pi < 0) return 0;
+      const v = row?.schemaValues?.[pi];
+      const n = Number(Array.isArray(v?.value) ? v.value[0] : v?.value);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function laneBaseCh(row) {
+      return Math.max(1, Math.min(16, Number(row?.ch) || 1));
+    }
+
+    /** Firmware's legacy derivation: base CC counts up per lane. */
+    function laneBaseCcFollow(row) {
+      const base = Math.max(0, Math.min(127, Number(rowCcNum(row)) || 0));
+      return (i) => Math.min(127, base + i);
+    }
+
     function groovesNotes(row) {
       const base = Number(row.cc);
       const b = Number.isFinite(base) ? base : 36;
@@ -5040,6 +5159,68 @@
         <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
     }
 
+    /** Base CH plus one "follow / 1…16" select per lane, packed into Ch Map. */
+    function laneChCellHtml(s, idx, spec) {
+      ensureSchemaValues(s);
+      const li = laneMapIdx(s.app);
+      const base = laneBaseCh(s);
+      const vals = laneValuesFromMap(
+        laneMapValue(s, li.chMap),
+        LANE_CH_FIELD,
+        spec.lanes.length,
+      );
+      const baseOpts = Array.from({ length: 16 }, (_, i) => {
+        const n = i + 1;
+        return `<option value="${n}" ${base === n ? "selected" : ""}>${n}</option>`;
+      }).join("");
+      const rows = spec.lanes
+        .map((lab, slot) => {
+          const cur = vals[slot];
+          const opts = [
+            `<option value="" ${cur == null ? "selected" : ""}>follow ${base}</option>`,
+          ]
+            .concat(
+              Array.from({ length: 16 }, (_, i) => {
+                const n = i + 1;
+                return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
+              }),
+            )
+            .join("");
+          return `<span class="vm">${escapeHtml(lab)}</span>
+            <select data-i="${idx}" data-k="laneCh" data-pi="${li.chMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI channel`)}">${opts}</select>`;
+        })
+        .join("");
+      return `<div class="multi-midi" title="${escapeAttr("Base MIDI channel + per-lane Ch Map")}">
+        <span class="vm">Base</span>
+        <select data-i="${idx}" data-k="ch" title="${escapeAttr("Base MIDI channel")}">${baseOpts}</select>
+        ${rows}
+      </div>`;
+    }
+
+    /** Base CC plus one "empty = follow / 0…127" field per lane (CC Map). */
+    function laneCcCellHtml(s, idx, spec) {
+      ensureSchemaValues(s);
+      const li = laneMapIdx(s.app);
+      const follow = laneBaseCcFollow(s);
+      const vals = laneValuesFromMap(
+        laneMapValue(s, li.ccMap),
+        LANE_CC_FIELD,
+        spec.lanes.length,
+      );
+      const rows = spec.lanes
+        .map((lab, slot) => {
+          const cur = vals[slot];
+          return `<span class="vm">${escapeHtml(lab)}</span>
+            <input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" placeholder="${follow(slot)}" value="${cur == null ? "" : cur}" title="${escapeAttr(`${lab} CC — empty follows ${follow(slot)}`)}" />`;
+        })
+        .join("");
+      return `<div class="multi-midi" title="${escapeAttr("Base MIDI CC + per-lane CC Map (empty = follow)")}">
+        <span class="vm">CC</span>
+        ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc" })}
+        ${rows}
+      </div>`;
+    }
+
     function chCellHtml(s, idx) {
       if (appMidiRoutingColsInactive(s.app)) {
         return midiInactiveCellHtml("midi.cvOnlyCols");
@@ -5067,6 +5248,10 @@
             <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(t("midi.chLabel", { lab }))}">${opts}</select>`;
         }).join("");
         return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesChTitle"))}">${rows}</div>`;
+      }
+      {
+        const laneSpec = laneMapApp(s.app);
+        if (laneSpec) return laneChCellHtml(s, idx, laneSpec);
       }
       if (s.app === "echolot") {
         const slots = echolotVisibleSlots(s);
@@ -5177,6 +5362,10 @@
             })}`;
         }).join("");
         return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesNoteTitle"))}">${rows}</div>`;
+      }
+      {
+        const laneSpec = laneMapApp(s.app);
+        if (laneSpec) return laneCcCellHtml(s, idx, laneSpec);
       }
       if (s.app === "echolot") {
         coerceParamDeps(s);
@@ -5399,13 +5588,14 @@
           claimed.add(i);
           return;
         }
-        // Grooves' Ch Map is the bit-packed form of the CH column, which already
-        // shows all seven channels. As a generic 0…268435455 slider it looked
-        // frozen (one channel step is 16) and dragging it scrambled every voice.
+        // Packed Ch/CC maps are the bit-packed form of the CH / CC columns,
+        // which already show every lane. As a generic 0…268435455 slider they
+        // looked frozen (one channel step is 16) and dragging one scrambled
+        // every lane at once.
         if (
-          row.app === "grooves" &&
+          APP_LANE_MAPS[row.app] &&
           p.tag === "i32" &&
-          /^Ch Map$/i.test(String(p.value?.name || ""))
+          /^(Ch|CC) Map$/i.test(String(p.value?.name || ""))
         ) {
           claimed.add(i);
           return;
@@ -5419,7 +5609,12 @@
           return;
         }
         if (p.tag === "MidiCc") {
-          if (row.kind === "cc" || row.kind === "both" || APPS_WITH_NOTE_AND_CC.has(row.app)) {
+          if (
+            laneMapApp(row.app) ||
+            row.kind === "cc" ||
+            row.kind === "both" ||
+            APPS_WITH_NOTE_AND_CC.has(row.app)
+          ) {
             if (firstCc) {
               claimed.add(i);
               firstCc = false;
@@ -8361,6 +8556,24 @@
           ensureSchemaValues(rowRef);
           applyColumnOverlaysToSchema(rowRef, sc.port);
         }
+      } else if (k === "laneCh" || k === "laneCc") {
+        // One lane of a packed Ch/CC Map; empty value = follow the base param.
+        const spec = laneMapApp(rowRef.app);
+        const pi = Number(el.dataset.pi);
+        const slot = Number(el.dataset.slot);
+        if (spec && Number.isFinite(pi) && pi >= 0 && Number.isFinite(slot)) {
+          ensureSchemaValues(rowRef);
+          const isCh = k === "laneCh";
+          const field = isCh ? LANE_CH_FIELD : LANE_CC_FIELD;
+          const follow = isCh ? laneBaseCh(rowRef) : laneBaseCcFollow(rowRef);
+          const count = spec.lanes.length;
+          const vals = laneValuesFromMap(laneMapValue(rowRef, pi), field, count);
+          const raw = String(el.value).trim();
+          const n = raw === "" ? NaN : Number(raw);
+          vals[slot] = Number.isFinite(n) ? clampLaneValue(n, field) : null;
+          rowRef.schemaValues[pi] = i32(packMap(vals, { ...field, count, follow }));
+          delete rowRef.rawParams;
+        }
       } else if (k === "cvRange") {
         rowRef.cvRange = el.value;
       } else if (k === "chs") {
@@ -8429,7 +8642,7 @@
       // Don't rebuild the table on every keystroke — that resets caret (comment / CH / CC).
       const typing =
         ev.type === "input" &&
-        (k === "target" || k === "cc" || k === "swingMax" || k === "mixBalance" || k === "rateModDepth" || k === "echoMaxMs" || k === "sv") &&
+        (k === "target" || k === "cc" || k === "laneCc" || k === "swingMax" || k === "mixBalance" || k === "rateModDepth" || k === "echoMaxMs" || k === "sv") &&
         el.tagName === "INPUT";
       if (!typing) {
         const depChanged = beforeDeps !== depsSignature(rowRef);
