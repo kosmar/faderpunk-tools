@@ -282,7 +282,7 @@
         "Live sync needs a connected Faderpunk (Web MIDI in this tab).",
       "connect.title": "Faderpunk connected",
       "connect.reconcile":
-        "Editor bank is already saved locally.\n\nPush the active preset to the Punk, or pull the device layout into the editor (new preset or replace active)?",
+        "Editor and Punk may differ.\n\nPush the active preset to the device, or pull the device layout into the editor (new preset or replace active)?",
       "connect.push": "Push to Punk",
       "connect.pull": "Pull from Punk…",
       "push.failTips":
@@ -728,7 +728,7 @@
         "Live Sync braucht einen verbundenen Faderpunk (Web MIDI in diesem Tab).",
       "connect.title": "Faderpunk verbunden",
       "connect.reconcile":
-        "Die Editor-Bank liegt schon lokal.\n\nAktives Preset zum Punk pushen, oder Layout vom Gerät pullen (neues Preset oder aktives ersetzen)?",
+        "Editor und Punk können abweichen.\n\nAktives Preset zum Gerät pushen, oder Layout vom Punk pullen (neues Preset oder aktives ersetzen)?",
       "connect.push": "Zum Punk pushen",
       "connect.pull": "Vom Punk pullen…",
       "push.failTips":
@@ -1104,7 +1104,7 @@
         "Sync live nécessite un Faderpunk connecté (Web MIDI dans cet onglet).",
       "connect.title": "Faderpunk connecté",
       "connect.reconcile":
-        "La banque de l’éditeur est déjà enregistrée localement.\n\nPousser le preset actif vers le Punk, ou tirer le layout de l’appareil (nouveau preset ou remplacer l’actif) ?",
+        "L’éditeur et le Punk peuvent différer.\n\nPousser le preset actif vers l’appareil, ou tirer le layout du Punk (nouveau preset ou remplacer l’actif) ?",
       "connect.push": "Push vers Punk",
       "connect.pull": "Pull du Punk…",
       "push.failTips":
