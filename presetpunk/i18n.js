@@ -13,6 +13,8 @@
       "lang.label": "Language",
 
       "push.fabTitle": "Push the active preset to the Faderpunk",
+      "push.fabNoDevice":
+        "Connect a Faderpunk (Web MIDI in this tab) to push",
       "push.fabLine1": "Push",
       "push.fabLine2": "to Punk",
 
@@ -65,6 +67,8 @@
       "bar.pull": "Pull from Punk",
       "bar.pullTitle":
         "Reads layout + params + global config from the Faderpunk over Web MIDI",
+      "bar.pullNoDevice":
+        "Connect a Faderpunk (Web MIDI in this tab) to pull",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",
@@ -364,6 +368,8 @@
       "lang.label": "Sprache",
 
       "push.fabTitle": "Aktives Preset zum Faderpunk: Push",
+      "push.fabNoDevice":
+        "Faderpunk verbinden (Web MIDI in diesem Tab), um zu pushen",
       "push.fabLine1": "Push",
       "push.fabLine2": "zum Punk",
 
@@ -416,6 +422,8 @@
       "bar.pull": "Pull vom Punk",
       "bar.pullTitle":
         "Liest Layout + Params + Global Config vom Faderpunk per Web MIDI",
+      "bar.pullNoDevice":
+        "Faderpunk verbinden (Web MIDI in diesem Tab), um zu pullen",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",
@@ -731,6 +739,8 @@
       "lang.label": "Langue",
 
       "push.fabTitle": "Push le preset actif vers le Faderpunk",
+      "push.fabNoDevice":
+        "Connecter un Faderpunk (Web MIDI dans cet onglet) pour pousser",
       "push.fabLine1": "Push",
       "push.fabLine2": "vers Punk",
 
@@ -783,6 +793,8 @@
       "bar.pull": "Pull du Punk",
       "bar.pullTitle":
         "Lit layout + params + config globale depuis le Faderpunk via Web MIDI",
+      "bar.pullNoDevice":
+        "Connecter un Faderpunk (Web MIDI dans cet onglet) pour tirer",
       "bar.groupPreset": "Preset",
       "bar.groupPort": "MIDI Out",
       "bar.groupJson": "JSON",

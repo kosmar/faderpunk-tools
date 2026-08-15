@@ -8642,9 +8642,10 @@
     }
 
     function syncLiveDeviceGate() {
+      const ok = devicePortsPresent;
+      const busy = pushLive;
       const el = document.getElementById("chkLivePush");
       const wrap = document.getElementById("fabLiveWrap");
-      const ok = devicePortsPresent;
       if (el) {
         el.disabled = !ok;
         el.checked = ok && livePrefOn();
@@ -8652,6 +8653,16 @@
       if (wrap) {
         wrap.classList.toggle("is-unavailable", !ok);
         wrap.title = ok ? t("push.liveTitle") : t("push.liveNoDevice");
+      }
+      const pushBtn = document.getElementById("btnPush");
+      if (pushBtn) {
+        pushBtn.disabled = busy || !ok;
+        pushBtn.title = ok ? t("push.fabTitle") : t("push.fabNoDevice");
+      }
+      const pullBtn = document.getElementById("btnPull");
+      if (pullBtn) {
+        pullBtn.disabled = busy || !ok;
+        pullBtn.title = ok ? t("bar.pullTitle") : t("bar.pullNoDevice");
       }
       syncFabLiveClass();
     }
@@ -9215,7 +9226,6 @@
       pushLive = !!busy;
       if (!busy) lastPushStep = "";
       const btn = document.getElementById("btnPush");
-      btn.disabled = busy;
       if (busy) {
         btn.classList.add("is-busy");
       } else {
@@ -9226,8 +9236,7 @@
           fabSpinBack(btn);
         }
       }
-      const pull = document.getElementById("btnPull");
-      if (pull) pull.disabled = busy;
+      syncLiveDeviceGate();
     }
 
     function fabSpinBack(btn) {
@@ -9313,7 +9322,7 @@
     }
 
     document.getElementById("btnPush").onclick = async () => {
-      if (blockFullDeviceIoWhileLive()) return;
+      if (!devicePortsPresent || blockFullDeviceIoWhileLive()) return;
       const btn = document.getElementById("btnPush");
       btn.dataset.spun = "1";
       btn.dataset.spinBack = "0";
@@ -9498,7 +9507,10 @@
       }
     }
 
-    document.getElementById("btnPull").onclick = () => pullFromDevice();
+    document.getElementById("btnPull").onclick = () => {
+      if (!devicePortsPresent) return;
+      pullFromDevice();
+    };
 
     document.getElementById("btnExport").onclick = () => {
       try {
