@@ -164,6 +164,13 @@
       color: #fff;
       background: color-mix(in srgb, var(--accent) 28%, var(--bg));
     }
+    .fab-live:has(input:disabled) {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .fab-live:has(input:disabled) input {
+      cursor: not-allowed;
+    }
     @media (max-width: 720px) {
       .fab-live { display: none !important; }
     }
@@ -8603,6 +8610,87 @@
     const liveSpinningGlobals = new Set();
     /** Keep live status visible across render() rebuilds. */
     let liveStatusHold = null;
+    /** Web MIDI lists Faderpunk in+out (not a live SysEx session). */
+    let devicePortsPresent = false;
+    let midiAccessWatch = null;
+
+    function livePrefOn() {
+      try {
+        return localStorage.getItem("fp-live-push") === "1";
+      } catch {
+        return false;
+      }
+    }
+
+    function pauseLiveForNoDevice() {
+      if (liveDebounceTimer) {
+        clearTimeout(liveDebounceTimer);
+        liveDebounceTimer = null;
+      }
+      if (liveStructureTimer) {
+        clearTimeout(liveStructureTimer);
+        liveStructureTimer = null;
+      }
+      if (liveGlobalTimer) {
+        clearTimeout(liveGlobalTimer);
+        liveGlobalTimer = null;
+      }
+      livePendingRows.clear();
+      liveStructureOpts = null;
+      liveGlobalSections.clear();
+      document.documentElement.classList.remove("live-push-on");
+    }
+
+    function syncLiveDeviceGate() {
+      const el = document.getElementById("chkLivePush");
+      const wrap = document.getElementById("fabLiveWrap");
+      const ok = devicePortsPresent;
+      if (el) {
+        el.disabled = !ok;
+        el.checked = ok && livePrefOn();
+      }
+      if (wrap) {
+        wrap.classList.toggle("is-unavailable", !ok);
+        wrap.title = ok ? t("push.liveTitle") : t("push.liveNoDevice");
+      }
+      syncFabLiveClass();
+    }
+
+    async function refreshDevicePortsPresent() {
+      const was = devicePortsPresent;
+      let next = false;
+      try {
+        const midi = window.FpMidi;
+        if (midiAccessWatch && midi?.faderpunkPortsListed) {
+          next = !!midi.faderpunkPortsListed(midiAccessWatch);
+        }
+      } catch {
+        next = false;
+      }
+      devicePortsPresent = next;
+      if (was && !next) pauseLiveForNoDevice();
+      syncLiveDeviceGate();
+    }
+
+    async function startLiveDeviceWatch() {
+      syncLiveDeviceGate();
+      try {
+        await ensureFpMidi();
+        if (!navigator.requestMIDIAccess) {
+          devicePortsPresent = false;
+          syncLiveDeviceGate();
+          return;
+        }
+        midiAccessWatch = await navigator.requestMIDIAccess({ sysex: true });
+        midiAccessWatch.onstatechange = () => {
+          void refreshDevicePortsPresent();
+        };
+        await refreshDevicePortsPresent();
+      } catch {
+        devicePortsPresent = false;
+        syncLiveDeviceGate();
+      }
+    }
 
     function blockFullDeviceIoWhileLive() {
       if (!livePushInFlight) return false;
@@ -8693,7 +8781,7 @@
 
     function livePushEnabled() {
       const el = document.getElementById("chkLivePush");
-      return !!(el && el.checked);
+      return !!(devicePortsPresent && el && !el.disabled && el.checked);
     }
 
     function syncFabLiveClass() {
@@ -8784,7 +8872,8 @@
      * @param {{ immediate?: boolean, force?: boolean }} [opts]
      */
     function scheduleLiveGlobalPush(section, { immediate = false, force = false } = {}) {
-      if ((!force && !livePushEnabled()) || !section) return;
+      if (!devicePortsPresent || !section) return;
+      if (!force && !livePushEnabled()) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
         return;
@@ -8808,7 +8897,7 @@
     }
 
     async function flushLiveGlobalPush({ force = false } = {}) {
-      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
+      if (!devicePortsPresent || (!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       if (liveStructureTimer || liveStructureOpts || livePendingRows.size || liveDebounceTimer) {
         if (liveGlobalSections.size) {
           liveGlobalTimer = setTimeout(() => {
@@ -8878,6 +8967,10 @@
     function scheduleLiveStructurePush(opts = {}) {
       const force = !!opts.force;
       const immediate = !!opts.immediate;
+      if (!devicePortsPresent) {
+        if (!force) markLiveLayoutDirty();
+        return;
+      }
       if (!force && !livePushEnabled()) {
         markLiveLayoutDirty();
         return;
@@ -8915,7 +9008,7 @@
     }
 
     async function flushLiveStructurePush({ force = false } = {}) {
-      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
+      if (!devicePortsPresent || (!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       const opts = liveStructureOpts;
       liveStructureOpts = null;
       if (!opts) return;
@@ -8974,6 +9067,7 @@
     }
 
     function scheduleLiveParamPush(rowIndex, { immediate = false, force = false } = {}) {
+      if (!devicePortsPresent) return;
       if (!force && !livePushEnabled()) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
@@ -9002,7 +9096,7 @@
     }
 
     async function flushLiveParamPushes({ force = false } = {}) {
-      if ((!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
+      if (!devicePortsPresent || (!force && !livePushEnabled()) || pushLive || livePushInFlight) return;
       if (liveStructureTimer || liveStructureOpts) return;
       const ids = [...livePendingRows];
       livePendingRows.clear();
@@ -9700,18 +9794,14 @@
         }
         renderInstruments();
         render();
+        syncLiveDeviceGate();
       };
       applyI18n();
 
       const chkLive = document.getElementById("chkLivePush");
       if (chkLive) {
-        try {
-          chkLive.checked = localStorage.getItem("fp-live-push") === "1";
-        } catch {
-          /* ignore */
-        }
-        syncFabLiveClass();
         chkLive.onchange = () => {
+          if (chkLive.disabled) return;
           try {
             localStorage.setItem("fp-live-push", chkLive.checked ? "1" : "0");
           } catch {
@@ -9730,6 +9820,7 @@
           }
         };
       }
+      void startLiveDeviceWatch();
 
       if (isBlankBank(bank)) {
         setStatus("ok", t("status.emptyBank"));

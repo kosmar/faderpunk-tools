@@ -274,6 +274,8 @@
       "push.liveOnUnsynced":
         "Live sync on — params + presettings push anyway; Push once if apps/order changed",
       "push.liveOff": "Live sync off",
+      "push.liveNoDevice":
+        "Live sync needs a connected Faderpunk (Web MIDI in this tab).",
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
       "pull.confirm":
@@ -709,6 +711,8 @@
       "push.liveOnUnsynced":
         "Live Sync an — Params + Presettings gehen trotzdem; einmal Push wenn Apps/Reihenfolge geändert",
       "push.liveOff": "Live Sync aus",
+      "push.liveNoDevice":
+        "Live Sync braucht einen verbundenen Faderpunk (Web MIDI in diesem Tab).",
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
       "pull.failTips":
@@ -1074,6 +1078,8 @@
       "push.liveOnUnsynced":
         "Sync live on — params + presettings quand même ; Push si apps/ordre ont changé",
       "push.liveOff": "Sync live off",
+      "push.liveNoDevice":
+        "Sync live nécessite un Faderpunk connecté (Web MIDI dans cet onglet).",
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",
       "pull.failTips":
