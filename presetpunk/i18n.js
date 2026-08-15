@@ -286,7 +286,7 @@
       "connect.reconcile":
         "Editor and Punk may differ.\n\nPush the active preset to the device, or pull the device layout into the editor (new preset or replace active)?",
       "connect.reconcileDirty":
-        "You have {n} unpushed field(s) (yellow marks).\n\nPush only those via live params, run a full preset Push, or pull from the Punk.",
+        "You have {n} unpushed field(s).\n\nPush only those via live params, run a full preset Push, or pull from the Punk.",
       "connect.push": "Push to Punk",
       "connect.pushDirty": "Push {n} changed",
       "connect.pushFull": "Full Push",
