@@ -4734,6 +4734,39 @@
         {
           "tag": "Enum",
           "value": {
+            "name": "Target B",
+            "variants": [
+              "Rate",
+              "Depth",
+              "Shape"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Target C",
+            "variants": [
+              "Rate",
+              "Depth",
+              "Shape"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Target D",
+            "variants": [
+              "Rate",
+              "Depth",
+              "Shape"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
             "name": "Source",
             "variants": [
               "Auto",
