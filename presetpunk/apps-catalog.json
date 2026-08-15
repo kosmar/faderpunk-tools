@@ -4632,6 +4632,146 @@
           }
         }
       ]
+    },
+    {
+      "id": 46,
+      "slug": "ripppple",
+      "module": "ripppple",
+      "channels": 4,
+      "name": "Ripppple",
+      "description": "One root LFO cascading through three modulated LFOs",
+      "color": "Cyan",
+      "icon": "Sine",
+      "params": [
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "In Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range B",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range C",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range D",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Source",
+            "variants": [
+              "Auto",
+              "CV In",
+              "Internal LFO"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "LFO Speed",
+            "variants": [
+              "Normal",
+              "Slow",
+              "Slowest"
+            ]
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "MidiNrpn"
+        }
+      ]
     }
   ]
 }
