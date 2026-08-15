@@ -8,7 +8,13 @@ import {
   type MonitorNote,
 } from "./audio/music";
 import { SampleRing } from "./audio/sample-ring";
-import type { AppTrack, CcSpan, MidiCollision, Snapshot } from "./mapping/tracks";
+import type {
+  AppTrack,
+  CcSpan,
+  MidiCollision,
+  Snapshot,
+  TrackMidi,
+} from "./mapping/tracks";
 import {
   applyAppStateToTrack,
   assignUniqueMidiChannels,
@@ -634,6 +640,80 @@ function buildTrackRuntimes(
   return { runtimes, collisions };
 }
 
+function trackChannels(midi: TrackMidi): number[] {
+  return [...new Set([...midi.outChannels, midi.channel])];
+}
+
+/** Shared body of the manual and the automatic per-track release. */
+function releaseTrackVoices(
+  id: string,
+  lanes: MidiLane[],
+  channels: number[],
+  demo: boolean,
+): void {
+  audioEngine.panicTrack(id);
+  for (const lane of lanes) {
+    if (lane.role === "out") lane.ring.clear();
+  }
+  if (snapshot && !demo) {
+    sendMidiPanicChannels(snapshot.device.performanceOutputs, channels);
+  }
+}
+
+/**
+ * MIDI wire identity changes that can strand sounding notes — the NoteOff for
+ * anything still ringing will never arrive, so the old wire has to be released.
+ */
+function strandedRelease(
+  prev: AppTrack,
+  next: AppTrack | undefined,
+): { channels: number[]; notice: string } | null {
+  if (!prev.midi.usbEnabled || !prev.midi.noteMode) return null;
+  const old = trackChannels(prev.midi);
+  const name = prev.app.name;
+  if (!next || next.app.appId !== prev.app.appId) {
+    return { channels: old, notice: `${name} — app swapped out, released hanging notes` };
+  }
+  if (!next.midi.usbEnabled) {
+    return { channels: old, notice: `${name} — USB MIDI off, released hanging notes` };
+  }
+  if (!next.midi.noteMode) {
+    return { channels: old, notice: `${name} — notes off, released hanging notes` };
+  }
+  const kept = new Set(trackChannels(next.midi));
+  const gone = old.filter((ch) => !kept.has(ch));
+  if (gone.length === 0) return null;
+  return {
+    channels: gone,
+    notice: `${name} — MIDI channel moved, released CH ${gone.join("/")}`,
+  };
+}
+
+/**
+ * Release every track whose MIDI wire identity moved out from under its
+ * sounding notes, and hand back the runtimes with their stale activity reset.
+ */
+function releaseStrandedTracks(
+  prev: TrackRuntime[],
+  updated: AppTrack[],
+  demo: boolean,
+): { tracks: TrackRuntime[]; notice: string | undefined } {
+  // Layout slot is the stable identity — AppTrack.key carries appId, so a
+  // swapped app would otherwise look like a disappearing track.
+  const nextByLayout = new Map(updated.map((t) => [t.layoutId, t]));
+  const notices: string[] = [];
+  const tracks = prev.map((tr) => {
+    const strand = strandedRelease(tr.track, nextByLayout.get(tr.track.layoutId));
+    if (!strand) return tr;
+    // Panic on the previous channels and under the previous key: that is where
+    // the notes hang and the id the audio engine still knows them by.
+    releaseTrackVoices(tr.key, tr.lanes, strand.channels, demo);
+    notices.push(strand.notice);
+    return { ...tr, activity: 0, lastEvent: null, inputLevel: 0 };
+  });
+  return { tracks, notice: notices.at(-1) };
+}
+
 function commitTracks(
   updated: AppTrack[],
   get: () => DiagState,
@@ -663,17 +743,21 @@ function commitTracks(
       };
     });
   }
+  const released = releaseStrandedTracks(prev, updated, get().demo);
+  prev = released.tracks;
   dropPendingTrackUi();
   const { runtimes, collisions } = buildTrackRuntimes(
     updated,
     get().keyPc,
     prev,
   );
+  const notice = released.notice;
   set({
     tracks: runtimes,
     collisions,
     usbOn: usb.on,
     usbCapable: usb.capable,
+    ...(notice ? { notice } : {}),
   });
 }
 
@@ -1402,17 +1486,8 @@ export const useDiag = create<DiagState>((set, get) => ({
   panicTrack: (key) => {
     const tr = get().tracks.find((t) => t.key === key);
     if (!tr) return;
-    const channels = [
-      ...tr.track.midi.outChannels,
-      tr.track.midi.channel,
-    ];
-    audioEngine.panicTrack(key);
-    for (const lane of tr.lanes) {
-      if (lane.role === "out") lane.ring.clear();
-    }
-    if (snapshot && !get().demo) {
-      sendMidiPanicChannels(snapshot.device.performanceOutputs, channels);
-    }
+    const channels = trackChannels(tr.track.midi);
+    releaseTrackVoices(key, tr.lanes, channels, get().demo);
     dropPendingTrackUi();
     set((s) => ({
       tracks: s.tracks.map((t) =>
@@ -1420,7 +1495,7 @@ export const useDiag = create<DiagState>((set, get) => ({
           ? { ...t, activity: 0, lastEvent: null, lanes: [...t.lanes] }
           : t,
       ),
-      notice: `${tr.track.app.name} — All Notes Off on CH ${[...new Set(channels)].join("/")}`,
+      notice: `${tr.track.app.name} — All Notes Off on CH ${channels.join("/")}`,
     }));
   },
 
@@ -1542,10 +1617,11 @@ export const useDiag = create<DiagState>((set, get) => ({
       });
       snapshot = { ...snapshot, tracks: updated };
       const usb = countUsbEnabled(updated);
+      const released = releaseStrandedTracks(get().tracks, updated, get().demo);
       const { runtimes, collisions } = buildTrackRuntimes(
         updated,
         get().keyPc,
-        get().tracks,
+        released.tracks,
       );
       dropPendingTrackUi();
       set({
@@ -1558,9 +1634,10 @@ export const useDiag = create<DiagState>((set, get) => ({
         clockSrc: deviceInfo?.clockSrc ?? get().clockSrc,
         clockBpm: deviceInfo?.bpm ?? get().clockBpm,
         notice:
-          usb.capable > 0 && usb.on === 0
+          released.notice ??
+          (usb.capable > 0 && usb.on === 0
             ? "No app has MidiOut→USB enabled — scopes stay flat until you enable it."
-            : "Layout + params refreshed",
+            : "Layout + params refreshed"),
       });
     } catch (err) {
       set({
