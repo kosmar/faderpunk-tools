@@ -1309,6 +1309,29 @@ export function midiIdentityKey(track: AppTrack): string {
   return `ch${track.midi.channel}:cc*`;
 }
 
+/**
+ * Every slot a track actually occupies on the wire.
+ *
+ * CC-span apps hold a run of CCs, so comparing base CCs alone misses the case
+ * where another app sends into the middle of that run — its scope then shows a
+ * foreign wave with no warning.
+ */
+function midiFootprint(track: AppTrack): string[] {
+  if (track.midi.noteMode) {
+    return track.midi.outChannels.map((ch) => `ch${ch}:notes`);
+  }
+  const suffix = track.midi.nrpn ? ":nrpn" : "";
+  const span = track.midi.ccSpan;
+  if (span) {
+    const ccs = span.inCc !== null ? [span.inCc, ...span.outCcs] : [...span.outCcs];
+    return ccs.map((cc) => `ch${track.midi.channel}:cc${cc}${suffix}`);
+  }
+  if (track.midi.cc !== null) {
+    return [`ch${track.midi.channel}:cc${track.midi.cc}${suffix}`];
+  }
+  return [`ch${track.midi.channel}:cc*`];
+}
+
 export interface MidiCollision {
   key: string;
   trackKeys: string[];
@@ -1317,16 +1340,56 @@ export interface MidiCollision {
 
 export function findMidiCollisions(tracks: AppTrack[]): MidiCollision[] {
   const capable = tracks.filter((t) => t.hasMidiMirror);
-  const groups = new Map<string, AppTrack[]>();
-  for (const t of capable) {
-    const key = midiIdentityKey(t);
-    const list = groups.get(key) ?? [];
-    list.push(t);
-    groups.set(key, list);
-  }
+  // Union tracks that share any wire slot, so an app sending into another
+  // app's CC span groups with it even though the two base CCs differ.
+  const parent = capable.map((_, i) => i);
+  const find = (i: number): number => {
+    let root = i;
+    while (parent[root] !== root) root = parent[root] as number;
+    return root;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra !== rb) parent[rb] = ra;
+  };
+
+  const owner = new Map<string, number>();
+  const shared = new Map<number, Set<string>>();
+  capable.forEach((track, i) => {
+    for (const slot of midiFootprint(track)) {
+      const prev = owner.get(slot);
+      if (prev === undefined) {
+        owner.set(slot, i);
+        continue;
+      }
+      union(prev, i);
+      const root = find(i);
+      const set = shared.get(root) ?? new Set<string>();
+      set.add(slot);
+      shared.set(root, set);
+    }
+  });
+
+  const groups = new Map<number, AppTrack[]>();
+  capable.forEach((track, i) => {
+    const root = find(i);
+    const list = groups.get(root) ?? [];
+    list.push(track);
+    groups.set(root, list);
+  });
+
   const out: MidiCollision[] = [];
-  for (const [key, list] of groups) {
+  for (const [root, list] of groups) {
     if (list.length < 2) continue;
+    // Slots recorded before a later union land on the old root; gather from
+    // every member so the key names the full overlap.
+    const slots = new Set<string>();
+    for (const [candidate, set] of shared) {
+      if (find(candidate) !== root) continue;
+      for (const slot of set) slots.add(slot);
+    }
+    const key = [...slots].sort().join("+") || String(root);
     out.push({
       key,
       trackKeys: list.map((t) => t.key),
