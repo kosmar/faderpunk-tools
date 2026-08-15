@@ -634,16 +634,16 @@
     }
     select.is-device-dirty,
     input.is-device-dirty {
-      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
+      outline: 2px solid var(--dirty-mark, var(--fp-yellow));
       outline-offset: 1px;
-      border-color: var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
+      border-color: var(--dirty-mark, var(--fp-yellow));
       box-shadow: none;
       background: color-mix(in oklab, var(--dirty-mark, var(--fp-yellow)) 14%, var(--panel));
     }
     input[type="checkbox"].is-device-dirty,
     input[type="radio"].is-device-dirty,
     input[type="range"].is-device-dirty {
-      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
+      outline: 2px solid var(--dirty-mark, var(--fp-yellow));
       outline-offset: 2px;
       background: transparent;
       accent-color: var(--dirty-mark, var(--fp-yellow));
@@ -1033,8 +1033,8 @@
     tbody tr[data-fader-hue="yellow"] {
       --fader-hue: var(--fp-yellow);
       --fader-hue-line: var(--line-yellow);
-      /* Yellow can’t hold C0.5 @ L62 (clips to mud) — keep hue, ease C / raise L */
-      --dirty-mark: oklch(from var(--fp-yellow) 78% 0.2 h);
+      /* Relative oklch(from yellow…) maps to red in Chromium — pin brand yellow. */
+      --dirty-mark: var(--fp-yellow);
     }
     tbody tr[data-fader-hue="cyan"] {
       --fader-hue: var(--fp-cyan);
