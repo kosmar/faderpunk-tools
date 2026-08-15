@@ -634,20 +634,19 @@
     }
     select.is-device-dirty,
     input.is-device-dirty {
-      --dirty-mark: oklch(from var(--fader-hue, var(--fp-yellow)) 62% 0.5 h);
-      outline: 2px solid var(--dirty-mark);
+      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
       outline-offset: 1px;
-      border-color: var(--dirty-mark);
+      border-color: var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
       box-shadow: none;
-      background: color-mix(in oklab, var(--dirty-mark) 14%, var(--panel));
+      background: color-mix(in oklab, var(--dirty-mark, var(--fp-yellow)) 14%, var(--panel));
     }
     input[type="checkbox"].is-device-dirty,
     input[type="radio"].is-device-dirty,
     input[type="range"].is-device-dirty {
-      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 62% 0.5 h));
+      outline: 2px solid var(--dirty-mark, oklch(from var(--fp-yellow) 78% 0.2 h));
       outline-offset: 2px;
       background: transparent;
-      accent-color: var(--dirty-mark, #fdc42f);
+      accent-color: var(--dirty-mark, var(--fp-yellow));
     }
     input[type="number"] { width: 5em; }
     button.primary {
