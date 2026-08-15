@@ -8613,6 +8613,9 @@
     /** Web MIDI lists Faderpunk in+out (not a live SysEx session). */
     let devicePortsPresent = false;
     let midiAccessWatch = null;
+    /** One reconcile prompt per connected stretch (reset on disconnect). */
+    let connectReconcileAskedWhilePresent = false;
+    let connectReconcileBusy = false;
 
     function livePrefOn() {
       try {
@@ -8679,8 +8682,64 @@
         next = false;
       }
       devicePortsPresent = next;
-      if (was && !next) pauseLiveForNoDevice();
+      if (was && !next) {
+        pauseLiveForNoDevice();
+        connectReconcileAskedWhilePresent = false;
+      }
       syncLiveDeviceGate();
+      if (!was && next) void maybeOfferConnectReconcile();
+    }
+
+    /**
+     * On plug-in: local bank is already in localStorage — offer Push vs Pull.
+     * Blank bank → first-run Pull confirm only.
+     */
+    async function maybeOfferConnectReconcile() {
+      if (
+        !devicePortsPresent ||
+        connectReconcileBusy ||
+        connectReconcileAskedWhilePresent ||
+        pushLive ||
+        livePushInFlight
+      ) {
+        return;
+      }
+      connectReconcileAskedWhilePresent = true;
+      connectReconcileBusy = true;
+      try {
+        // Let gate/UI settle before modal (esp. cold start + MIDI permission).
+        await new Promise((r) => setTimeout(r, 120));
+        if (!devicePortsPresent) return;
+
+        if (isBlankBank(bank)) {
+          const wantPull = await uiConfirm(t("pull.firstRun"), {
+            title: t("pull.title"),
+            ok: t("modal.read"),
+            cancel: t("modal.later"),
+          });
+          if (wantPull && devicePortsPresent) {
+            await pullFromDevice({ ask: false, failAlert: true });
+          }
+          return;
+        }
+
+        const action = await uiChoice(t("connect.reconcile"), {
+          title: t("connect.title"),
+          primary: t("connect.push"),
+          alt: t("connect.pull"),
+          cancel: t("modal.later"),
+          primaryValue: "push",
+          altValue: "pull",
+        });
+        if (!devicePortsPresent || !action) return;
+        if (action === "push") {
+          await pushActivePresetToDevice();
+        } else if (action === "pull") {
+          await pullFromDevice({ ask: true, failAlert: true });
+        }
+      } finally {
+        connectReconcileBusy = false;
+      }
     }
 
     async function startLiveDeviceWatch() {
@@ -9321,14 +9380,16 @@
       render();
     }
 
-    document.getElementById("btnPush").onclick = async () => {
-      if (!devicePortsPresent || blockFullDeviceIoWhileLive()) return;
+    async function pushActivePresetToDevice() {
+      if (!devicePortsPresent || blockFullDeviceIoWhileLive()) return false;
       const btn = document.getElementById("btnPush");
-      btn.dataset.spun = "1";
-      btn.dataset.spinBack = "0";
-      btn.classList.remove("is-spinning", "is-spinning-back", "is-spun");
-      void btn.offsetWidth;
-      btn.classList.add("is-spinning");
+      if (btn) {
+        btn.dataset.spun = "1";
+        btn.dataset.spinBack = "0";
+        btn.classList.remove("is-spinning", "is-spinning-back", "is-spun");
+        void btn.offsetWidth;
+        btn.classList.add("is-spinning");
+      }
       try {
         syncPresetFromFields();
         const sc = preset();
@@ -9342,13 +9403,19 @@
             ? t("push.liveOverflow", { name: sc.name, n: overflow.length })
             : t("push.liveOk", { name: sc.name }),
         );
+        return true;
       } catch (e) {
         setStatus("warn", String(e.message || e));
         await uiAlert(
           t("push.failTips", { msg: e.message || e }),
           { title: t("push.failTitle") },
         );
+        return false;
       }
+    }
+
+    document.getElementById("btnPush").onclick = async () => {
+      await pushActivePresetToDevice();
     };
     document.getElementById("btnPush").addEventListener("animationend", (ev) => {
       const btn = ev.currentTarget;
@@ -9836,14 +9903,6 @@
 
       if (isBlankBank(bank)) {
         setStatus("ok", t("status.emptyBank"));
-        const wantPull = await uiConfirm(t("pull.firstRun"), {
-          title: t("pull.title"),
-          ok: t("modal.read"),
-          cancel: t("modal.later"),
-        });
-        if (wantPull) {
-          await pullFromDevice({ ask: false, failAlert: true });
-        }
       } else if (fromServer) {
         setStatus("ok", t("status.bankFromServer", { n: bank.length, tab: presetGlyphFor(preset()) }));
       }

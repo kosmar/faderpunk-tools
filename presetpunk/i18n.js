@@ -280,6 +280,11 @@
       "push.liveOff": "Live sync off",
       "push.liveNoDevice":
         "Live sync needs a connected Faderpunk (Web MIDI in this tab).",
+      "connect.title": "Faderpunk connected",
+      "connect.reconcile":
+        "Editor bank is already saved locally.\n\nPush the active preset to the Punk, or pull the device layout into the editor (new preset or replace active)?",
+      "connect.push": "Push to Punk",
+      "connect.pull": "Pull from Punk…",
       "push.failTips":
         "{msg}\n\nTips:\n• Allow MIDI/SysEx in this browser tab\n• Close other tabs using the Faderpunk (Configurator, Diagnostics)\n• Check the push log below",
       "pull.confirm":
@@ -721,6 +726,11 @@
       "push.liveOff": "Live Sync aus",
       "push.liveNoDevice":
         "Live Sync braucht einen verbundenen Faderpunk (Web MIDI in diesem Tab).",
+      "connect.title": "Faderpunk verbunden",
+      "connect.reconcile":
+        "Die Editor-Bank liegt schon lokal.\n\nAktives Preset zum Punk pushen, oder Layout vom Gerät pullen (neues Preset oder aktives ersetzen)?",
+      "connect.push": "Zum Punk pushen",
+      "connect.pull": "Vom Punk pullen…",
       "push.failTips":
         "{msg}\n\nTipps:\n• MIDI/SysEx in diesem Tab erlauben\n• Andere Tabs mit dem Faderpunk schließen (Configurator, Diagnostics)\n• Push-Log unten prüfen",
       "pull.failTips":
@@ -1092,6 +1102,11 @@
       "push.liveOff": "Sync live off",
       "push.liveNoDevice":
         "Sync live nécessite un Faderpunk connecté (Web MIDI dans cet onglet).",
+      "connect.title": "Faderpunk connecté",
+      "connect.reconcile":
+        "La banque de l’éditeur est déjà enregistrée localement.\n\nPousser le preset actif vers le Punk, ou tirer le layout de l’appareil (nouveau preset ou remplacer l’actif) ?",
+      "connect.push": "Push vers Punk",
+      "connect.pull": "Pull du Punk…",
       "push.failTips":
         "{msg}\n\nConseils :\n• Autoriser MIDI/SysEx dans cet onglet\n• Fermer les autres onglets qui utilisent le Faderpunk (Configurator, Diagnostics)\n• Vérifier le journal push",
       "pull.failTips":
