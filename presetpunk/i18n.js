@@ -280,6 +280,8 @@
       "push.liveOff": "Live sync off",
       "push.liveNoDevice":
         "Live sync needs a connected Faderpunk (Web MIDI in this tab).",
+      "dirty.unpushed":
+        "Changed while offline / Live off — not on the Punk yet",
       "connect.title": "Faderpunk connected",
       "connect.reconcile":
         "Editor and Punk may differ.\n\nPush the active preset to the device, or pull the device layout into the editor (new preset or replace active)?",
@@ -726,6 +728,8 @@
       "push.liveOff": "Live Sync aus",
       "push.liveNoDevice":
         "Live Sync braucht einen verbundenen Faderpunk (Web MIDI in diesem Tab).",
+      "dirty.unpushed":
+        "Geändert offline / bei Live aus — noch nicht auf dem Punk",
       "connect.title": "Faderpunk verbunden",
       "connect.reconcile":
         "Editor und Punk können abweichen.\n\nAktives Preset zum Gerät pushen, oder Layout vom Punk pullen (neues Preset oder aktives ersetzen)?",
@@ -1102,6 +1106,8 @@
       "push.liveOff": "Sync live off",
       "push.liveNoDevice":
         "Sync live nécessite un Faderpunk connecté (Web MIDI dans cet onglet).",
+      "dirty.unpushed":
+        "Modifié hors ligne / sans Live — pas encore sur le Punk",
       "connect.title": "Faderpunk connecté",
       "connect.reconcile":
         "L’éditeur et le Punk peuvent différer.\n\nPousser le preset actif vers l’appareil, ou tirer le layout du Punk (nouveau preset ou remplacer l’actif) ?",

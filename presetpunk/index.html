@@ -632,6 +632,12 @@
       border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px;
       max-width: 100%;
     }
+    select.is-device-dirty,
+    input.is-device-dirty {
+      border-color: color-mix(in srgb, var(--fp-yellow) 65%, var(--line));
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fp-yellow) 28%, transparent);
+      background: color-mix(in srgb, var(--fp-yellow) 10%, var(--panel));
+    }
     input[type="number"] { width: 5em; }
     button.primary {
       cursor: pointer; background: var(--accent); border-color: transparent; font-weight: 450;
@@ -6929,6 +6935,7 @@
       sc.rows.splice(i, 1);
       saveBank();
       scheduleLiveStructurePush({ allParams: true });
+      clearDeviceDirty((k) => k.startsWith("r:"));
       render();
     }
 
@@ -7371,6 +7378,7 @@
       for (const id of ids) {
         const el = document.getElementById(id);
         const onEdit = () => {
+          markDeviceDirtyFromEl(el);
           syncPresetFromFields();
           updateAuxDivEnabled();
           updateMidiSourcesVisible();
@@ -7380,6 +7388,7 @@
         };
         el.addEventListener("change", onEdit);
         el.addEventListener("input", () => {
+          markDeviceDirtyFromEl(el);
           syncPresetFromFields();
           const section = sectionForId(id);
           if (section) scheduleLiveGlobalPush(section);
@@ -7837,6 +7846,7 @@
         restoreView();
         requestAnimationFrame(restoreView);
       });
+      applyDeviceDirtyMarks();
     }
 
     function reorderRows(from, to) {
@@ -7848,6 +7858,7 @@
       rows.splice(to, 0, moved);
       saveBank();
       scheduleLiveStructurePush({ allParams: true });
+      clearDeviceDirty((k) => k.startsWith("r:"));
       render();
     }
 
@@ -7913,6 +7924,7 @@
       const sc = preset();
       const rowRef = sc.rows[i];
       if (!rowRef) return;
+      markDeviceDirtyFromEl(el);
       const beforeDeps = depsSignature(rowRef);
       syncRangePair(el);
       if (k === "sv") {
@@ -8870,6 +8882,130 @@
 
     function markLiveLayoutSynced() {
       liveLayoutSynced = true;
+      clearDeviceDirtyAll();
+    }
+
+    /** Controls edited while not live-pushed (offline or Live off). */
+    const deviceDirty = new Set();
+
+    function dirtyKeyFromControl(el) {
+      if (!(el instanceof HTMLElement)) return null;
+      if (el.id && /^g[A-Z]/.test(el.id)) return `g:${el.id}`;
+      const i = el.dataset?.i;
+      const k = el.dataset?.k;
+      if (i == null || k == null) return null;
+      let key = `r:${i}:${k}`;
+      if (el.dataset.slot != null) key += `:s${el.dataset.slot}`;
+      if (el.dataset.pi != null) key += `:p${el.dataset.pi}`;
+      if (el.dataset.bit != null) key += `:b${el.dataset.bit}`;
+      return key;
+    }
+
+    function findControlForDirtyKey(key) {
+      if (key.startsWith("g:")) return document.getElementById(key.slice(2));
+      const m = /^r:(\d+):([^:]+)(?::s(\d+))?(?::p(\d+))?(?::b(\d+))?$/.exec(key);
+      if (!m) return null;
+      const parts = [
+        `[data-i="${CSS.escape(m[1])}"]`,
+        `[data-k="${CSS.escape(m[2])}"]`,
+      ];
+      if (m[3] != null) parts.push(`[data-slot="${CSS.escape(m[3])}"]`);
+      if (m[4] != null) parts.push(`[data-pi="${CSS.escape(m[4])}"]`);
+      if (m[5] != null) parts.push(`[data-bit="${CSS.escape(m[5])}"]`);
+      return document.querySelector(
+        `#rows ${parts.join("")}, #rowsOverflow ${parts.join("")}`,
+      );
+    }
+
+    function shouldMarkDeviceDirty() {
+      // Offline (Live forced off) or Live sync intentionally off → unpushed edits.
+      return !livePushEnabled();
+    }
+
+    function markDeviceDirtyFromEl(el) {
+      if (!shouldMarkDeviceDirty()) return;
+      const key = dirtyKeyFromControl(el);
+      if (!key) return;
+      deviceDirty.add(key);
+      paintDeviceDirtyEl(el);
+    }
+
+    function paintDeviceDirtyEl(el) {
+      if (!(el instanceof HTMLElement)) return;
+      el.classList.add("is-device-dirty");
+      if (el.dataset.dirtyTitle == null) {
+        el.dataset.dirtyTitle = el.getAttribute("title") || "";
+      }
+      el.title = t("dirty.unpushed");
+    }
+
+    function clearDeviceDirty(predicate) {
+      if (!predicate) {
+        deviceDirty.clear();
+        return;
+      }
+      for (const k of [...deviceDirty]) {
+        if (predicate(k)) deviceDirty.delete(k);
+      }
+    }
+
+    function clearDeviceDirtyAll() {
+      deviceDirty.clear();
+      applyDeviceDirtyMarks();
+    }
+
+    function clearDeviceDirtyForRows(indexes) {
+      const set = new Set((indexes || []).map(Number));
+      clearDeviceDirty((k) => {
+        const m = /^r:(\d+):/.exec(k);
+        return m && set.has(Number(m[1]));
+      });
+      applyDeviceDirtyMarks();
+    }
+
+    function clearDeviceDirtyGlobal(sections) {
+      const ids = new Set();
+      for (const section of sections || []) {
+        if (section === "quant") ["gScale", "gTonic"].forEach((id) => ids.add(id));
+        else if (section === "clock") {
+          ["gClockSrc", "gResetSrc", "gBpm", "gSwing", "gTakeover"].forEach((id) =>
+            ids.add(id),
+          );
+        } else if (section === "aux") {
+          for (let i = 0; i < 3; i++) {
+            ids.add(`gAux${i}Mode`);
+            ids.add(`gAux${i}Div`);
+          }
+        } else if (section === "midi") {
+          for (let i = 0; i < 3; i++) {
+            ids.add(`gMidi${i}Mode`);
+            ids.add(`gMidi${i}Clock`);
+            ids.add(`gMidi${i}Transport`);
+            if (i > 0) {
+              ids.add(`gMidi${i}SrcUsb`);
+              ids.add(`gMidi${i}SrcDin`);
+            }
+          }
+        }
+      }
+      clearDeviceDirty((k) => k.startsWith("g:") && ids.has(k.slice(2)));
+      applyDeviceDirtyMarks();
+    }
+
+    function applyDeviceDirtyMarks() {
+      document.querySelectorAll(".is-device-dirty").forEach((el) => {
+        el.classList.remove("is-device-dirty");
+        if (el.dataset.dirtyTitle != null) {
+          const prev = el.dataset.dirtyTitle;
+          delete el.dataset.dirtyTitle;
+          if (prev) el.title = prev;
+          else el.removeAttribute("title");
+        }
+      });
+      for (const key of deviceDirty) {
+        const el = findControlForDirtyKey(key);
+        if (el) paintDeviceDirtyEl(el);
+      }
     }
 
     /** Visible live feedback: status + push log (+ optional open dock). */
@@ -8994,6 +9130,7 @@
           onLog: (line) => appendPushLog(line),
         });
         liveNote("ok", t("push.liveGlobalOk"));
+        clearDeviceDirtyGlobal(sections);
         finishGlobalMeteorSpin(sections, { ok: true });
       } catch (e) {
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
@@ -9237,6 +9374,7 @@
               expectAppId: slotForId?.appId ?? null,
             });
             liveNote("ok", t("push.liveOkSlot", meta));
+            clearDeviceDirtyForRows(rowsFor);
             finishRowMeteorSpin(rowsFor, { ok: true });
           } catch (e) {
             liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
