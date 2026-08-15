@@ -21,6 +21,16 @@ export interface AppMeta {
   params: Param[];
 }
 
+/**
+ * A run of CC numbers one app occupies on a single MIDI channel (Manifold).
+ * `inCc` is the conditioned CV input, `outCcs` the real outputs in order.
+ */
+export interface CcSpan {
+  inCc: number | null;
+  outCcs: number[];
+  outNames: string[];
+}
+
 export interface TrackMidi {
   /** MidiOut → USB enabled */
   usbEnabled: boolean;
@@ -40,6 +50,8 @@ export interface TrackMidi {
   /** MidiIn → DIN enabled (null = no MidiIn param). */
   inDin: boolean | null;
   cc: number | null; // 0–127 when CC app
+  /** Set only for apps spanning several CCs on `channel` (null = ordinary single-CC app). */
+  ccSpan: CcSpan | null;
   /**
    * Primary monitor is notes (MIDI pitch). False = CC envelope at Wave-Hz.
    * Hybrid apps (note + CC without exclusive MidiMode) keep this true and set playCc.
@@ -378,7 +390,7 @@ export function applyAppStateToTrack(
   // Only rewrite wire identity when every MidiChannel slot is present — never
   // invent CH1 from an incomplete/mis-paired AppState.
   if (midiChannelValuesPresent(schema.params, values)) {
-    const midi = extractMidi(schema.params, values, schema.name);
+    const midi = extractMidi(schema.params, values, schema.name, schema.appId);
     return { ...track, app, midi, paramRows, hasMidiMirror };
   }
 
@@ -389,7 +401,7 @@ export function applyAppStateToTrack(
     hasMidiMirror,
     midi: {
       ...track.midi,
-      ...monitorFlagsOnly(schema.params, values, schema.name, track.midi),
+      ...monitorFlagsOnly(schema.params, values, schema.name, track.midi, schema.appId),
     },
   };
 }
@@ -425,7 +437,8 @@ function monitorFlagsOnly(
   values: Value[],
   appName: string,
   prior: TrackMidi,
-): Pick<TrackMidi, "noteMode" | "playCc" | "cc"> {
+  appId?: number,
+): Pick<TrackMidi, "noteMode" | "playCc" | "cc" | "ccSpan"> {
   const { noteMode, playCc } = inferMonitorFlags(params, values, appName);
   let cc = prior.cc;
   for (let i = 0; i < params.length; i++) {
@@ -433,7 +446,7 @@ function monitorFlagsOnly(
     const next = midiCcFromValue(values[i]);
     if (next !== null) cc = next;
   }
-  return { noteMode, playCc, cc };
+  return { noteMode, playCc, cc, ccSpan: ccSpanFor(appId, cc) };
 }
 
 /** Live Color param (overrides static CONFIG color from AppConfig). */
@@ -570,6 +583,7 @@ function buildTracksFromLayout(
           inUsb: null,
           inDin: null,
           cc: null,
+          ccSpan: null,
           noteMode: true,
           playCc: false,
           setupNotes: [],
@@ -582,7 +596,7 @@ function buildTracksFromLayout(
     }
 
     const app = withLiveColor(appBase, values);
-    const midi = extractMidi(app.params, values, app.name);
+    const midi = extractMidi(app.params, values, app.name, appId);
     const paramRows = buildParamRows(app.params, values, app.name);
     const hasMidiMirror = computeHasMidiMirror(app.name, app.params, values);
 
@@ -685,6 +699,22 @@ function computeHasMidiMirror(
   return params.some((p) => p.tag === "MidiOut" || p.tag === "MidiChannel");
 }
 
+/** Manifold: one MIDI channel, four consecutive CCs (CV in + Out B/C/D). */
+const MANIFOLD_APP_ID = 43;
+
+const MANIFOLD_OUT_NAMES = ["Out B", "Out C", "Out D"];
+
+function ccSpanFor(appId: number | undefined, cc: number | null): CcSpan | null {
+  if (appId !== MANIFOLD_APP_ID || cc === null) return null;
+  // Base CC too high for the full run — stay on plain single-CC behaviour.
+  if (cc + MANIFOLD_OUT_NAMES.length > 127) return null;
+  return {
+    inCc: cc,
+    outCcs: MANIFOLD_OUT_NAMES.map((_, i) => cc + 1 + i),
+    outNames: [...MANIFOLD_OUT_NAMES],
+  };
+}
+
 /** Configurator labels Out Ping / Out Pong when both outs exist. */
 function friendlyOutChannelName(name: string, hasPongSibling: boolean): string {
   if (/pong/i.test(name)) return "Out Pong";
@@ -750,7 +780,12 @@ function inferMonitorFlags(
  * - MidiChannel(s) before MidiOut (or lone) → all are output channels
  *   (Grooves Kick/Snare/Hats, FP Grids, …)
  */
-function extractMidi(params: Param[], values: Value[], appName: string): TrackMidi {
+function extractMidi(
+  params: Param[],
+  values: Value[],
+  appName: string,
+  appId?: number,
+): TrackMidi {
   let outChannel = 1;
   let outChannels: number[] = [];
   let outChannelNames: string[] = [];
@@ -882,6 +917,7 @@ function extractMidi(params: Param[], values: Value[], appName: string): TrackMi
     inUsb,
     inDin,
     cc,
+    ccSpan: ccSpanFor(appId, cc),
     noteMode,
     playCc,
     setupNotes,

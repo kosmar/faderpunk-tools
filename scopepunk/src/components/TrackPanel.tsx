@@ -37,8 +37,9 @@ function laneLabel(
   outIndex: number,
   outCount: number,
   outName?: string,
+  laneName?: string,
 ): string {
-  if (role === "in") return `In · CH${channel}`;
+  if (role === "in") return `${laneName ?? "In"} · CH${channel}`;
   const short =
     outName
       ?.replace(/^MIDI\s+/i, "")
@@ -362,11 +363,20 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
               {lanes.map((lane) => {
                 const outIndex = lane.role === "out" ? outLanes.indexOf(lane) : 0;
                 const outName =
-                  lane.role === "out" ? track.midi.outChannelNames[outIndex] : undefined;
+                  lane.role === "out"
+                    ? (lane.name ?? track.midi.outChannelNames[outIndex])
+                    : undefined;
                 const baseLabel =
                   collision && lane.role === "out"
-                    ? `shared · ${laneLabel(lane.role, lane.channel, outIndex, outLanes.length, outName)}`
-                    : laneLabel(lane.role, lane.channel, outIndex, outLanes.length, outName);
+                    ? `shared · ${laneLabel(lane.role, lane.channel, outIndex, outLanes.length, outName, lane.name)}`
+                    : laneLabel(
+                        lane.role,
+                        lane.channel,
+                        outIndex,
+                        outLanes.length,
+                        outName,
+                        lane.name,
+                      );
                 const noteSelect =
                   showMonitorNote && lane.role === "out" && lane.monitorNote ? (
                     <select

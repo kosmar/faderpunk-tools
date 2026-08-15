@@ -8,7 +8,7 @@ import {
   type MonitorNote,
 } from "./audio/music";
 import { SampleRing } from "./audio/sample-ring";
-import type { AppTrack, MidiCollision, Snapshot } from "./mapping/tracks";
+import type { AppTrack, CcSpan, MidiCollision, Snapshot } from "./mapping/tracks";
 import {
   applyAppStateToTrack,
   assignUniqueMidiChannels,
@@ -50,6 +50,10 @@ export interface MidiLane {
   role: "in" | "out";
   channel: number;
   ring: SampleRing;
+  /** Set for CC-span lanes (Manifold) — several lanes share one channel. */
+  cc?: number;
+  /** Display name for CC-span lanes, which have no outChannelNames entry. */
+  name?: string;
   /** CC carrier note for this out — independent per MIDI out. */
   monitorNote?: MonitorNote;
 }
@@ -285,6 +289,11 @@ function tracksVisiblyEqual(prev: AppTrack[], next: AppTrack[]): boolean {
   });
 }
 
+function ccInSpan(span: CcSpan | null, cc: number): boolean {
+  if (!span) return false;
+  return span.inCc === cc || span.outCcs.includes(cc);
+}
+
 function routeEvent(tracks: TrackRuntime[], ev: MidiEvent): {
   matches: TrackRuntime[];
   ambiguous: boolean;
@@ -306,7 +315,7 @@ function routeEvent(tracks: TrackRuntime[], ev: MidiEvent): {
         tr.track.midi.playCc &&
         tr.track.midi.cc !== null &&
         ev.cc !== undefined &&
-        tr.track.midi.cc === ev.cc,
+        (tr.track.midi.cc === ev.cc || ccInSpan(tr.track.midi.ccSpan, ev.cc)),
     );
     if (byCc.length > 0) {
       return { matches: byCc, ambiguous: byCc.length > 1 };
@@ -473,6 +482,38 @@ function buildLanes(
 ): MidiLane[] {
   const reuse = (key: string) => prev?.find((l) => l.key === key);
   const lanes: MidiLane[] = [];
+  const span = track.midi.ccSpan;
+  if (span) {
+    const channel = track.midi.channel;
+    if (span.inCc !== null) {
+      // The conditioned CV input is the app's input, so it gets the in-lane and
+      // stays out of the "avg pulse" average over the real outputs.
+      const key = `in:cc:${span.inCc}`;
+      const prior = reuse(key);
+      lanes.push({
+        key,
+        role: "in",
+        channel,
+        cc: span.inCc,
+        name: "CV In",
+        ring: scopeRing(prior?.ring),
+      });
+    }
+    span.outCcs.forEach((cc, i) => {
+      const key = `out:cc:${cc}`;
+      const prior = reuse(key);
+      lanes.push({
+        key,
+        role: "out",
+        channel,
+        cc,
+        name: span.outNames[i] ?? `Out ${i + 1}`,
+        ring: scopeRing(prior?.ring),
+        monitorNote: prior?.monitorNote ?? defaultMonitorNote(trackIndex * 3 + i),
+      });
+    });
+    return lanes;
+  }
   if (track.midi.inChannel !== null) {
     const key = `in:${track.midi.inChannel}`;
     const prior = reuse(key);
@@ -513,6 +554,18 @@ function buildLanes(
 
 function outLaneForChannel(lanes: MidiLane[], channel: number): MidiLane | undefined {
   return lanes.find((l) => l.role === "out" && l.channel === channel);
+}
+
+/** CC-span tracks put every CC on one channel — pick the lane by CC instead. */
+function outLaneForEvent(
+  track: AppTrack,
+  lanes: MidiLane[],
+  ev: MidiEvent,
+): MidiLane | undefined {
+  if (track.midi.ccSpan && ev.cc !== undefined) {
+    return lanes.find((l) => l.role === "out" && l.cc === ev.cc);
+  }
+  return outLaneForChannel(lanes, ev.channel);
 }
 
 function inLane(lanes: MidiLane[]): MidiLane | undefined {
@@ -938,6 +991,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             inUsb: null,
             inDin: null,
             cc: 1,
+            ccSpan: null,
             noteMode: false,
             playCc: true,
             setupNotes: [],
@@ -975,6 +1029,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             inUsb: null,
             inDin: null,
             cc: null,
+            ccSpan: null,
             noteMode: true,
             playCc: false,
             setupNotes: [48],
@@ -1012,6 +1067,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             inUsb: null,
             inDin: null,
             cc: 16,
+            ccSpan: null,
             noteMode: false,
             playCc: true,
             setupNotes: [],
@@ -1644,7 +1700,9 @@ export const useDiag = create<DiagState>((set, get) => ({
     if (isVoice) {
       for (const tr of baseTracks) {
         const inn = inLane(tr.lanes);
-        if (inn && inn.channel === ev.channel) pushVoiceToRing(inn.ring, ev);
+        if (!inn || inn.channel !== ev.channel) continue;
+        if (inn.cc !== undefined && inn.cc !== ev.cc) continue;
+        pushVoiceToRing(inn.ring, ev);
       }
     }
 
@@ -1680,7 +1738,7 @@ export const useDiag = create<DiagState>((set, get) => ({
         : matches.slice(0, 1);
     const audioKeys = new Set(audioMatches.map((m) => m.key));
     for (const match of matches) {
-      const lane = outLaneForChannel(match.lanes, ev.channel);
+      const lane = outLaneForEvent(match.track, match.lanes, ev);
       if (lane) pushVoiceToRing(lane.ring, ev);
       if (audioKeys.has(match.key)) {
         audioEngine.handle(match.key, ev, false, lane?.key);
