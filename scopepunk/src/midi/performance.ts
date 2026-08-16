@@ -126,7 +126,9 @@ export class PerformanceParser {
         t,
         kind: "nrpn",
         channel,
-        cc: param & 0x7f,
+        // Keep the full 14-bit address — span apps (and mapped CCs) can sit
+        // above 127 in NRPN mode, and masking to 7 bits mis-routes them.
+        cc: param,
         value: raw / 16383,
         rawValue: raw,
       };

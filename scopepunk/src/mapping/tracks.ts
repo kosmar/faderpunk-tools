@@ -31,6 +31,12 @@ export interface CcSpan {
   outNames: string[];
   /** Label for the in-lane; falls back to "CV In". */
   inName?: string;
+  /**
+   * MIDI channel per wave, aligned with `[inCc, ...outCcs]` when `inCc` is set,
+   * otherwise with `outCcs`. Omitted means every wave sits on the track's base
+   * channel — the historic single-channel span.
+   */
+  channels?: number[];
 }
 
 export interface TrackMidi {
@@ -111,11 +117,28 @@ function midiChannelFromValue(value: Value | undefined): number {
   return Math.max(1, Math.min(16, Math.round(n)));
 }
 
-function midiCcFromValue(value: Value | undefined): number | null {
+function midiCcFromValue(value: Value | undefined, max = 127): number | null {
   if (value?.tag !== "MidiCc") return null;
   const n = Number(Array.isArray(value.value) ? value.value[0] : value.value);
   if (!Number.isFinite(n)) return null;
-  return Math.max(0, Math.min(127, Math.round(n) & 0x7f));
+  return Math.max(0, Math.min(max, Math.round(n)));
+}
+
+function i32FromValue(value: Value | undefined): number | null {
+  if (value?.tag !== "i32") return null;
+  const n = Number(value.value);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+/** Live i32 param by CONFIG name (Ch Map / CC Map). */
+function namedI32(params: Param[], values: Value[], re: RegExp): number {
+  for (let i = 0; i < params.length; i++) {
+    const p = params[i];
+    if (p?.tag !== "i32") continue;
+    if (!re.test(p.value.name)) continue;
+    return i32FromValue(values[i]) ?? 0;
+  }
+  return 0;
 }
 
 function midiOutFlags(
@@ -442,13 +465,22 @@ function monitorFlagsOnly(
   appId?: number,
 ): Pick<TrackMidi, "noteMode" | "playCc" | "cc" | "ccSpan"> {
   const { noteMode, playCc } = inferMonitorFlags(params, values, appName);
+  let nrpn = prior.nrpn;
+  for (let i = 0; i < params.length; i++) {
+    if (params[i]?.tag === "MidiNrpn") nrpn = midiNrpn(values[i]);
+  }
   let cc = prior.cc;
   for (let i = 0; i < params.length; i++) {
     if (params[i]?.tag !== "MidiCc") continue;
-    const next = midiCcFromValue(values[i]);
+    const next = midiCcFromValue(values[i], nrpn ? 16383 : 127);
     if (next !== null) cc = next;
   }
-  return { noteMode, playCc, cc, ccSpan: ccSpanFor(appId, cc) };
+  return {
+    noteMode,
+    playCc,
+    cc,
+    ccSpan: ccSpanFor(appId, cc, prior.channel, params, values, nrpn),
+  };
 }
 
 /** Live Color param (overrides static CONFIG color from AppConfig). */
@@ -702,9 +734,10 @@ function computeHasMidiMirror(
 }
 
 /**
- * Apps that mirror several channels onto one MIDI channel as a run of
- * consecutive CCs: the base CC carries the input, the following ones the
- * outputs in order.
+ * Apps that mirror several waves as MIDI CC/NRPN. By default they share one
+ * MIDI channel and a run of consecutive CCs (base, base+1, …). Optional
+ * packed `Ch Map` / `CC Map` i32 params (Manifold, Ripppple) break that up —
+ * Scopepunk has to read those maps or the scopes stay flat on the wrong slot.
  */
 const CC_SPAN_APPS: Record<number, { inName?: string; outNames: string[] }> = {
   // Manifold: CV in + Out B/C/D.
@@ -713,17 +746,54 @@ const CC_SPAN_APPS: Record<number, { inName?: string; outNames: string[] }> = {
   46: { inName: "Root", outNames: ["Stage 1", "Stage 2", "Stage 3"] },
 };
 
-function ccSpanFor(appId: number | undefined, cc: number | null): CcSpan | null {
+/** Firmware: ch_map 0 → every wave follows base; else nibble + 1 = channel. */
+function unpackChMap(map: number, count: number, follow: number): number[] {
+  if (map === 0) return Array.from({ length: count }, () => follow);
+  return Array.from({ length: count }, (_, w) => ((map >> (4 * w)) & 0xf) + 1);
+}
+
+/**
+ * Firmware: cc_map 0 → base + wave index (clamped); else a 7-bit field per
+ * wave. Mapped fields stay 7-bit even in NRPN mode — only the follow path
+ * reaches the 14-bit NRPN range.
+ */
+function unpackCcMap(
+  map: number,
+  count: number,
+  base: number,
+  nrpn: boolean,
+): number[] {
+  const lim = nrpn ? 16383 : 127;
+  if (map === 0) {
+    return Array.from({ length: count }, (_, w) => Math.min(lim, base + w));
+  }
+  return Array.from({ length: count }, (_, w) => (map >> (7 * w)) & 0x7f);
+}
+
+function ccSpanFor(
+  appId: number | undefined,
+  cc: number | null,
+  channel: number,
+  params: Param[],
+  values: Value[],
+  nrpn: boolean,
+): CcSpan | null {
   if (appId === undefined || cc === null) return null;
   const spec = CC_SPAN_APPS[appId];
   if (!spec) return null;
-  // Base CC too high for the full run — stay on plain single-CC behaviour.
-  if (cc + spec.outNames.length > 127) return null;
+  const waveCount = 1 + spec.outNames.length;
+  const chMap = namedI32(params, values, /^Ch Map$/i);
+  const ccMap = namedI32(params, values, /^CC Map$/i);
+  // Follow-path guard: base too high for a consecutive 7-bit run.
+  if (ccMap === 0 && !nrpn && cc + spec.outNames.length > 127) return null;
+  const ccs = unpackCcMap(ccMap, waveCount, cc, nrpn);
+  const channels = unpackChMap(chMap, waveCount, channel);
   return {
-    inCc: cc,
-    outCcs: spec.outNames.map((_, i) => cc + 1 + i),
+    inCc: ccs[0] ?? cc,
+    outCcs: ccs.slice(1),
     outNames: [...spec.outNames],
     inName: spec.inName,
+    channels,
   };
 }
 
@@ -853,7 +923,8 @@ function extractMidi(
         break;
       }
       case "MidiCc":
-        cc = midiCcFromValue(value);
+        // Provisional 14-bit read; clamped to 7-bit below when NRPN is off.
+        cc = midiCcFromValue(value, 16383);
         break;
       case "MidiNote": {
         const n = midiNoteFromValue(value);
@@ -918,6 +989,8 @@ function extractMidi(
     outChannel = outChannels[0] ?? outChannel;
   }
 
+  if (cc !== null && !nrpn) cc = Math.min(127, cc);
+
   return {
     usbEnabled,
     out1,
@@ -929,7 +1002,7 @@ function extractMidi(
     inUsb,
     inDin,
     cc,
-    ccSpan: ccSpanFor(appId, cc),
+    ccSpan: ccSpanFor(appId, cc, outChannel, params, values, nrpn),
     noteMode,
     playCc,
     setupNotes,
@@ -1324,7 +1397,10 @@ function midiFootprint(track: AppTrack): string[] {
   const span = track.midi.ccSpan;
   if (span) {
     const ccs = span.inCc !== null ? [span.inCc, ...span.outCcs] : [...span.outCcs];
-    return ccs.map((cc) => `ch${track.midi.channel}:cc${cc}${suffix}`);
+    return ccs.map((cc, i) => {
+      const ch = span.channels?.[i] ?? track.midi.channel;
+      return `ch${ch}:cc${cc}${suffix}`;
+    });
   }
   if (track.midi.cc !== null) {
     return [`ch${track.midi.channel}:cc${track.midi.cc}${suffix}`];

@@ -308,11 +308,14 @@ function routeEvent(tracks: TrackRuntime[], ev: MidiEvent): {
     return { matches: [], ambiguous: false };
   }
 
-  const onChannel = tracks.filter(
-    (tr) =>
+  const onChannel = tracks.filter((tr) => {
+    const spanChs = tr.track.midi.ccSpan?.channels;
+    if (spanChs && spanChs.length > 0) return spanChs.includes(ev.channel);
+    return (
       tr.track.midi.channel === ev.channel ||
-      tr.track.midi.outChannels.includes(ev.channel),
-  );
+      tr.track.midi.outChannels.includes(ev.channel)
+    );
+  });
   if (onChannel.length === 0) return { matches: [], ambiguous: false };
 
   if (ev.kind === "cc" || ev.kind === "nrpn") {
@@ -488,30 +491,34 @@ function buildLanes(
 ): MidiLane[] {
   const reuse = (key: string) => prev?.find((l) => l.key === key);
   const lanes: MidiLane[] = [];
+  const channel = track.midi.channel;
   const span = track.midi.ccSpan;
   if (span) {
-    const channel = track.midi.channel;
+    const chs = span.channels;
     if (span.inCc !== null) {
       // The conditioned CV input is the app's input, so it gets the in-lane and
       // stays out of the "avg pulse" average over the real outputs.
-      const key = `in:cc:${span.inCc}`;
-      const prior = reuse(key);
+      const ch = chs?.[0] ?? channel;
+      const key = `in:ch${ch}:cc:${span.inCc}`;
+      const prior = reuse(key) ?? reuse(`in:cc:${span.inCc}`);
       lanes.push({
         key,
         role: "in",
-        channel,
+        channel: ch,
         cc: span.inCc,
         name: span.inName ?? "CV In",
         ring: scopeRing(prior?.ring),
       });
     }
     span.outCcs.forEach((cc, i) => {
-      const key = `out:cc:${cc}`;
-      const prior = reuse(key);
+      const wave = (span.inCc !== null ? 1 : 0) + i;
+      const ch = chs?.[wave] ?? channel;
+      const key = `out:ch${ch}:cc:${cc}`;
+      const prior = reuse(key) ?? reuse(`out:cc:${cc}`);
       lanes.push({
         key,
         role: "out",
-        channel,
+        channel: ch,
         cc,
         name: span.outNames[i] ?? `Out ${i + 1}`,
         ring: scopeRing(prior?.ring),
@@ -562,14 +569,18 @@ function outLaneForChannel(lanes: MidiLane[], channel: number): MidiLane | undef
   return lanes.find((l) => l.role === "out" && l.channel === channel);
 }
 
-/** CC-span tracks put every CC on one channel — pick the lane by CC instead. */
+/** CC-span tracks may put each CC on its own channel — match both. */
 function outLaneForEvent(
   track: AppTrack,
   lanes: MidiLane[],
   ev: MidiEvent,
 ): MidiLane | undefined {
   if (track.midi.ccSpan && ev.cc !== undefined) {
-    return lanes.find((l) => l.role === "out" && l.cc === ev.cc);
+    return (
+      lanes.find(
+        (l) => l.role === "out" && l.cc === ev.cc && l.channel === ev.channel,
+      ) ?? lanes.find((l) => l.role === "out" && l.cc === ev.cc)
+    );
   }
   return outLaneForChannel(lanes, ev.channel);
 }
