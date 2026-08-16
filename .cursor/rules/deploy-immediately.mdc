@@ -1,0 +1,14 @@
+---
+description: Commit and deploy GitHub Pages immediately after finished work
+alwaysApply: true
+---
+
+# Deploy immediately
+
+After finishing a change set that should go live (Presetpunk/Scopepunk/site):
+
+1. Commit with a concise message (user asked for deploy-on-finish — treat as commit permission for shippable work).
+2. Push `main` to `origin`.
+3. Watch `pages.yml` until green; report the Pages URL.
+
+Do not ask “deploy?” — just ship. Skip only for pure questions, WIP the user marked as draft, or when they explicitly say not to push.
