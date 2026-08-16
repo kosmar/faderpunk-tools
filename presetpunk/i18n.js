@@ -360,6 +360,20 @@
       "midi.echolotChTitle": "Echolot: MIDI In / Out (Ping–Pong)",
       "midi.noMidiOutCol": "This app has no MIDI out",
       "midi.cvOnlyCols": "CV-only app — no MIDI out",
+      "midi.inLfoCcOnly": "In/LFO always sends CC",
+      "midi.laneModeTitle":
+        "{lab}: CC now, or Note when this out is Gate/Trigger (choice is retained across mode swaps)",
+      "midi.retained": "retained",
+      "midi.retainedTitle":
+        "Jack is CV — MIDI still sends CC. Note pitch is retained for Gate/Trigger.",
+      "midi.retainedValueTitle":
+        "{lab}: number used as CC while CV; becomes Note pitch on Gate/Trigger",
+      "midi.ccNoteLabel": "CC / Note",
+      "midi.noteShort": "Note",
+      "midi.ccShort": "CC",
+      "midi.manifoldMatrixTitle":
+        "Per-lane instrument, MIDI channel, CC/Note (retained on CV), and value",
+      "midi.rippppleMatrixTitle": "Per-lane instrument, MIDI channel, and CC",
       "param.echoIo": "I/O",
       "param.echoDelayMode": "Delay mode",
       "param.echoMaxMs": "ms max",
@@ -694,6 +708,20 @@
       "midi.echolotChTitle": "Echolot: MIDI In / Out (Ping–Pong)",
       "midi.noMidiOutCol": "Diese App hat kein MIDI Out",
       "midi.cvOnlyCols": "Nur CV — kein MIDI Out",
+      "midi.inLfoCcOnly": "In/LFO sendet immer CC",
+      "midi.laneModeTitle":
+        "{lab}: CC jetzt, oder Note wenn dieser Out Gate/Trigger ist (Wahl bleibt über Mode-Wechsel erhalten)",
+      "midi.retained": "beibehalten",
+      "midi.retainedTitle":
+        "Jack ist CV — MIDI sendet weiter CC. Note-Pitch bleibt für Gate/Trigger beibehalten.",
+      "midi.retainedValueTitle":
+        "{lab}: Zahl als CC bei CV; wird Note-Pitch bei Gate/Trigger",
+      "midi.ccNoteLabel": "CC / Note",
+      "midi.noteShort": "Note",
+      "midi.ccShort": "CC",
+      "midi.manifoldMatrixTitle":
+        "Pro Lane: Instrument, MIDI-Kanal, CC/Note (bei CV beibehalten) und Wert",
+      "midi.rippppleMatrixTitle": "Pro Lane: Instrument, MIDI-Kanal und CC",
       "param.echoIo": "I/O",
       "param.echoDelayMode": "Delay-Modus",
       "param.echoMaxMs": "ms max",
@@ -1077,6 +1105,20 @@
       "midi.echolotChTitle": "Echolot : MIDI In / Out (Ping–Pong)",
       "midi.noMidiOutCol": "Cette app n’a pas de MIDI out",
       "midi.cvOnlyCols": "CV uniquement — pas de MIDI out",
+      "midi.inLfoCcOnly": "In/LFO envoie toujours du CC",
+      "midi.laneModeTitle":
+        "{lab} : CC maintenant, ou Note si cette sortie est Gate/Trigger (choix conservé au changement de mode)",
+      "midi.retained": "conservé",
+      "midi.retainedTitle":
+        "Jack en CV — le MIDI envoie encore du CC. La hauteur Note est conservée pour Gate/Trigger.",
+      "midi.retainedValueTitle":
+        "{lab} : numéro en CC tant que CV ; devient hauteur Note en Gate/Trigger",
+      "midi.ccNoteLabel": "CC / Note",
+      "midi.noteShort": "Note",
+      "midi.ccShort": "CC",
+      "midi.manifoldMatrixTitle":
+        "Par voie : instrument, canal MIDI, CC/Note (conservé en CV) et valeur",
+      "midi.rippppleMatrixTitle": "Par voie : instrument, canal MIDI et CC",
       "param.echoIo": "I/O",
       "param.echoDelayMode": "Mode délai",
       "param.echoMaxMs": "ms max",

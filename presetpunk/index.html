@@ -1028,6 +1028,10 @@
     .lane-midi-matrix select[data-k="laneMode"] {
       width: 4.5rem;
     }
+    .lane-midi-matrix .lane-retained {
+      margin-left: 0.2rem;
+      font-style: italic;
+    }
     th { color: var(--muted); font-size: 12px; font-weight: 400; background: #191919; }
     tr:last-child td { border-bottom: 0; }
     tbody tr[data-row] > td {
@@ -4906,14 +4910,18 @@
       return [null, 2, 4, 6][slot] ?? null;
     }
 
-    /** True when an out lane is in CV mode — MIDI must stay CC. */
+    /** True when an out lane’s jack Mode enum is CV (index 0). */
     function manifoldOutModeCv(row, slot) {
       if (slot <= 0) return false;
       const pi = manifoldOutModeParamIndex(slot);
       return pi != null && schemaEnumIndex(row, pi) === 0;
     }
 
-    /** Per-lane Note (1) vs CC (0) from packed Mode Map; Ch0 and CV outs are always CC. */
+    /**
+     * Per-lane Note (1) vs CC (0) from Mode Map. In/LFO (slot 0) is always CC.
+     * Out bits stay set even while the jack is CV — firmware still sends CC
+     * until Gate/Trigger; the UI marks that as “retained”.
+     */
     function laneModesEffective(row, spec) {
       ensureSchemaValues(row);
       const li = laneMapIdx(row.app);
@@ -4924,13 +4932,10 @@
         follow: 0,
       });
       modes[0] = 0;
-      for (let slot = 1; slot < count; slot++) {
-        if (manifoldOutModeCv(row, slot)) modes[slot] = 0;
-      }
       return modes;
     }
 
-    /** Clear Note bits on CV outs after Mode B/C/D edits. */
+    /** Keep In/LFO bit clear; do not wipe Note on CV outs (retained until Gate). */
     function coerceManifoldModeMap(row) {
       if (row?.app !== "manifold") return;
       const spec = laneMapApp(row.app);
@@ -4944,15 +4949,8 @@
         count,
         follow: 0,
       });
-      let changed = false;
-      modes[0] = 0;
-      for (let slot = 1; slot < count; slot++) {
-        if (manifoldOutModeCv(row, slot) && modes[slot] !== 0) {
-          modes[slot] = 0;
-          changed = true;
-        }
-      }
-      if (changed) {
+      if (modes[0] !== 0) {
+        modes[0] = 0;
         row.schemaValues[li.modeMap] = i32(
           packMap(modes, { ...LANE_MODE_FIELD, count, follow: 0 }),
         );
@@ -5360,19 +5358,19 @@
 
     function laneModeSelectHtml(s, idx, slot, mode, spec, li) {
       if (slot === 0) {
-        return `<span class="vm led-muted" title="In/LFO always sends CC">CC</span>`;
+        return `<span class="vm led-muted" title="${escapeAttr(t("midi.inLfoCcOnly"))}">CC</span>`;
       }
       const lab = spec.lanes[slot];
-      const cvOnly = s.app === "manifold" && manifoldOutModeCv(s, slot);
-      // CV outs have no Note path in firmware — show that instead of a dead option.
-      if (cvOnly) {
-        return `<span class="vm led-muted" title="${escapeAttr(`${lab} is CV — MIDI stays CC`)}">CC</span>`;
-      }
       const cur = mode ? 1 : 0;
-      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI output (Gate/Trigger only)`)}">
+      const cv = s.app === "manifold" && manifoldOutModeCv(s, slot);
+      const retained =
+        cur === 1 && cv
+          ? `<span class="vm led-muted lane-retained" title="${escapeAttr(t("midi.retainedTitle"))}">${escapeHtml(t("midi.retained"))}</span>`
+          : "";
+      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(t("midi.laneModeTitle", { lab }))}">
         <option value="0" ${cur === 0 ? "selected" : ""}>CC</option>
         <option value="1" ${cur === 1 ? "selected" : ""}>Note</option>
-      </select>`;
+      </select>${retained}`;
     }
 
     function laneCcControlHtml(s, idx, slot, cur, spec, li, { noLabel = false, mode = 0 } = {}) {
@@ -5384,8 +5382,16 @@
       const lab = spec.lanes[slot];
       const curN = Math.max(0, Math.min(127, Number(cur) || 0));
       const isNote = mode === 1;
-      const colLab = isNote ? "Note" : "CC";
-      const title = `${lab} ${colLab}`;
+      const cv = s.app === "manifold" && manifoldOutModeCv(s, slot);
+      const retainedNote = isNote && cv;
+      const colLab = retainedNote
+        ? t("midi.ccNoteLabel")
+        : isNote
+          ? t("midi.noteShort")
+          : t("midi.ccShort");
+      const title = retainedNote
+        ? t("midi.retainedValueTitle", { lab })
+        : `${lab} ${colLab}`;
       let control;
       if (isNote) {
         control = `<select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" data-note="1" title="${escapeAttr(title)}">${noteOptionsHtml(curN)}</select>`;
@@ -5430,8 +5436,8 @@
         .join("");
       const matrixTitle =
         s.app === "manifold"
-          ? "Per-lane instrument, MIDI channel, CC/Note mode, and pitch"
-          : "Per-lane instrument, MIDI channel, and CC";
+          ? t("midi.manifoldMatrixTitle")
+          : t("midi.rippppleMatrixTitle");
       const modeClass = s.app === "manifold" ? " has-mode" : "";
       return `<div class="lane-midi-matrix${modeClass}" title="${escapeAttr(matrixTitle)}">${laneRows}</div>`;
     }
@@ -8947,7 +8953,6 @@
           });
           modes[0] = 0;
           let v = Number(el.value) ? 1 : 0;
-          if (manifoldOutModeCv(rowRef, slot)) v = 0;
           modes[slot] = v;
           rowRef.schemaValues[pi] = i32(
             packMap(modes, { ...LANE_MODE_FIELD, count, follow: 0 }),
