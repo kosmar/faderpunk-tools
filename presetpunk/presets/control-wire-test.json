@@ -1,0 +1,43 @@
+{
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "Control Wire Test",
+      "desc": "SetAppParams smoke without Grooves: sixteen Control apps on ch0–15. If this times out on layoutId=0, the hang is not Grooves-specific.",
+      "port": "usb",
+      "global": {
+        "clock": {
+          "clock_src": {
+            "tag": "Internal"
+          },
+          "ext_ppqn": 24,
+          "reset_src": {
+            "tag": "None"
+          },
+          "internal_bpm": 120,
+          "swing_amount": 0
+        }
+      },
+      "rows": [
+        { "app": "control", "fader": 1 },
+        { "app": "control", "fader": 2 },
+        { "app": "control", "fader": 3 },
+        { "app": "control", "fader": 4 },
+        { "app": "control", "fader": 5 },
+        { "app": "control", "fader": 6 },
+        { "app": "control", "fader": 7 },
+        { "app": "control", "fader": 8 },
+        { "app": "control", "fader": 9 },
+        { "app": "control", "fader": 10 },
+        { "app": "control", "fader": 11 },
+        { "app": "control", "fader": 12 },
+        { "app": "control", "fader": 13 },
+        { "app": "control", "fader": 14 },
+        { "app": "control", "fader": 15 },
+        { "app": "control", "fader": 16 }
+      ]
+    }
+  ],
+  "active": 0
+}
