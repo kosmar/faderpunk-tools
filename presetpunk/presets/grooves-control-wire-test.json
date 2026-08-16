@@ -1,0 +1,75 @@
+{
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "Grooves Wire Test",
+      "desc": "SetAppParams smoke bank: Grooves at layoutId 0, eleven Control apps on layoutId 1–11. Push log dumps host/device wire via summarizeParamWire; remaining fader slots pad with Control on push.",
+      "port": "usb",
+      "global": {
+        "clock": {
+          "clock_src": {
+            "tag": "Internal"
+          },
+          "ext_ppqn": 24,
+          "reset_src": {
+            "tag": "None"
+          },
+          "internal_bpm": 120,
+          "swing_amount": 0
+        }
+      },
+      "rows": [
+        {
+          "app": "grooves",
+          "fader": 1
+        },
+        {
+          "app": "control",
+          "fader": 2
+        },
+        {
+          "app": "control",
+          "fader": 3
+        },
+        {
+          "app": "control",
+          "fader": 4
+        },
+        {
+          "app": "control",
+          "fader": 5
+        },
+        {
+          "app": "control",
+          "fader": 6
+        },
+        {
+          "app": "control",
+          "fader": 7
+        },
+        {
+          "app": "control",
+          "fader": 8
+        },
+        {
+          "app": "control",
+          "fader": 9
+        },
+        {
+          "app": "control",
+          "fader": 10
+        },
+        {
+          "app": "control",
+          "fader": 11
+        },
+        {
+          "app": "control",
+          "fader": 12
+        }
+      ]
+    }
+  ],
+  "active": 0
+}

@@ -79,6 +79,9 @@
         "Print 16 faders as a strip (20 cm) along the top of A4 — number, instrument, app, CC, plus key/mode",
       "bar.copy": "Copy JSON",
       "bar.jsonImport": "JSON → active preset",
+      "bar.bundledPresets": "Example banks",
+      "bar.bundledManifoldDemo": "Manifold Demo",
+      "bar.bundledGroovesWireTest": "Grooves Wire Test",
       "port.out1": "Out1",
       "port.out2": "Out2",
       "port.usb": "USB",
@@ -202,6 +205,7 @@
       "status.bankFromServer":
         "Bank from server · {n} presets · tab {tab}",
       "status.jsonImport": "JSON → preset {index} ({n} apps)",
+      "status.bundledPresetLoaded": "Loaded “{name}”",
       "status.trimDone":
         "{n} overflow/excess row(s) removed → 16/16",
       "status.trimOk": "Already ≤16 — filled with Control if needed",
@@ -460,6 +464,9 @@
         "16 Fader als Streifen (20 cm) am oberen A4-Rand drucken — Nummer, Instrument, App, CC, plus Key/Mode",
       "bar.copy": "JSON kopieren",
       "bar.jsonImport": "JSON → aktives Preset",
+      "bar.bundledPresets": "Beispiel-Banks",
+      "bar.bundledManifoldDemo": "Manifold Demo",
+      "bar.bundledGroovesWireTest": "Grooves Wire Test",
       "port.out1": "Out1",
       "port.out2": "Out2",
       "port.usb": "USB",
@@ -587,6 +594,7 @@
       "status.bankFromServer":
         "Bank vom Server · {n} Presets · Tab {tab}",
       "status.jsonImport": "JSON → Preset {index} ({n} Apps)",
+      "status.bundledPresetLoaded": "„{name}“ geladen",
       "status.trimDone":
         "{n} Overflow-/Überschuss-Zeile(n) entfernt → 16/16",
       "status.trimOk":
@@ -857,6 +865,9 @@
         "Imprimer 16 faders en bande (20 cm) en haut d’un A4 — numéro, instrument, app, CC, plus key/mode",
       "bar.copy": "Copier JSON",
       "bar.jsonImport": "JSON → preset actif",
+      "bar.bundledPresets": "Banks d’exemple",
+      "bar.bundledManifoldDemo": "Manifold Demo",
+      "bar.bundledGroovesWireTest": "Grooves Wire Test",
       "port.out1": "Out1",
       "port.out2": "Out2",
       "port.usb": "USB",
@@ -984,6 +995,7 @@
       "status.bankFromServer":
         "Banque serveur · {n} presets · onglet {tab}",
       "status.jsonImport": "JSON → preset {index} ({n} apps)",
+      "status.bundledPresetLoaded": "« {name} » chargé",
       "status.trimDone":
         "{n} ligne(s) overflow/excédent supprimée(s) → 16/16",
       "status.trimOk":

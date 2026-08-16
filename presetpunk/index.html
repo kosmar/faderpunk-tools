@@ -577,6 +577,16 @@
       font-size: 12px;
       padding: 6px 8px;
     }
+    .tab-io-bundled {
+      display: grid;
+      gap: 6px;
+      padding-top: 4px;
+      border-top: 1px solid var(--line);
+    }
+    .tab-io-bundled-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
     .bar {
       display: flex;
       flex-wrap: wrap;
@@ -2326,6 +2336,11 @@
           <label><span data-i18n="bar.jsonImport">JSON → active preset</span>
             <input id="fileIn" type="file" accept="application/json,.json" />
           </label>
+          <div class="tab-io-bundled">
+            <span class="tab-io-bundled-label" data-i18n="bar.bundledPresets">Example banks</span>
+            <button type="button" class="secondary" data-bundled-preset="./presets/manifold-demo.json" data-i18n="bar.bundledManifoldDemo">Manifold Demo</button>
+            <button type="button" class="secondary" data-bundled-preset="./presets/grooves-control-wire-test.json" data-i18n="bar.bundledGroovesWireTest">Grooves Wire Test</button>
+          </div>
         </div>
       </details>
       <button type="button" class="secondary" id="btnPull" data-i18n="bar.pull" data-i18n-title="bar.pullTitle" title="">Pull from Punk</button>
@@ -3892,7 +3907,18 @@
 
     function paramsFor(row, portKey, idx = 0) {
       if (row.rawParams?.length) {
-        const patched = patchRawParams(row.rawParams, row, portKey);
+        let raw = row.rawParams;
+        if (row.app === "grooves") {
+          const cat = catalogApp(row.app);
+          const migrated = migrateGroovesLegacyTail(raw, cat);
+          if (migrated) {
+            const rangeTag = raw?.[14]?.value?.tag;
+            if (rangeTag === "_Neg5_5V" || rangeTag === "_0_10V") row.cvRange = rangeTag;
+            row.rawParams = migrated;
+            raw = migrated;
+          }
+        }
+        const patched = patchRawParams(raw, row, portKey);
         if (rawParamsUsable(row.app, patched)) {
           return enforceRowMidi(patched, row);
         }
@@ -4842,6 +4868,44 @@
         groove: find("Enum", /^Groove$/i),
         swing: find("i32", /^Swing max/i),
       };
+    }
+    /**
+     * Legacy Grooves (pre-Drummer catalog): slot14 Range + slot15 CV Att
+     * → slot14 CV Att + slot15 Drummer. Remaps old Jack 0–1 Out / 2–4 In.
+     */
+    function migrateGroovesLegacyTail(params, cat) {
+      if (!Array.isArray(params) || params.length !== 16 || !cat?.params?.length) {
+        return null;
+      }
+      if (cat.params[14]?.tag !== "i32" || cat.params[15]?.tag !== "Enum") return null;
+      if (params[14]?.tag !== "Range" || params[15]?.tag !== "i32") return null;
+      const out = structuredClone(params);
+      const jackI = (cat.params || []).findIndex(
+        (p) => p?.tag === "Enum" && /^Jack$/i.test(String(p.value?.name || "")),
+      );
+      if (jackI >= 0 && out[jackI]?.tag === "Enum") {
+        const j = Number(
+          Array.isArray(out[jackI].value) ? out[jackI].value[0] : out[jackI].value,
+        );
+        if (Number.isFinite(j)) {
+          const nj = j >= 2 ? j + 2 : j;
+          out[jackI] = enumVal(Math.max(0, Math.min(6, nj)));
+        }
+      }
+      out[14] = out[15];
+      out[15] = enumVal(0);
+      return out;
+    }
+    /** Grooves Jack Out vs In — resolve by variant name, else 0–3 Out / 4–6 In. */
+    function groovesJackIsOut(jack, cat, jackI) {
+      const variants = jackI >= 0 ? cat?.params?.[jackI]?.value?.variants : null;
+      if (variants && jack >= 0 && jack < variants.length) {
+        const v = variants[jack];
+        const name = typeof v === "string" ? v : String(v?.tag ?? v?.name ?? "");
+        if (/^CV Out/i.test(name)) return true;
+        if (/^CV In/i.test(name)) return false;
+      }
+      return jack >= 0 && jack <= 3;
     }
     function groovesChs(row) {
       const base = Math.max(1, Math.min(16, Number(row.ch) || 1));
@@ -5916,6 +5980,21 @@
       if (APPS_WITH_COLOR.has(row.app) && row.color && !APP_PARAM_COLORS.has(row.color)) {
         row.color = coerceAppParamColor(row.color);
       }
+      if (row.app === "grooves") {
+        for (const key of ["schemaValues", "rawParams"]) {
+          const src = row[key];
+          const migrated = migrateGroovesLegacyTail(src, cat);
+          if (migrated) {
+            const rangeTag = src?.[14]?.value?.tag;
+            if (rangeTag === "_Neg5_5V" || rangeTag === "_0_10V") row.cvRange = rangeTag;
+            row.schemaValues = migrated;
+            if (key === "rawParams") row.rawParams = structuredClone(migrated);
+            applyColumnOverlaysToSchema(row, portKey);
+            healControlIssuesSchemaValues(row, cat);
+            return row.schemaValues;
+          }
+        }
+      }
       if (Array.isArray(row.schemaValues) && schemaTagsMatchCatalog(row.schemaValues, cat)) {
         healControlIssuesSchemaValues(row, cat);
         return row.schemaValues;
@@ -6231,8 +6310,12 @@
         const destI = byName(/CV\s*Dest/i);
         const attI = byName(/CV\s*Att/i);
         const vpoI = (cat?.params || []).findIndex((p) => p?.tag === "VoltPerOct");
-        const jack = jackI >= 0 ? schemaEnumIndex(row, jackI) : 0; // 0 Out, 1 In
-        if (jack === 0) {
+        const jack = jackI >= 0 ? schemaEnumIndex(row, jackI) : 0;
+        const jackOut =
+          row.app === "grooves"
+            ? groovesJackIsOut(jack, cat, jackI)
+            : jack === 0;
+        if (jackOut) {
           if (destI >= 0) hide.add(destI);
           if (attI >= 0) hide.add(attI);
         } else {
@@ -10759,6 +10842,76 @@
         btn.disabled = false;
       }
     };
+
+    const BUNDLED_PRESETS = {
+      "./presets/manifold-demo.json": "bar.bundledManifoldDemo",
+      "./presets/grooves-control-wire-test.json": "bar.bundledGroovesWireTest",
+    };
+
+    async function applyBundledBankPayload(data, label) {
+      const bankPack = parseBankPayload(data);
+      if (bankPack) {
+        bank = bankPack.presets;
+        active = bankPack.active;
+        saveBank();
+        syncAllGroovesFromSchema();
+        syncFieldsFromPreset();
+        render();
+        setStatus(
+          "ok",
+          t("status.bundledPresetLoaded", {
+            name: bank[active]?.name || label,
+          }),
+        );
+        return true;
+      }
+      if (Array.isArray(data?.rows)) {
+        const sc = preset();
+        sc.name = data.name || sc.name;
+        sc.desc = data.desc || sc.desc;
+        if (data.port) sc.port = normalizePortKey(data.port);
+        sc.rows = data.rows.map((r) => ({
+          ...r,
+          app: canonicalizeAppSlug(r.app),
+        }));
+        if (data.global) sc.global = normalizeGlobal(data.global);
+        saveBank();
+        syncAllGroovesFromSchema();
+        syncFieldsFromPreset();
+        render();
+        setStatus(
+          "ok",
+          t("status.bundledPresetLoaded", { name: sc.name || label }),
+        );
+        return true;
+      }
+      return false;
+    }
+
+    async function loadBundledPreset(path) {
+      const res = await fetch(path, { cache: "no-store" });
+      if (!res.ok) throw new Error(`${path} (${res.status})`);
+      const data = await res.json();
+      const label = BUNDLED_PRESETS[path] ? t(BUNDLED_PRESETS[path]) : path;
+      if (!(await applyBundledBankPayload(data, label))) {
+        throw new Error("unsupported bank JSON");
+      }
+    }
+
+    document.querySelectorAll("[data-bundled-preset]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const path = btn.getAttribute("data-bundled-preset");
+        if (!path) return;
+        btn.disabled = true;
+        try {
+          await loadBundledPreset(path);
+        } catch (e) {
+          setStatus("warn", t("load.failed", { msg: e.message || e }));
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
 
     document.getElementById("fileIn").addEventListener("change", async (ev) => {
       const file = ev.target.files?.[0];
