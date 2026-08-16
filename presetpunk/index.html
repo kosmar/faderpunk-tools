@@ -4743,6 +4743,7 @@
      */
     const LANE_CH_FIELD = { bits: 4, offset: 1 }; // MIDI channel 1…16
     const LANE_CC_FIELD = { bits: 7, offset: 0 }; // CC number 0…127
+    const LANE_MODE_FIELD = { bits: 1, offset: 0 }; // 0 = CC, 1 = Note (Manifold Mode Map)
 
     /** Per-lane fallback: number, array or fn(lane) — CC follows base + lane. */
     function laneFollowValue(follow, i) {
@@ -4865,11 +4866,11 @@
     const APP_LANE_MAPS = {
       grooves: { lanes: GROOVES_VOICES },
       manifold: {
-        lanes: ["Ch0", "Out B", "Out C", "Out D"],
+        lanes: ["Ch0", "B", "C", "D"],
         columns: true,
       },
       ripppple: {
-        lanes: ["Root", "Stage 1", "Stage 2", "Stage 3"],
+        lanes: ["Root", "B", "C", "D"],
         columns: true,
       },
     };
@@ -4889,7 +4890,66 @@
         baseCc: params.findIndex((p) => p?.tag === "MidiCc"),
         chMap: find(/^Ch Map$/i),
         ccMap: find(/^CC Map$/i),
+        modeMap: find(/^Mode Map$/i),
       };
+    }
+
+    /** Manifold Out B/C/D Mode enum slot (Ch0 has no out mode). */
+    function manifoldOutModeParamIndex(slot) {
+      return [null, 2, 4, 6][slot] ?? null;
+    }
+
+    /** True when an out lane is in CV mode — MIDI must stay CC. */
+    function manifoldOutModeCv(row, slot) {
+      if (slot <= 0) return false;
+      const pi = manifoldOutModeParamIndex(slot);
+      return pi != null && schemaEnumIndex(row, pi) === 0;
+    }
+
+    /** Per-lane Note (1) vs CC (0) from packed Mode Map; Ch0 and CV outs are always CC. */
+    function laneModesEffective(row, spec) {
+      ensureSchemaValues(row);
+      const li = laneMapIdx(row.app);
+      const count = spec.lanes.length;
+      const modes = unpackMap(laneMapValue(row, li.modeMap), {
+        ...LANE_MODE_FIELD,
+        count,
+        follow: 0,
+      });
+      modes[0] = 0;
+      for (let slot = 1; slot < count; slot++) {
+        if (manifoldOutModeCv(row, slot)) modes[slot] = 0;
+      }
+      return modes;
+    }
+
+    /** Clear Note bits on CV outs after Mode B/C/D edits. */
+    function coerceManifoldModeMap(row) {
+      if (row?.app !== "manifold") return;
+      const spec = laneMapApp(row.app);
+      if (!spec) return;
+      ensureSchemaValues(row);
+      const li = laneMapIdx(row.app);
+      if (li.modeMap < 0) return;
+      const count = spec.lanes.length;
+      const modes = unpackMap(laneMapValue(row, li.modeMap), {
+        ...LANE_MODE_FIELD,
+        count,
+        follow: 0,
+      });
+      let changed = false;
+      modes[0] = 0;
+      for (let slot = 1; slot < count; slot++) {
+        if (manifoldOutModeCv(row, slot) && modes[slot] !== 0) {
+          modes[slot] = 0;
+          changed = true;
+        }
+      }
+      if (changed) {
+        row.schemaValues[li.modeMap] = i32(
+          packMap(modes, { ...LANE_MODE_FIELD, count, follow: 0 }),
+        );
+      }
     }
 
     function laneMapValue(row, pi) {
@@ -5291,7 +5351,21 @@
       return parts.join("");
     }
 
-    function laneCcControlHtml(s, idx, slot, cur, spec, li, { noLabel = false } = {}) {
+    function laneModeSelectHtml(s, idx, slot, mode, spec, li) {
+      if (slot === 0) {
+        return `<span class="vm led-muted" title="Ch0 always sends CC">CC</span>`;
+      }
+      const lab = spec.lanes[slot];
+      const cvOnly = s.app === "manifold" && manifoldOutModeCv(s, slot);
+      const cur = cvOnly ? 0 : mode ? 1 : 0;
+      const noteDisabled = cvOnly ? " disabled" : "";
+      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI output`)}">
+        <option value="0" ${cur === 0 ? "selected" : ""}>CC</option>
+        <option value="1" ${cur === 1 ? "selected" : ""}${noteDisabled}>Note</option>
+      </select>`;
+    }
+
+    function laneCcControlHtml(s, idx, slot, cur, spec, li, { noLabel = false, mode = 0 } = {}) {
       ensureLaneInst(s);
       const chs = laneChsEffective(s, spec);
       const instId = resolveChInstId(s, slot, chs[slot]);
@@ -5299,9 +5373,13 @@
       const ccs = inst?.ccs || [];
       const lab = spec.lanes[slot];
       const curN = Math.max(0, Math.min(127, Number(cur) || 0));
-      const title = `${lab} CC`;
+      const isNote = mode === 1;
+      const colLab = isNote ? "Note" : "CC";
+      const title = `${lab} ${colLab}`;
       let control;
-      if (ccs.length) {
+      if (isNote) {
+        control = `<select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" data-note="1" title="${escapeAttr(title)}">${noteOptionsHtml(curN)}</select>`;
+      } else if (ccs.length) {
         const inList = ccs.some((c) => Number(c.cc) === curN);
         const opts = inList
           ? ccOptionsHtml(inst, curN)
@@ -5311,7 +5389,7 @@
         control = `<input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" value="${curN}" title="${escapeAttr(title)}" />`;
       }
       if (noLabel) return control;
-      return `<span class="vm">${escapeHtml(lab)}</span>
+      return `<span class="vm">${escapeHtml(colLab)}</span>
         ${control}`;
     }
 
@@ -5322,15 +5400,29 @@
       const li = laneMapIdx(s.app);
       const chVals = laneChsEffective(s, spec);
       const ccVals = laneCcsEffective(s, spec);
+      const modeVals = s.app === "manifold" ? laneModesEffective(s, spec) : null;
       const laneRows = spec.lanes
         .map((lab, slot) => {
+          const modeBit = modeVals ? modeVals[slot] : 0;
+          const modeCtrl =
+            s.app === "manifold"
+              ? laneModeSelectHtml(s, idx, slot, modeBit, spec, li)
+              : "";
           return `<span class="vm">${escapeHtml(lab)}</span>
             ${instSlotSelectHtml(s, idx, slot, lab, chVals[slot], { noLabel: true })}
             ${laneChSelectHtml(idx, slot, chVals[slot], spec, li)}
-            ${laneCcControlHtml(s, idx, slot, ccVals[slot], spec, li, { noLabel: true })}`;
+            ${modeCtrl}
+            ${laneCcControlHtml(s, idx, slot, ccVals[slot], spec, li, {
+              noLabel: true,
+              mode: modeBit,
+            })}`;
         })
         .join("");
-      return `<div class="lane-midi-matrix" title="${escapeAttr("Per-lane instrument, MIDI channel, and CC")}">${laneRows}</div>`;
+      const matrixTitle =
+        s.app === "manifold"
+          ? "Per-lane instrument, MIDI channel, CC/Note mode, and pitch"
+          : "Per-lane instrument, MIDI channel, and CC";
+      return `<div class="lane-midi-matrix" title="${escapeAttr(matrixTitle)}">${laneRows}</div>`;
     }
 
     /** Base CC plus one 0…127 field per lane (CC Map). */
@@ -5727,7 +5819,7 @@
         if (
           APP_LANE_MAPS[row.app] &&
           p.tag === "i32" &&
-          /^(Ch|CC) Map$/i.test(String(p.value?.name || ""))
+          /^(Ch|CC|Mode) Map$/i.test(String(p.value?.name || ""))
         ) {
           claimed.add(i);
           return;
@@ -6200,7 +6292,7 @@
         return out;
       }
 
-      // Manifold: Color, In Range, Mode/Range B, Mode/Range C, Mode/Range D.
+      // Manifold: Color, In Range, Mode/Range B–D, Source, LFO Speed.
       // Range only applies in CV mode — hide it for Gate/Trigger.
       if (row.app === "manifold") {
         const modePairs = [
@@ -6254,6 +6346,7 @@
         }
       }
       if (row.app === "grooves") syncGroovesRowFromSchema(row);
+      if (row.app === "manifold") coerceManifoldModeMap(row);
     }
 
     function setSchemaValue(row, pi, value) {
@@ -6525,7 +6618,7 @@
         </span>`;
       }
 
-      // Manifold: labeled In / B / C / D rows (Mode + Range when CV).
+      // Manifold: labeled In / B / C / D rows (Mode + Range when CV) + Source / LFO Speed.
       if (s.app === "manifold") {
         const byName = Object.fromEntries(bits.map((b) => [b.name, b]));
         const field = (lab, bit, title) => {
@@ -6538,11 +6631,18 @@
           if (!mode && !range) return "";
           return `<span class="extras-row">${field(letter, mode, modeName)}${field("Rng", range, rangeName)}</span>`;
         };
+        const src = byName["Source"];
+        const spd = byName["LFO Speed"];
+        const bottom =
+          src || spd
+            ? `<span class="extras-row">${field("Src", src, "Source")}${field("Spd", spd, "LFO Speed")}</span>`
+            : "";
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
           <span class="extras-row">${field("In", byName["In Range"], "In Range")}</span>
           ${outRow("B", "Mode B", "Range B")}
           ${outRow("C", "Mode C", "Range C")}
           ${outRow("D", "Mode D", "Range D")}
+          ${bottom}
         </span>`;
       }
 
@@ -8817,6 +8917,34 @@
             else rowRef.cc = vals[0];
             if (catalogApp(rowRef.app)) applyColumnOverlaysToSchema(rowRef, sc.port);
           }
+          delete rowRef.rawParams;
+        }
+      } else if (k === "laneMode") {
+        const spec = laneMapApp(rowRef.app);
+        const pi = Number(el.dataset.pi);
+        const slot = Number(el.dataset.slot);
+        if (
+          spec &&
+          rowRef.app === "manifold" &&
+          Number.isFinite(pi) &&
+          pi >= 0 &&
+          Number.isFinite(slot) &&
+          slot > 0
+        ) {
+          ensureSchemaValues(rowRef);
+          const count = spec.lanes.length;
+          const modes = unpackMap(laneMapValue(rowRef, pi), {
+            ...LANE_MODE_FIELD,
+            count,
+            follow: 0,
+          });
+          modes[0] = 0;
+          let v = Number(el.value) ? 1 : 0;
+          if (manifoldOutModeCv(rowRef, slot)) v = 0;
+          modes[slot] = v;
+          rowRef.schemaValues[pi] = i32(
+            packMap(modes, { ...LANE_MODE_FIELD, count, follow: 0 }),
+          );
           delete rowRef.rawParams;
         }
       } else if (k === "cvRange") {
