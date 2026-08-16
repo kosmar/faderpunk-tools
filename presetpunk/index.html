@@ -996,6 +996,10 @@
     .multi-midi.multi-midi-inst-col select[data-k="chsInst"] {
       width: 9rem;
     }
+    /* Grooves CH/Note: voice names live in the Instrument column only */
+    .multi-midi.multi-midi-nolabels {
+      grid-template-columns: auto;
+    }
     .multi-midi .vm { color: var(--muted); font-size: 11px; min-width: 1.4rem; }
     .multi-midi select, .multi-midi input {
       width: 4.75rem; min-width: 0;
@@ -5478,10 +5482,9 @@
             const n = i + 1;
             return `<option value="${n}" ${chs[slot] === n ? "selected" : ""}>${n}</option>`;
           }).join("");
-          return `<span class="vm">${lab}</span>
-            <select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(t("midi.chLabel", { lab }))}">${opts}</select>`;
+          return `<select data-i="${idx}" data-k="chs" data-slot="${slot}" title="${escapeAttr(t("midi.chLabel", { lab }))}">${opts}</select>`;
         }).join("");
-        return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesChTitle"))}">${rows}</div>`;
+        return `<div class="multi-midi multi-midi-nolabels" title="${escapeAttr(t("midi.groovesChTitle"))}">${rows}</div>`;
       }
       {
         const laneSpec = laneMapApp(s.app);
@@ -5580,16 +5583,15 @@
         const notes = groovesNotes(s);
         const rows = GROOVES_VOICES.map((lab, slot) => {
           const n = notes[slot];
-          return `<span class="vm">${lab}</span>
-            ${noteSelectHtml(idx, n, {
-              key: "ccs",
-              slot,
-              title: t("midi.noteLabel", { lab }),
-              // Note 0 silences a voice; the four optional ones ship that way.
-              zeroLabel: "Off",
-            })}`;
+          return noteSelectHtml(idx, n, {
+            key: "ccs",
+            slot,
+            title: t("midi.noteLabel", { lab }),
+            // Note 0 silences a voice; the four optional ones ship that way.
+            zeroLabel: "Off",
+          });
         }).join("");
-        return `<div class="multi-midi" title="${escapeAttr(t("midi.groovesNoteTitle"))}">${rows}</div>`;
+        return `<div class="multi-midi multi-midi-nolabels" title="${escapeAttr(t("midi.groovesNoteTitle"))}">${rows}</div>`;
       }
       {
         const laneSpec = laneMapApp(s.app);
