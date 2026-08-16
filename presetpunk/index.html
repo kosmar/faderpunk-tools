@@ -6303,7 +6303,7 @@
         return out;
       }
 
-      // Manifold: Color, In Range, Mode/Range B–D, Source, LFO Speed.
+      // Manifold: Color, In Range, Mode/Range B–D, LFO Speed.
       // Range only applies in CV mode — hide it for Gate/Trigger.
       if (row.app === "manifold") {
         const modePairs = [
@@ -6629,7 +6629,7 @@
         </span>`;
       }
 
-      // Manifold: labeled In / B / C / D rows (Mode + Range when CV) + Source / LFO Speed.
+      // Manifold: labeled In / B / C / D rows (Mode + Range when CV) + LFO Speed.
       if (s.app === "manifold") {
         const byName = Object.fromEntries(bits.map((b) => [b.name, b]));
         const field = (lab, bit, title) => {
@@ -6642,12 +6642,10 @@
           if (!mode && !range) return "";
           return `<span class="extras-row">${field(letter, mode, modeName)}${field("Rng", range, rangeName)}</span>`;
         };
-        const src = byName["Source"];
         const spd = byName["LFO Speed"];
-        const bottom =
-          src || spd
-            ? `<span class="extras-row">${field("Src", src, "Source")}${field("Spd", spd, "LFO Speed")}</span>`
-            : "";
+        const bottom = spd
+          ? `<span class="extras-row">${field("Spd", spd, "LFO Speed")}</span>`
+          : "";
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
           <span class="extras-row">${field("In", byName["In Range"], "In Range")}</span>
           ${outRow("B", "Mode B", "Range B")}
@@ -6657,7 +6655,7 @@
         </span>`;
       }
 
-      // Ripppple: In / B / C / D (Target + Range) + Source / LFO Speed.
+      // Ripppple: In / B / C / D (Target + Range) + LFO Speed.
       if (s.app === "ripppple") {
         const byName = Object.fromEntries(bits.map((b) => [b.name, b]));
         const field = (lab, bit, title) => {
@@ -6670,12 +6668,10 @@
           if (!target && !range) return "";
           return `<span class="extras-row">${field(letter, target, targetName)}${field("Rng", range, rangeName)}</span>`;
         };
-        const src = byName["Source"];
         const spd = byName["LFO Speed"];
-        const bottom =
-          src || spd
-            ? `<span class="extras-row">${field("Src", src, "Source")}${field("Spd", spd, "LFO Speed")}</span>`
-            : "";
+        const bottom = spd
+          ? `<span class="extras-row">${field("Spd", spd, "LFO Speed")}</span>`
+          : "";
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
           <span class="extras-row">${field("In", byName["In Range"], "In Range")}</span>
           ${outRow("B", "Target B", "Range B")}

@@ -4239,17 +4239,6 @@
         {
           "tag": "Enum",
           "value": {
-            "name": "Source",
-            "variants": [
-              "Auto",
-              "CV In",
-              "Internal LFO"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
             "name": "LFO Speed",
             "variants": [
               "Normal",
@@ -4785,17 +4774,6 @@
               "Rate",
               "Depth",
               "Shape"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Source",
-            "variants": [
-              "Auto",
-              "CV In",
-              "Internal LFO"
             ]
           }
         },
