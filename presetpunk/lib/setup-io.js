@@ -927,52 +927,62 @@ async function applySetLayoutIncremental(
     );
 
     const id = Number(slot.id);
+    const expectAppId = Number(slot.app?.appId);
+    // Never SetAppParams before GetAppParams shows a live param_handler —
+    // premature SetAppParams wedges the FW params path (GetVersion still OK).
     try {
       cfg = await applySetAppParams(cfg, paramsById, [id], log, {
         deviceRef,
         underHold: false,
-        skipReadyWait: true,
-        maxAttempts: 1,
+        skipReadyWait: false,
+        expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+        maxAttempts: 2,
       });
     } catch (firstErr) {
       let err = firstErr;
       const message = String(err.message || err);
       log(`  ⚠ SetAppParams(${id}): ${message}`);
-      // Empty AppState and host timeout are the same race: param_handler not
-      // up yet. Quiet retry first — reconnect alone does not finish the spawn.
-      const stillSpawning =
-        message.includes("empty AppState") ||
-        message.includes("Timed out waiting for device response");
-      if (stillSpawning) {
-        log(
-          `  slot still spawning — quiet wait ${SET_PARAMS_SPAWN_RETRY_MS}ms, then one retry …`,
-        );
-        await delay(SET_PARAMS_SPAWN_RETRY_MS);
-        try {
-          cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-            deviceRef,
-            underHold: false,
-            skipReadyWait: true,
-            maxAttempts: 1,
-          });
-          continue;
-        } catch (retryErr) {
-          err = retryErr;
-        }
-      }
       if (!deviceRef) throw err;
-      log("  retry: reconnect + SetAppParams …");
+      // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
+      log(
+        `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
+      );
+      await delay(SET_PARAMS_SPAWN_RETRY_MS);
+      try {
+        cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+          label: "after params fail",
+          deviceRef,
+          underHold: false,
+          expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+        });
+        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+          deviceRef,
+          underHold: false,
+          skipReadyWait: true,
+          maxAttempts: 2,
+        });
+        continue;
+      } catch (retryErr) {
+        err = retryErr;
+      }
+      log("  retry: reconnect + wait ready + SetAppParams …");
       disconnectDevice(deviceRef.device);
       await delay(1000);
       deviceRef.device = await connectDevice();
       cfg = deviceRef.device.config;
       log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
       await delay(SET_PARAMS_SPAWN_RETRY_MS);
+      cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+        label: "after reconnect",
+        deviceRef,
+        underHold: false,
+        expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+      });
       cfg = await applySetAppParams(cfg, paramsById, [id], log, {
         deviceRef,
         underHold: false,
         skipReadyWait: true,
-        maxAttempts: 1,
+        maxAttempts: 2,
       });
     }
   }
@@ -1113,6 +1123,7 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
         label: "before params",
         deviceRef,
         underHold,
+        expectAppId: opts.expectAppId,
       });
     }
     let lastErr = null;
