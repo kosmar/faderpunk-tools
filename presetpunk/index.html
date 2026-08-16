@@ -1006,6 +1006,21 @@
       min-width: 6.5rem;
       max-width: 12rem;
     }
+    .lane-midi-matrix {
+      display: grid;
+      grid-template-columns: auto minmax(9rem, 1fr) 4.75rem 8rem;
+      gap: 4px 6px;
+      align-items: center;
+      font-size: 12px;
+      width: 100%;
+      max-width: 100%;
+    }
+    .lane-midi-matrix .vm { color: var(--muted); font-size: 11px; min-width: 1.4rem; }
+    .lane-midi-matrix select,
+    .lane-midi-matrix input {
+      width: 100%;
+      min-width: 0;
+    }
     th { color: var(--muted); font-size: 12px; font-weight: 400; background: #191919; }
     tr:last-child td { border-bottom: 0; }
     tbody tr[data-row] > td {
@@ -5199,7 +5214,7 @@
         )}">${chOpts}</select>`;
     }
 
-    function instSlotSelectHtml(row, idx, slot, lab, ch) {
+    function instSlotSelectHtml(row, idx, slot, lab, ch, { noLabel = false } = {}) {
       const selected = resolveChInstId(row, slot, ch);
       const opts = [`<option value="">${escapeHtml(t("inst.manual") || "Manual")}</option>`]
         .concat(
@@ -5214,8 +5229,19 @@
             ),
         )
         .join("");
+      const select = `<select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
+      if (noLabel) return select;
       return `<span class="vm">${escapeHtml(lab)}</span>
-        <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
+        ${select}`;
+    }
+
+    function laneChSelectHtml(idx, slot, cur, spec, li) {
+      const opts = Array.from({ length: 16 }, (_, i) => {
+        const n = i + 1;
+        return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
+      }).join("");
+      const lab = spec.lanes[slot];
+      return `<select data-i="${idx}" data-k="laneCh" data-pi="${li.chMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI channel`)}">${opts}</select>`;
     }
 
     /** Base CH plus one 1…16 select per lane, packed into Ch Map. */
@@ -5231,12 +5257,8 @@
       const rows = spec.lanes
         .map((lab, slot) => {
           const cur = vals[slot];
-          const opts = Array.from({ length: 16 }, (_, i) => {
-            const n = i + 1;
-            return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
-          }).join("");
           return `<span class="vm">${escapeHtml(lab)}</span>
-            <select data-i="${idx}" data-k="laneCh" data-pi="${li.chMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI channel`)}">${opts}</select>`;
+            ${laneChSelectHtml(idx, slot, cur, spec, li)}`;
         })
         .join("");
       return `<div class="multi-midi" title="${escapeAttr("Base MIDI channel + per-lane Ch Map")}">
@@ -5265,7 +5287,7 @@
       return parts.join("");
     }
 
-    function laneCcControlHtml(s, idx, slot, cur, spec, li) {
+    function laneCcControlHtml(s, idx, slot, cur, spec, li, { noLabel = false } = {}) {
       ensureLaneInst(s);
       const chs = laneChsEffective(s, spec);
       const instId = resolveChInstId(s, slot, chs[slot]);
@@ -5274,16 +5296,47 @@
       const lab = spec.lanes[slot];
       const curN = Math.max(0, Math.min(127, Number(cur) || 0));
       const title = `${lab} CC`;
+      let control;
       if (ccs.length) {
         const inList = ccs.some((c) => Number(c.cc) === curN);
         const opts = inList
           ? ccOptionsHtml(inst, curN)
           : `<option value="${curN}" selected>${curN}</option>${ccOptionsHtml(inst, curN)}`;
-        return `<span class="vm">${escapeHtml(lab)}</span>
-          <select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" title="${escapeAttr(title)}">${opts}</select>`;
+        control = `<select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" title="${escapeAttr(title)}">${opts}</select>`;
+      } else {
+        control = `<input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" value="${curN}" title="${escapeAttr(title)}" />`;
       }
+      if (noLabel) return control;
       return `<span class="vm">${escapeHtml(lab)}</span>
-        <input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" value="${curN}" title="${escapeAttr(title)}" />`;
+        ${control}`;
+    }
+
+    /** One grid: Base row + per-lane Label | Inst | CH | CC (Manifold / Ripppple). */
+    function laneMidiMatrixHtml(s, idx, spec) {
+      ensureSchemaValues(s);
+      ensureLaneInst(s);
+      const li = laneMapIdx(s.app);
+      const base = laneBaseCh(s);
+      const chVals = laneChsEffective(s, spec);
+      const ccVals = laneCcsEffective(s, spec);
+      const baseOpts = Array.from({ length: 16 }, (_, i) => {
+        const n = i + 1;
+        return `<option value="${n}" ${base === n ? "selected" : ""}>${n}</option>`;
+      }).join("");
+      const baseInstId = resolveChInstId(s, 0, base);
+      const baseRow = `<span class="vm">Base</span>
+        <span></span>
+        <select data-i="${idx}" data-k="ch" title="${escapeAttr("Base MIDI channel")}">${baseOpts}</select>
+        ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc", instrumentId: baseInstId || s.instrumentId })}`;
+      const laneRows = spec.lanes
+        .map((lab, slot) => {
+          return `<span class="vm">${escapeHtml(lab)}</span>
+            ${instSlotSelectHtml(s, idx, slot, lab, chVals[slot], { noLabel: true })}
+            ${laneChSelectHtml(idx, slot, chVals[slot], spec, li)}
+            ${laneCcControlHtml(s, idx, slot, ccVals[slot], spec, li, { noLabel: true })}`;
+        })
+        .join("");
+      return `<div class="lane-midi-matrix" title="${escapeAttr("Per-lane instrument, MIDI channel, and CC")}">${baseRow}${laneRows}</div>`;
     }
 
     /** Base CC plus one 0…127 field per lane (CC Map). */
@@ -7975,12 +8028,16 @@
         if (hue) tr.dataset.faderHue = hue;
       }
       const sc = preset();
+      const laneSpec = laneMapApp(s.app);
+      const midiCols = laneSpec
+        ? `<td colspan="3">${laneMidiMatrixHtml(s, i, laneSpec)}</td>`
+        : `<td>${instrumentSelectHtml(s, i)}</td>
+        <td>${chCellHtml(s, i)}</td>
+        <td>${ccCellHtml(s, i)}</td>`;
       tr.innerHTML = `
         ${faderCellHtml(s, { overflow })}
         <td class="param-cell">${appExtrasHtml(s, i) || `<span class="led-muted">—</span>`}</td>
-        <td>${instrumentSelectHtml(s, i)}</td>
-        <td>${chCellHtml(s, i)}</td>
-        <td>${ccCellHtml(s, i)}</td>
+        ${midiCols}
         <td class="port-cell">${portBitsHtml(s, i, sc.port)}</td>
         <td class="flags-cell">${flagsColHtml(s, i)}</td>
         <td class="row-x-cell">
@@ -8413,7 +8470,12 @@
         const ids = Array.isArray(rowRef.chsInst) ? [...rowRef.chsInst] : [];
         while (ids.length <= slot) ids.push("");
         ids[slot] = el.value || "";
-        rowRef.chsInst = ids;
+        if (laneMapApp(rowRef.app) && slot === 0 && inst) {
+          const spec = laneMapApp(rowRef.app);
+          rowRef.chsInst = spec.lanes.map(() => inst.id);
+        } else {
+          rowRef.chsInst = ids;
+        }
         if (laneMapApp(rowRef.app) && inst) {
           ensureSchemaValues(rowRef);
           ensureLaneInst(rowRef);
@@ -8424,21 +8486,24 @@
           const chMapPi = li.chMap;
           const vals = laneChsEffective(rowRef, spec).slice();
           const chN = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
-          vals[slot] = chN;
+          const slotsToUpdate =
+            slot === 0 ? Array.from({ length: count }, (_, i) => i) : [slot];
+          for (const si of slotsToUpdate) vals[si] = chN;
           rowRef.schemaValues[chMapPi] = i32(
             packMap(vals, { ...LANE_CH_FIELD, count, follow }),
           );
           const ccMapPi = li.ccMap;
           const ccFollow = laneBaseCcFollow(rowRef);
           const ccVals = laneCcsEffective(rowRef, spec).slice();
-          const effectiveCc = ccVals[slot];
           if (inst.ccs?.length && rowRef.kind !== "note") {
             if (slot === 0) {
               const baseHit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
               if (!baseHit) rowRef.cc = inst.ccs[0].cc;
             }
-            const laneHit = inst.ccs.find((c) => Number(c.cc) === Number(effectiveCc));
-            if (!laneHit) ccVals[slot] = inst.ccs[0].cc;
+            for (const si of slotsToUpdate) {
+              const laneHit = inst.ccs.find((c) => Number(c.cc) === Number(ccVals[si]));
+              if (!laneHit) ccVals[si] = inst.ccs[0].cc;
+            }
             rowRef.schemaValues[ccMapPi] = i32(
               packMap(ccVals, { ...LANE_CC_FIELD, count, follow: ccFollow }),
             );
