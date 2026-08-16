@@ -734,7 +734,9 @@ async function verifySetAppParamsViaGet(cfg, layoutId, padded, log) {
  * SetAppParams with AppState ACK race, then GetAppParams verify when ACK is missing.
  * FW 1.12.0 may apply params without returning AppState.
  */
-async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, log) {
+async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, log, opts = {}) {
+  const ackRaceMs = Number(opts.ackRaceMs) || SET_PARAMS_ACK_RACE_MS;
+  const skipVerify = !!opts.skipVerify;
   drainConfigQueue(cfg.rx);
   try {
     const response = await sendAndReceiveExpect(
@@ -747,7 +749,7 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
       {
         onLog: log,
         timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
-        deadlineMs: SET_PARAMS_ACK_RACE_MS,
+        deadlineMs: ackRaceMs,
         attempts: 1,
         matchLayoutId: layoutId,
       },
@@ -757,10 +759,24 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
       throw new Error(`SetAppParams(${layoutId}): empty AppState`);
     }
     log(`  ✓ layoutId=${layoutId} (${nvals} params)`);
-    return { cfg, nvals };
+    return { cfg, nvals, via: "ack" };
   } catch (ackErr) {
     log(
       `  ↷ SetAppParams(${layoutId}): no AppState ACK (${ackErr.message || ackErr}) — verifying via GetAppParams …`,
+    );
+  }
+
+  // Cable still alive? Distinguishes FW drop vs wedged USB.
+  try {
+    await probeConfigCable(cfg);
+    log("  · config cable alive after Set (GetVersion ok)");
+  } catch (e) {
+    log(`  · config cable quiet after Set (${e.message || e})`);
+  }
+
+  if (skipVerify) {
+    throw new Error(
+      `SetAppParams(${layoutId}): no AppState ACK (canary; skip verify)`,
     );
   }
 
@@ -768,7 +784,7 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
   let verify = await verifySetAppParamsViaGet(cfg, layoutId, hostPadded, log);
   if (verify.ok) {
     log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
-    return { cfg, nvals: verify.nvals };
+    return { cfg, nvals: verify.nvals, via: "verify" };
   }
 
   log(
@@ -778,12 +794,40 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
   verify = await verifySetAppParamsViaGet(cfg, layoutId, hostPadded, log);
   if (verify.ok) {
     log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
-    return { cfg, nvals: verify.nvals };
+    return { cfg, nvals: verify.nvals, via: "verify" };
   }
 
   throw new Error(
     `SetAppParams(${layoutId}): no AppState ACK and GetAppParams mismatch (${verify.reason})`,
   );
+}
+
+/** One differing slot per SetAppParams — isolates Value tags that FW drops. */
+function splitSparseBySlot(sparse) {
+  const out = [];
+  for (let i = 0; i < 16; i++) {
+    if (sparse[i] === undefined) continue;
+    const one = Array.from({ length: 16 }, () => undefined);
+    one[i] = sparse[i];
+    out.push({ index: i, sparse: one });
+  }
+  return out;
+}
+
+/**
+ * No-op SetAppParams (same value the device already has). FW should ACK via
+ * send_values without FRAM/respawn. Proves Set decode + param_handler path
+ * before we try real diffs.
+ */
+function buildCanarySparse(deviceValues) {
+  const device = padParams(deviceValues);
+  for (let i = 0; i < 16; i++) {
+    if (device[i] === undefined) continue;
+    const one = Array.from({ length: 16 }, () => undefined);
+    one[i] = device[i];
+    return { index: i, sparse: one, tag: device[i].tag || "?" };
+  }
+  return null;
 }
 
 /**
@@ -1371,14 +1415,68 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
         if (attempt === 0) {
           log(`  · sparse wire: ${summarizeParamWire(sparse)}`);
         }
-        const result = await setAppParamsWithAckOrVerify(
-          cfg,
-          id,
-          sparse,
-          hostPadded,
-          log,
-        );
-        cfg = result.cfg;
+
+        // Canary: rewrite an unchanged slot. No FRAM/respawn — only ACK needed.
+        const canary = buildCanarySparse(deviceValues);
+        if (canary) {
+          log(
+            `  · canary SetAppParams layoutId=${id}[${canary.index}] ${canary.tag} (same value) …`,
+          );
+          try {
+            const canaryResult = await setAppParamsWithAckOrVerify(
+              cfg,
+              id,
+              canary.sparse,
+              canary.sparse,
+              log,
+              { ackRaceMs: 3500, skipVerify: true },
+            );
+            cfg = canaryResult.cfg;
+            log(`  · canary ok via ${canaryResult.via} — Set path alive`);
+          } catch (canaryErr) {
+            throw new Error(
+              `canary SetAppParams failed (${canaryErr.message || canaryErr}) — Set decode / param_handler path broken after spawn`,
+            );
+          }
+        }
+
+        // One slot per SetAppParams — isolate which Value tag stalls apply.
+        const parts = splitSparseBySlot(sparse);
+        const slotFails = [];
+        for (const part of parts) {
+          const tag = part.sparse[part.index]?.tag || "?";
+          log(
+            `  · slot SetAppParams layoutId=${id}[${part.index}] ${tag}: ${summarizeParamWire(part.sparse)}`,
+          );
+          const intent = Array.from({ length: 16 }, () => undefined);
+          intent[part.index] = hostPadded[part.index];
+          try {
+            const result = await setAppParamsWithAckOrVerify(
+              cfg,
+              id,
+              part.sparse,
+              intent,
+              log,
+            );
+            cfg = result.cfg;
+          } catch (slotErr) {
+            slotFails.push(`${part.index}:${tag} (${slotErr.message || slotErr})`);
+            log(
+              `  ⚠ slot ${part.index}:${tag} failed — continue bisect (${slotErr.message || slotErr})`,
+            );
+          }
+        }
+        if (slotFails.length) {
+          throw new Error(`per-slot Set failed: ${slotFails.join("; ")}`);
+        }
+        // Final check against full host intent
+        const finalCheck = await verifySetAppParamsViaGet(cfg, id, hostPadded, log);
+        if (!finalCheck.ok) {
+          throw new Error(
+            `after per-slot sets: GetAppParams mismatch (${finalCheck.reason})`,
+          );
+        }
+        log(`  ✓ layoutId=${id} (all slots · ${finalCheck.nvals} params)`);
         lastErr = null;
         break;
       } catch (e) {
