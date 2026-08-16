@@ -38,6 +38,8 @@ const SET_PARAMS_VERIFY_QUIET_MS = 600;
 /** Second verify attempt when device is still applying params. */
 const SET_PARAMS_VERIFY_RETRY_QUIET_MS = 2000;
 
+export const APP_MAX_PARAMS = 17;
+
 function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
@@ -601,9 +603,9 @@ export function normalizeValueForWire(v) {
 }
 
 export function padParams(values) {
-  const result = Array.from({ length: 16 }, () => undefined);
+  const result = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
   (values || []).forEach((v, i) => {
-    if (i < 16) result[i] = normalizeValueForWire(v);
+    if (i < APP_MAX_PARAMS) result[i] = normalizeValueForWire(v);
   });
   return result;
 }
@@ -615,8 +617,8 @@ export function padParams(values) {
 export function buildSparseParams(hostValues, deviceValues) {
   const host = padParams(hostValues);
   const device = padParams(deviceValues);
-  const sparse = Array.from({ length: 16 }, () => undefined);
-  for (let i = 0; i < 16; i++) {
+  const sparse = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
     const h = host[i];
     if (h === undefined) continue;
     const d = device[i];
@@ -805,9 +807,9 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
 /** One differing slot per SetAppParams — isolates Value tags that FW drops. */
 function splitSparseBySlot(sparse) {
   const out = [];
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
     if (sparse[i] === undefined) continue;
-    const one = Array.from({ length: 16 }, () => undefined);
+    const one = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
     one[i] = sparse[i];
     out.push({ index: i, sparse: one });
   }
@@ -821,9 +823,9 @@ function splitSparseBySlot(sparse) {
  */
 function buildCanarySparse(deviceValues) {
   const device = padParams(deviceValues);
-  for (let i = 0; i < 16; i++) {
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
     if (device[i] === undefined) continue;
-    const one = Array.from({ length: 16 }, () => undefined);
+    const one = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
     one[i] = device[i];
     return { index: i, sparse: one, tag: device[i].tag || "?" };
   }
@@ -1448,7 +1450,7 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
           log(
             `  · slot SetAppParams layoutId=${id}[${part.index}] ${tag}: ${summarizeParamWire(part.sparse)}`,
           );
-          const intent = Array.from({ length: 16 }, () => undefined);
+          const intent = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
           intent[part.index] = hostPadded[part.index];
           try {
             const result = await setAppParamsWithAckOrVerify(

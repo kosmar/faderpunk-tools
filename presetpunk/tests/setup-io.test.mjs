@@ -137,27 +137,27 @@ test("padParams: None placeholders become undefined holes", () => {
     { tag: "None" },
     { tag: "bool", value: true },
   ]);
-  assert.equal(out.length, 16);
+  assert.equal(out.length, 17);
   assert.deepEqual(out[0], { tag: "i32", value: 1 });
   assert.equal(out[1], undefined);
   assert.deepEqual(out[2], { tag: "bool", value: true });
 });
 
-test("padParams: always 16 entries, holes undefined, values normalized", () => {
+test("padParams: always 17 entries, holes undefined, values normalized", () => {
   const out = padParams([
     { tag: "i32", value: [21] },
     { tag: "MidiOut", value: [true, true, true] },
   ]);
-  assert.equal(out.length, 16);
+  assert.equal(out.length, 17);
   assert.deepEqual(out[0], { tag: "i32", value: 21 });
   assert.deepEqual(out[1], { tag: "MidiOut", value: [[true, true, true]] });
   assert.equal(out[2], undefined);
-  assert.equal(out[15], undefined);
+  assert.equal(out[16], undefined);
 });
 
-test("padParams: empty / null input yields 16 undefined", () => {
-  assert.equal(padParams([]).length, 16);
-  assert.equal(padParams(null).length, 16);
+test("padParams: empty / null input yields 17 undefined", () => {
+  assert.equal(padParams([]).length, 17);
+  assert.equal(padParams(null).length, 17);
   assert.ok(padParams(null).every((v) => v === undefined));
 });
 
@@ -175,7 +175,7 @@ test("buildSparseParams: equal vectors → all undefined", () => {
     { tag: "i32", value: 42 },
   ];
   const sparse = buildSparseParams(host, device);
-  assert.equal(sparse.length, 16);
+  assert.equal(sparse.length, 17);
   assert.ok(sparse.every((v) => v === undefined));
 });
 

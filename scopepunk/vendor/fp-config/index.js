@@ -193,7 +193,7 @@ function is_CONFIG_MSG_IN(v) {
          v.value.values.every((v) => (v !== undefined &&
          is_VALUE(v)) ||
          v === undefined) &&
-         v.value.values.length === 16))
+         v.value.values.length === 17))
 }
 
 function is_CONFIG_MSG_OUT(v) {
@@ -799,7 +799,7 @@ function serialize_CONFIG_MSG_IN(s, v) {
                     s.serialize_number(U32_BYTES, false, 0)
                 }
             };
-            s.serialize_array(lambda_v_value_values, v.value.values, 16);
+            s.serialize_array(lambda_v_value_values, v.value.values, 17);
         }
         break;
     case "FactoryReset":
@@ -1944,7 +1944,7 @@ function deserialize_CONFIG_MSG_IN(d) {
             tag: "SetAppParams",
             value: {
                 layout_id: d.deserialize_number(U8_BYTES, false),
-                values: d.deserialize_array(() => (d.deserialize_number(U32_BYTES, false) === 0) ? undefined : deserialize_VALUE(d), 16)
+                values: d.deserialize_array(() => (d.deserialize_number(U32_BYTES, false) === 0) ? undefined : deserialize_VALUE(d), 17)
             }
         };
     case 9:

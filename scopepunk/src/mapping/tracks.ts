@@ -1138,12 +1138,12 @@ export async function refreshTrackParams(snapshot: Snapshot): Promise<AppTrack[]
   return reloadTracks(snapshot);
 }
 
-function padParams(values: Value[]): import("@atov/fp-config").FixedLengthArray<Value | undefined, 16> {
-  const result: (Value | undefined)[] = Array.from({ length: 16 }, () => undefined);
+function padParams(values: Value[]): import("@atov/fp-config").FixedLengthArray<Value | undefined, 17> {
+  const result: (Value | undefined)[] = Array.from({ length: 17 }, () => undefined);
   values.forEach((v, i) => {
-    if (i < 16) result[i] = v;
+    if (i < 17) result[i] = v;
   });
-  return result as unknown as import("@atov/fp-config").FixedLengthArray<Value | undefined, 16>;
+  return result as unknown as import("@atov/fp-config").FixedLengthArray<Value | undefined, 17>;
 }
 
 /** Turn on MidiOut→USB for every layout app that has a MidiOut param. */
