@@ -5311,23 +5311,13 @@
         ${control}`;
     }
 
-    /** One grid: Base row + per-lane Label | Inst | CH | CC (Manifold / Ripppple). */
+    /** Per-lane Label | Inst | CH | CC grid (Manifold Ch0 / Ripppple Root). */
     function laneMidiMatrixHtml(s, idx, spec) {
       ensureSchemaValues(s);
       ensureLaneInst(s);
       const li = laneMapIdx(s.app);
-      const base = laneBaseCh(s);
       const chVals = laneChsEffective(s, spec);
       const ccVals = laneCcsEffective(s, spec);
-      const baseOpts = Array.from({ length: 16 }, (_, i) => {
-        const n = i + 1;
-        return `<option value="${n}" ${base === n ? "selected" : ""}>${n}</option>`;
-      }).join("");
-      const baseInstId = resolveChInstId(s, 0, base);
-      const baseRow = `<span class="vm">Base</span>
-        <span></span>
-        <select data-i="${idx}" data-k="ch" title="${escapeAttr("Base MIDI channel")}">${baseOpts}</select>
-        ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc", instrumentId: baseInstId || s.instrumentId })}`;
       const laneRows = spec.lanes
         .map((lab, slot) => {
           return `<span class="vm">${escapeHtml(lab)}</span>
@@ -5336,7 +5326,7 @@
             ${laneCcControlHtml(s, idx, slot, ccVals[slot], spec, li, { noLabel: true })}`;
         })
         .join("");
-      return `<div class="lane-midi-matrix" title="${escapeAttr("Per-lane instrument, MIDI channel, and CC")}">${baseRow}${laneRows}</div>`;
+      return `<div class="lane-midi-matrix" title="${escapeAttr("Per-lane instrument, MIDI channel, and CC")}">${laneRows}</div>`;
     }
 
     /** Base CC plus one 0…127 field per lane (CC Map). */
@@ -8489,6 +8479,7 @@
           const slotsToUpdate =
             slot === 0 ? Array.from({ length: count }, (_, i) => i) : [slot];
           for (const si of slotsToUpdate) vals[si] = chN;
+          if (slot === 0) rowRef.ch = chN;
           rowRef.schemaValues[chMapPi] = i32(
             packMap(vals, { ...LANE_CH_FIELD, count, follow }),
           );
@@ -8770,6 +8761,11 @@
             : laneCcsEffective(rowRef, spec).slice();
           vals[slot] = clampLaneValue(Number(el.value), field);
           rowRef.schemaValues[pi] = i32(packMap(vals, { ...field, count, follow }));
+          if (slot === 0) {
+            if (isCh) rowRef.ch = vals[0];
+            else rowRef.cc = vals[0];
+            if (catalogApp(rowRef.app)) applyColumnOverlaysToSchema(rowRef, sc.port);
+          }
           delete rowRef.rawParams;
         }
       } else if (k === "cvRange") {
