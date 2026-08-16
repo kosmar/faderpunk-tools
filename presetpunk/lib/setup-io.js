@@ -16,6 +16,10 @@ const LAYOUT_SETTLE_LIVE_MS = 3500;
 const LAYOUT_SETTLE_INCREMENTAL_MS = 2000;
 /** Quiet teardown budget: 16 exits × 120ms + task reap + layout persistence. */
 const LAYOUT_CLEAR_QUIET_MS = 4000;
+/** First spawn after clear: SetLayout ACK precedes Core-1 param_handler. */
+const LAYOUT_FIRST_SPAWN_QUIET_MS = 2200;
+/** Quiet before retry when SetAppParams times out / empty (still spawning). */
+const SET_PARAMS_SPAWN_RETRY_MS = 2500;
 const SET_PARAMS_RETRIES = 4;
 /** Pause after SetAppParams: firmware respawns the app (param_handler exits). */
 const SET_PARAMS_GAP_MS = 900;
@@ -199,6 +203,19 @@ function isHeavySpawnSlot(slot, index, total) {
   if (Number(slot.app?.channels) > 1) return true;
   if (spawnWeight(slot) >= HEAVY_SPAWN_WEIGHT) return true;
   return index >= Math.max(6, total - 5);
+}
+
+/**
+ * Quiet pause after each incremental SetLayout before SetAppParams.
+ * Index 0 (post-clear) needs a longer floor — 800ms left heavy 1ch apps
+ * (e.g. Grooves) timing out on SetAppParams with no AppState reply.
+ */
+export function incrementalSpawnQuietMs(slot, index, total) {
+  const channels = Number(slot?.app?.channels) || 1;
+  const heavy = isHeavySpawnSlot(slot, index, total);
+  const base = channels > 1 ? 1200 : heavy || index >= 8 ? 800 : 500;
+  if (index === 0) return Math.max(base, LAYOUT_FIRST_SPAWN_QUIET_MS);
+  return base;
 }
 
 /** Place apps at final startChannel (holes OK). Falls back to packed order. */
@@ -895,10 +912,7 @@ async function applySetLayoutIncremental(
     growing.push(slot);
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
-    const channels = Number(slot.app?.channels) || 1;
-    const heavy = isHeavySpawnSlot(slot, i, n);
-    const multiCh = channels > 1;
-    const pauseMs = multiCh ? 1200 : heavy || i >= 8 ? 800 : 500;
+    const pauseMs = incrementalSpawnQuietMs(slot, i, n);
 
     cfg = await applySetLayout(
       cfg,
@@ -920,27 +934,40 @@ async function applySetLayoutIncremental(
         skipReadyWait: true,
         maxAttempts: 1,
       });
-    } catch (e) {
-      const message = String(e.message || e);
+    } catch (firstErr) {
+      let err = firstErr;
+      const message = String(err.message || err);
       log(`  ⚠ SetAppParams(${id}): ${message}`);
-      if (message.includes("empty AppState")) {
-        log("  slot still spawning — quiet wait 1500ms, then one retry …");
-        await delay(1500);
-        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-          deviceRef,
-          underHold: false,
-          skipReadyWait: true,
-          maxAttempts: 1,
-        });
-        continue;
+      // Empty AppState and host timeout are the same race: param_handler not
+      // up yet. Quiet retry first — reconnect alone does not finish the spawn.
+      const stillSpawning =
+        message.includes("empty AppState") ||
+        message.includes("Timed out waiting for device response");
+      if (stillSpawning) {
+        log(
+          `  slot still spawning — quiet wait ${SET_PARAMS_SPAWN_RETRY_MS}ms, then one retry …`,
+        );
+        await delay(SET_PARAMS_SPAWN_RETRY_MS);
+        try {
+          cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+            deviceRef,
+            underHold: false,
+            skipReadyWait: true,
+            maxAttempts: 1,
+          });
+          continue;
+        } catch (retryErr) {
+          err = retryErr;
+        }
       }
-      if (!deviceRef) throw e;
+      if (!deviceRef) throw err;
       log("  retry: reconnect + SetAppParams …");
       disconnectDevice(deviceRef.device);
       await delay(1000);
       deviceRef.device = await connectDevice();
       cfg = deviceRef.device.config;
       log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+      await delay(SET_PARAMS_SPAWN_RETRY_MS);
       cfg = await applySetAppParams(cfg, paramsById, [id], log, {
         deviceRef,
         underHold: false,

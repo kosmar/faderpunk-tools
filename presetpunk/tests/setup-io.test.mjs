@@ -10,6 +10,7 @@ import {
   buildSendLayout,
   compareSpawnOrder,
   ensureWireGlobalConfig,
+  incrementalSpawnQuietMs,
   normalizeValueForWire,
   padParams,
   partitionBySpawnWeight,
@@ -273,6 +274,23 @@ test("compareSpawnOrder: wire layout still places vamp at its startChannel", () 
   assert.equal(lay[0][2], undefined);
   assert.deepEqual(lay[0][3], [VAMP, 1, 3]);
   assert.deepEqual(lay[0][5], [ECHOLOT, 1, 5]);
+});
+
+test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () => {
+  const grooves = {
+    id: 0,
+    app: { appId: GROOVES, channels: 1, paramCount: 16, name: "Grooves" },
+    startChannel: 0,
+  };
+  assert.equal(incrementalSpawnQuietMs(grooves, 0, 9), 2200);
+  assert.equal(incrementalSpawnQuietMs(grooves, 1, 9), 800);
+  const light = {
+    id: 1,
+    app: { appId: BERNOULLI, channels: 1, paramCount: 6 },
+    startChannel: 1,
+  };
+  assert.equal(incrementalSpawnQuietMs(light, 0, 9), 2200);
+  assert.equal(incrementalSpawnQuietMs(light, 1, 9), 500);
 });
 
 // ---- wire regression: SetAppParams must serialize ----------------------------
