@@ -4511,6 +4511,33 @@
               ensureSchemaValues(row);
               applyColumnOverlaysToSchema(row, sc.port);
             }
+          } else if (laneMapApp(row.app)) {
+            ensureSchemaValues(row);
+            ensureLaneInst(row);
+            const spec = laneMapApp(row.app);
+            const li = laneMapIdx(row.app);
+            const ids = Array.isArray(row.chsInst) ? row.chsInst : [];
+            const follow = laneBaseCh(row);
+            const count = spec.lanes.length;
+            const chMapPi = li.chMap;
+            const vals = laneValuesFromMap(laneMapValue(row, chMapPi), LANE_CH_FIELD, count);
+            let changed = false;
+            for (let s = 0; s < count; s++) {
+              const slotId = ids[s] || "";
+              const matches =
+                slotId === instrumentId ||
+                (!slotId && s === 0 && row.instrumentId === instrumentId);
+              if (!matches) continue;
+              const cur = vals[s] ?? follow;
+              if (cur === ch) continue;
+              vals[s] = ch;
+              changed = true;
+            }
+            if (!changed) continue;
+            row.schemaValues[chMapPi] = i32(
+              packMap(vals, { ...LANE_CH_FIELD, count, follow }),
+            );
+            if (catalogApp(row.app)) applyColumnOverlaysToSchema(row, sc.port);
           } else if (row.instrumentId !== instrumentId) {
             continue;
           } else if (Number(row.ch) === ch) {
@@ -4857,6 +4884,27 @@
       return Math.max(1, Math.min(16, Number(row?.ch) || 1));
     }
 
+    /** Expand chsInst[] to lane count for manifold / ripppple. */
+    function ensureLaneInst(row) {
+      const spec = laneMapApp(row?.app);
+      if (!spec) return;
+      const n = spec.lanes.length;
+      const base = row.instrumentId || "";
+      const ids = Array.isArray(row.chsInst) ? [...row.chsInst] : [];
+      while (ids.length < n) ids.push(base);
+      row.chsInst = ids.slice(0, n);
+      if (row.chsInst[0] && !row.instrumentId) row.instrumentId = row.chsInst[0];
+    }
+
+    /** Per-lane MIDI channels from packed Ch Map (or base CH when following). */
+    function laneChsEffective(row, spec) {
+      ensureSchemaValues(row);
+      const li = laneMapIdx(row.app);
+      const follow = laneBaseCh(row);
+      const count = spec.lanes.length;
+      return unpackMap(laneMapValue(row, li.chMap), { ...LANE_CH_FIELD, count, follow });
+    }
+
     /** Firmware's legacy derivation: base CC counts up per lane. */
     function laneBaseCcFollow(row) {
       const base = Math.max(0, Math.min(127, Number(rowCcNum(row)) || 0));
@@ -5101,6 +5149,8 @@
       } else if (!id && row.app === "grooves" && row.instrumentId) {
         // Legacy single-instrument rows → every voice.
         id = row.instrumentId;
+      } else if (!id && row.instrumentId && laneMapApp(row.app)) {
+        if (slot === 0 || !ids.some(Boolean)) id = row.instrumentId;
       } else if (!id && slot === 1 && row.instrumentId) {
         id = row.instrumentId;
       }
@@ -6683,6 +6733,17 @@
         ).join("");
         return `<div class="multi-midi multi-midi-inst-col">${rows}</div>`;
       }
+      {
+        const laneSpec = laneMapApp(s.app);
+        if (laneSpec) {
+          ensureLaneInst(s);
+          const chs = laneChsEffective(s, laneSpec);
+          const rows = laneSpec.lanes
+            .map((lab, slot) => instSlotSelectHtml(s, idx, slot, lab, chs[slot]))
+            .join("");
+          return `<div class="multi-midi multi-midi-inst-col">${rows}</div>`;
+        }
+      }
       const opts = [`<option value="">${escapeHtml(t("inst.manual"))}</option>`]
         .concat(
           instruments
@@ -7415,6 +7476,7 @@
           const preferredId =
             previous?.app === row.app ? previous.instrumentId : "";
           row.instrumentId = inferInstrumentId(row, preferredId);
+          if (laneMapApp(appKey)) ensureLaneInst(row);
           return row;
         });
       if (!rows.length) throw new Error("Layout ohne Apps");
@@ -8239,6 +8301,11 @@
           ensureEcholotMidi(rowRef);
         } else if (el.value === "harmonica") {
           ensureHarmonicaMidi(rowRef);
+        } else if (laneMapApp(el.value)) {
+          const spec = laneMapApp(el.value);
+          const id = rowRef.instrumentId || "";
+          rowRef.chsInst = spec.lanes.map(() => id);
+          ensureLaneInst(rowRef);
         } else if (APPS_WITH_NOTE_AND_CC.has(el.value)) {
           ensureNoteAndCc(rowRef);
           delete rowRef.chs;
@@ -8298,6 +8365,11 @@
             rowRef.ch = chs[1];
             ensureHarmonicaMidi(rowRef);
           }
+          if (laneMapApp(rowRef.app)) {
+            const spec = laneMapApp(rowRef.app);
+            rowRef.chsInst = spec.lanes.map(() => inst.id);
+            ensureLaneInst(rowRef);
+          }
           if (inst.ccs?.length && rowRef.kind !== "note") {
             const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
             if (!hit) rowRef.cc = inst.ccs[0].cc;
@@ -8316,70 +8388,95 @@
         while (ids.length <= slot) ids.push("");
         ids[slot] = el.value || "";
         rowRef.chsInst = ids;
-        const chs =
-          rowRef.app === "echolot"
-            ? echolotChs(rowRef)
-            : rowRef.app === "harmonica"
-              ? harmonicaChs(rowRef)
-              : rowRef.app === "grooves"
-                ? groovesChs(rowRef)
-                : null;
-        if (chs && inst) {
-          if (rowRef.app === "grooves") {
-            const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
-            if (slot === 0) {
-              // Kick = kit preset: same instrument on all voices, CH / +1 / …
-              rowRef.chs = GROOVES_VOICES.map((_, i) => Math.min(16, base + i));
-              rowRef.chsInst = GROOVES_VOICES.map(() => inst.id);
-            } else {
-              chs[slot] = base;
+        if (laneMapApp(rowRef.app) && inst) {
+          ensureSchemaValues(rowRef);
+          ensureLaneInst(rowRef);
+          const spec = laneMapApp(rowRef.app);
+          const li = laneMapIdx(rowRef.app);
+          const follow = laneBaseCh(rowRef);
+          const count = spec.lanes.length;
+          const chMapPi = li.chMap;
+          const vals = laneValuesFromMap(
+            laneMapValue(rowRef, chMapPi),
+            LANE_CH_FIELD,
+            count,
+          );
+          const chN = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+          vals[slot] = chN;
+          rowRef.schemaValues[chMapPi] = i32(
+            packMap(vals, { ...LANE_CH_FIELD, count, follow }),
+          );
+          rowRef.instrumentId = rowRef.chsInst[0] || inst.id;
+          rowRef.color =
+            instrumentAppColor(rowRef.chsInst[slot] || inst.id) || rowRef.color;
+        } else if (laneMapApp(rowRef.app) && !el.value) {
+          if (slot === 0 && rowRef.instrumentId) delete rowRef.instrumentId;
+        } else {
+          const chs =
+            rowRef.app === "echolot"
+              ? echolotChs(rowRef)
+              : rowRef.app === "harmonica"
+                ? harmonicaChs(rowRef)
+                : rowRef.app === "grooves"
+                  ? groovesChs(rowRef)
+                  : null;
+          if (chs && inst) {
+            if (rowRef.app === "grooves") {
+              const base = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+              if (slot === 0) {
+                // Kick = kit preset: same instrument on all voices, CH / +1 / …
+                rowRef.chs = GROOVES_VOICES.map((_, i) => Math.min(16, base + i));
+                rowRef.chsInst = GROOVES_VOICES.map(() => inst.id);
+              } else {
+                chs[slot] = base;
+                rowRef.chs = chs;
+                rowRef.chsInst = ids;
+              }
+              rowRef.instrumentId = rowRef.chsInst[0] || inst.id;
+              rowRef.color = instrumentAppColor(rowRef.instrumentId) || rowRef.color;
+              ensureGroovesMidi(rowRef);
+            } else if (rowRef.app === "harmonica") {
+              chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
               rowRef.chs = chs;
-              rowRef.chsInst = ids;
-            }
-            rowRef.instrumentId = rowRef.chsInst[0] || inst.id;
-            rowRef.color = instrumentAppColor(rowRef.instrumentId) || rowRef.color;
-            ensureGroovesMidi(rowRef);
-          } else if (rowRef.app === "harmonica") {
-            chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
-            rowRef.chs = chs;
-            rowRef.ch = chs[1];
-            if (slot === harmonicaInstrumentSlot(rowRef)) {
-              rowRef.instrumentId = inst.id;
+              rowRef.ch = chs[1];
+              if (slot === harmonicaInstrumentSlot(rowRef)) {
+                rowRef.instrumentId = inst.id;
+                rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
+              }
+              ensureSchemaValues(rowRef);
+              const [inI, outI] = harmonicaMidiIndices(rowRef);
+              rowRef.schemaValues[inI] = ch(chs[0]);
+              rowRef.schemaValues[outI] = ch(chs[1]);
+              ensureHarmonicaMidi(rowRef);
+            } else if (rowRef.app === "echolot") {
+              chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+              rowRef.chs = chs;
+              rowRef.ch = chs[0];
+              if (slot === 1) {
+                rowRef.instrumentId = inst.id;
+                rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
+              }
+              ensureEcholotMidi(rowRef);
+            } else if (slot === 1) {
               rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
             }
-            ensureSchemaValues(rowRef);
-            const [inI, outI] = harmonicaMidiIndices(rowRef);
-            rowRef.schemaValues[inI] = ch(chs[0]);
-            rowRef.schemaValues[outI] = ch(chs[1]);
-            ensureHarmonicaMidi(rowRef);
-          } else if (rowRef.app === "echolot") {
-            chs[slot] = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
+            if (inst.ccs?.length && rowRef.kind !== "note" && slot === 1) {
+              const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
+              if (!hit) rowRef.cc = inst.ccs[0].cc;
+            }
+          } else if (chs && !el.value) {
+            // Manual — keep channel; clear instrument link for this slot.
             rowRef.chs = chs;
-            rowRef.ch = chs[0];
-            if (slot === 1) {
-              rowRef.instrumentId = inst.id;
-              rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
-            }
-            ensureEcholotMidi(rowRef);
-          } else if (slot === 1) {
-            rowRef.color = instrumentAppColor(inst.id) || rowRef.color;
-          }
-          if (inst.ccs?.length && rowRef.kind !== "note" && slot === 1) {
-            const hit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
-            if (!hit) rowRef.cc = inst.ccs[0].cc;
-          }
-        } else if (chs && !el.value) {
-          // Manual — keep channel; clear instrument link for this slot.
-          rowRef.chs = chs;
-          if (rowRef.app === "grooves") {
-            if (slot === 0) {
-              if (rowRef.instrumentId) delete rowRef.instrumentId;
-            }
-          } else {
-            const instSlot =
-              rowRef.app === "harmonica" ? harmonicaInstrumentSlot(rowRef) : 1;
-            if (slot === instSlot && rowRef.instrumentId) {
-              delete rowRef.instrumentId;
+            if (rowRef.app === "grooves") {
+              if (slot === 0) {
+                if (rowRef.instrumentId) delete rowRef.instrumentId;
+              }
+            } else {
+              const instSlot =
+                rowRef.app === "harmonica" ? harmonicaInstrumentSlot(rowRef) : 1;
+              if (slot === instSlot && rowRef.instrumentId) {
+                delete rowRef.instrumentId;
+              }
             }
           }
         }
