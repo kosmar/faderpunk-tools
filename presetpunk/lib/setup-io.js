@@ -32,7 +32,7 @@ const SET_PARAMS_TIMEOUT_MS = 45000;
 /** Single receive slice inside the SetAppParams wait window. */
 const SET_PARAMS_RECEIVE_SLICE_MS = 8000;
 /** Fast path: race AppState ACK before GetAppParams verify (FW 1.12 may omit ACK). */
-const SET_PARAMS_ACK_RACE_MS = 5000;
+const SET_PARAMS_ACK_RACE_MS = 10000;
 /** Quiet before first GetAppParams verify after missing ACK. */
 const SET_PARAMS_VERIFY_QUIET_MS = 600;
 /** Second verify attempt when device is still applying params. */
@@ -608,6 +608,29 @@ export function padParams(values) {
   return result;
 }
 
+/**
+ * Sparse SetAppParams wire: only slots that differ from device (or are missing
+ * on device). Undefined host slots stay omitted — matches Scopepunk Unique MIDI.
+ */
+export function buildSparseParams(hostValues, deviceValues) {
+  const host = padParams(hostValues);
+  const device = padParams(deviceValues);
+  const sparse = Array.from({ length: 16 }, () => undefined);
+  for (let i = 0; i < 16; i++) {
+    const h = host[i];
+    if (h === undefined) continue;
+    const d = device[i];
+    if (d === undefined || !wireValueMatch(h, d)) {
+      sparse[i] = h;
+    }
+  }
+  return sparse;
+}
+
+function sparseHasDefinedSlots(sparse) {
+  return sparse.some((v) => v !== undefined);
+}
+
 function scalarWireValue(v) {
   if (v == null) return undefined;
   const val = v.value;
@@ -711,14 +734,14 @@ async function verifySetAppParamsViaGet(cfg, layoutId, padded, log) {
  * SetAppParams with AppState ACK race, then GetAppParams verify when ACK is missing.
  * FW 1.12.0 may apply params without returning AppState.
  */
-async function setAppParamsWithAckOrVerify(cfg, layoutId, padded, log) {
+async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, log) {
   drainConfigQueue(cfg.rx);
   try {
     const response = await sendAndReceiveExpect(
       cfg,
       {
         tag: "SetAppParams",
-        value: { layout_id: layoutId, values: padded },
+        value: { layout_id: layoutId, values: sparse },
       },
       "AppState",
       {
@@ -742,7 +765,7 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, padded, log) {
   }
 
   await delay(SET_PARAMS_VERIFY_QUIET_MS);
-  let verify = await verifySetAppParamsViaGet(cfg, layoutId, padded, log);
+  let verify = await verifySetAppParamsViaGet(cfg, layoutId, hostPadded, log);
   if (verify.ok) {
     log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
     return { cfg, nvals: verify.nvals };
@@ -752,7 +775,7 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, padded, log) {
     `  ↷ verify failed (${verify.reason}) — retry GetAppParams after ${SET_PARAMS_VERIFY_RETRY_QUIET_MS}ms …`,
   );
   await delay(SET_PARAMS_VERIFY_RETRY_QUIET_MS);
-  verify = await verifySetAppParamsViaGet(cfg, layoutId, padded, log);
+  verify = await verifySetAppParamsViaGet(cfg, layoutId, hostPadded, log);
   if (verify.ok) {
     log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
     return { cfg, nvals: verify.nvals };
@@ -1331,14 +1354,30 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
         expectAppId: opts.expectAppId,
       });
     }
+    const hostPadded = padParams(values);
     let lastErr = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        const padded = padParams(values);
         if (attempt === 0) {
-          log(`  · host wire: ${summarizeParamWire(padded)}`);
+          log(`  · host wire: ${summarizeParamWire(hostPadded)}`);
         }
-        const result = await setAppParamsWithAckOrVerify(cfg, id, padded, log);
+        const deviceValues = (await fetchAppParamsValues(cfg, id, log)) ?? [];
+        const sparse = buildSparseParams(values, deviceValues);
+        if (!sparseHasDefinedSlots(sparse)) {
+          log(`  ✓ layoutId=${id} (already matches device)`);
+          lastErr = null;
+          break;
+        }
+        if (attempt === 0) {
+          log(`  · sparse wire: ${summarizeParamWire(sparse)}`);
+        }
+        const result = await setAppParamsWithAckOrVerify(
+          cfg,
+          id,
+          sparse,
+          hostPadded,
+          log,
+        );
         cfg = result.cfg;
         lastErr = null;
         break;
@@ -1824,7 +1863,7 @@ export async function pushAppParamsToDevice(layoutId, values, opts = {}) {
   if (!Number.isFinite(id) || id < 0 || id > 15) {
     throw new Error(`Invalid layoutId ${layoutId}`);
   }
-  const padded = padParams(values);
+  const hostPadded = padParams(values);
   let device;
   try {
     device = await connectDevice();
@@ -1845,10 +1884,24 @@ export async function pushAppParamsToDevice(layoutId, values, opts = {}) {
       }
     }
     log(`Live SetAppParams(layoutId=${id}) …`);
+    log(`  · host wire: ${summarizeParamWire(hostPadded)}`);
+    const deviceValues = (await fetchAppParamsValues(config, id, log)) ?? [];
+    const sparse = buildSparseParams(values, deviceValues);
+    if (!sparseHasDefinedSlots(sparse)) {
+      log(`  ✓ layoutId=${id} (already matches device)`);
+      return { ok: true, layoutId: id, n: deviceValues.length, version: device.config.version };
+    }
+    log(`  · sparse wire: ${summarizeParamWire(sparse)}`);
     let lastErr = null;
     for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
       try {
-        const { nvals } = await setAppParamsWithAckOrVerify(config, id, padded, log);
+        const { nvals } = await setAppParamsWithAckOrVerify(
+          config,
+          id,
+          sparse,
+          hostPadded,
+          log,
+        );
         return { ok: true, layoutId: id, n: nvals, version: device.config.version };
       } catch (e) {
         lastErr = e;

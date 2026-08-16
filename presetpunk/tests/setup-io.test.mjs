@@ -8,6 +8,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   buildSendLayout,
+  buildSparseParams,
   compareSpawnOrder,
   ensureWireGlobalConfig,
   incrementalSpawnQuietMs,
@@ -158,6 +159,70 @@ test("padParams: empty / null input yields 16 undefined", () => {
   assert.equal(padParams([]).length, 16);
   assert.equal(padParams(null).length, 16);
   assert.ok(padParams(null).every((v) => v === undefined));
+});
+
+// ---- buildSparseParams (sparse SetAppParams wire) ---------------------------
+
+test("buildSparseParams: equal vectors → all undefined", () => {
+  const host = [
+    { tag: "MidiNote", value: [36] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "i32", value: 42 },
+  ];
+  const device = [
+    { tag: "MidiNote", value: [36] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "i32", value: 42 },
+  ];
+  const sparse = buildSparseParams(host, device);
+  assert.equal(sparse.length, 16);
+  assert.ok(sparse.every((v) => v === undefined));
+});
+
+test("buildSparseParams: one MidiCc differs → only that index set", () => {
+  const host = [
+    { tag: "MidiCc", value: [1] },
+    { tag: "MidiCc", value: [74] },
+    { tag: "MidiCc", value: [7] },
+  ];
+  const device = [
+    { tag: "MidiCc", value: [1] },
+    { tag: "MidiCc", value: [71] },
+    { tag: "MidiCc", value: [7] },
+  ];
+  const sparse = buildSparseParams(host, device);
+  assert.equal(sparse[0], undefined);
+  assert.deepEqual(sparse[1], { tag: "MidiCc", value: [74] });
+  assert.equal(sparse[2], undefined);
+  assert.ok(sparse.slice(3).every((v) => v === undefined));
+});
+
+test("buildSparseParams: trailing undefined preserved", () => {
+  const host = [
+    { tag: "i32", value: 10 },
+    undefined,
+    undefined,
+    { tag: "Enum", value: 3 },
+  ];
+  const device = [
+    { tag: "i32", value: 99 },
+    { tag: "bool", value: true },
+    undefined,
+    { tag: "Enum", value: 3 },
+  ];
+  const sparse = buildSparseParams(host, device);
+  assert.deepEqual(sparse[0], { tag: "i32", value: 10 });
+  assert.equal(sparse[1], undefined);
+  assert.equal(sparse[2], undefined);
+  assert.equal(sparse[3], undefined);
+  assert.ok(sparse.slice(4).every((v) => v === undefined));
+});
+
+test("buildSparseParams: missing device slot includes host value", () => {
+  const host = [{ tag: "MidiChannel", value: [5] }];
+  const sparse = buildSparseParams(host, []);
+  assert.deepEqual(sparse[0], { tag: "MidiChannel", value: [5] });
+  assert.ok(sparse.slice(1).every((v) => v === undefined));
 });
 
 // ---- paramsWireMatch (SetAppParams verify without ACK) ----------------------
