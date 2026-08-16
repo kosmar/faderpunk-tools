@@ -4520,7 +4520,7 @@
             const follow = laneBaseCh(row);
             const count = spec.lanes.length;
             const chMapPi = li.chMap;
-            const vals = laneValuesFromMap(laneMapValue(row, chMapPi), LANE_CH_FIELD, count);
+            const vals = laneChsEffective(row, spec).slice();
             let changed = false;
             for (let s = 0; s < count; s++) {
               const slotId = ids[s] || "";
@@ -4528,7 +4528,7 @@
                 slotId === instrumentId ||
                 (!slotId && s === 0 && row.instrumentId === instrumentId);
               if (!matches) continue;
-              const cur = vals[s] ?? follow;
+              const cur = vals[s];
               if (cur === ch) continue;
               vals[s] = ch;
               changed = true;
@@ -4905,6 +4905,15 @@
       return unpackMap(laneMapValue(row, li.chMap), { ...LANE_CH_FIELD, count, follow });
     }
 
+    /** Per-lane CC numbers from packed CC Map (or base CC + lane when following). */
+    function laneCcsEffective(row, spec) {
+      ensureSchemaValues(row);
+      const li = laneMapIdx(row.app);
+      const follow = laneBaseCcFollow(row);
+      const count = spec.lanes.length;
+      return unpackMap(laneMapValue(row, li.ccMap), { ...LANE_CC_FIELD, count, follow });
+    }
+
     /** Firmware's legacy derivation: base CC counts up per lane. */
     function laneBaseCcFollow(row) {
       const base = Math.max(0, Math.min(127, Number(rowCcNum(row)) || 0));
@@ -5209,16 +5218,12 @@
         <select data-i="${idx}" data-k="chsInst" data-slot="${slot}" title="${escapeAttr(lab)}">${opts}</select>`;
     }
 
-    /** Base CH plus one "follow / 1…16" select per lane, packed into Ch Map. */
+    /** Base CH plus one 1…16 select per lane, packed into Ch Map. */
     function laneChCellHtml(s, idx, spec) {
       ensureSchemaValues(s);
       const li = laneMapIdx(s.app);
       const base = laneBaseCh(s);
-      const vals = laneValuesFromMap(
-        laneMapValue(s, li.chMap),
-        LANE_CH_FIELD,
-        spec.lanes.length,
-      );
+      const vals = laneChsEffective(s, spec);
       const baseOpts = Array.from({ length: 16 }, (_, i) => {
         const n = i + 1;
         return `<option value="${n}" ${base === n ? "selected" : ""}>${n}</option>`;
@@ -5226,16 +5231,10 @@
       const rows = spec.lanes
         .map((lab, slot) => {
           const cur = vals[slot];
-          const opts = [
-            `<option value="" ${cur == null ? "selected" : ""}>follow ${base}</option>`,
-          ]
-            .concat(
-              Array.from({ length: 16 }, (_, i) => {
-                const n = i + 1;
-                return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
-              }),
-            )
-            .join("");
+          const opts = Array.from({ length: 16 }, (_, i) => {
+            const n = i + 1;
+            return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
+          }).join("");
           return `<span class="vm">${escapeHtml(lab)}</span>
             <select data-i="${idx}" data-k="laneCh" data-pi="${li.chMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI channel`)}">${opts}</select>`;
         })
@@ -5266,40 +5265,38 @@
       return parts.join("");
     }
 
-    function laneCcControlHtml(s, idx, slot, cur, followPlaceholder, spec, li) {
+    function laneCcControlHtml(s, idx, slot, cur, spec, li) {
       ensureLaneInst(s);
       const chs = laneChsEffective(s, spec);
       const instId = resolveChInstId(s, slot, chs[slot]);
       const inst = instById(instId);
       const ccs = inst?.ccs || [];
       const lab = spec.lanes[slot];
-      const title = `${lab} CC — empty follows ${followPlaceholder}`;
+      const curN = Math.max(0, Math.min(127, Number(cur) || 0));
+      const title = `${lab} CC`;
       if (ccs.length) {
+        const inList = ccs.some((c) => Number(c.cc) === curN);
+        const opts = inList
+          ? ccOptionsHtml(inst, curN)
+          : `<option value="${curN}" selected>${curN}</option>${ccOptionsHtml(inst, curN)}`;
         return `<span class="vm">${escapeHtml(lab)}</span>
-          <select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" title="${escapeAttr(title)}">${ccOptionsHtml(inst, cur, { allowEmpty: true, emptyLabel: `follow ${followPlaceholder}` })}</select>`;
+          <select data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" title="${escapeAttr(title)}">${opts}</select>`;
       }
       return `<span class="vm">${escapeHtml(lab)}</span>
-        <input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" placeholder="${followPlaceholder}" value="${cur == null ? "" : cur}" title="${escapeAttr(title)}" />`;
+        <input data-i="${idx}" data-k="laneCc" data-pi="${li.ccMap}" data-slot="${slot}" type="number" min="0" max="127" value="${curN}" title="${escapeAttr(title)}" />`;
     }
 
-    /** Base CC plus one "empty = follow / 0…127" field per lane (CC Map). */
+    /** Base CC plus one 0…127 field per lane (CC Map). */
     function laneCcCellHtml(s, idx, spec) {
       ensureSchemaValues(s);
       ensureLaneInst(s);
       const li = laneMapIdx(s.app);
-      const follow = laneBaseCcFollow(s);
-      const vals = laneValuesFromMap(
-        laneMapValue(s, li.ccMap),
-        LANE_CC_FIELD,
-        spec.lanes.length,
-      );
+      const vals = laneCcsEffective(s, spec);
       const rows = spec.lanes
-        .map((_, slot) =>
-          laneCcControlHtml(s, idx, slot, vals[slot], follow(slot), spec, li),
-        )
+        .map((_, slot) => laneCcControlHtml(s, idx, slot, vals[slot], spec, li))
         .join("");
       const baseInstId = resolveChInstId(s, 0, laneBaseCh(s));
-      return `<div class="multi-midi" title="${escapeAttr("Base MIDI CC + per-lane CC Map (empty = follow)")}">
+      return `<div class="multi-midi" title="${escapeAttr("Base MIDI CC + per-lane CC Map")}">
         <span class="vm">CC</span>
         ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc", instrumentId: baseInstId || s.instrumentId })}
         ${rows}
@@ -8425,11 +8422,7 @@
           const follow = laneBaseCh(rowRef);
           const count = spec.lanes.length;
           const chMapPi = li.chMap;
-          const vals = laneValuesFromMap(
-            laneMapValue(rowRef, chMapPi),
-            LANE_CH_FIELD,
-            count,
-          );
+          const vals = laneChsEffective(rowRef, spec).slice();
           const chN = Math.max(1, Math.min(16, Number(inst.midiCh) || 1));
           vals[slot] = chN;
           rowRef.schemaValues[chMapPi] = i32(
@@ -8437,12 +8430,8 @@
           );
           const ccMapPi = li.ccMap;
           const ccFollow = laneBaseCcFollow(rowRef);
-          const ccVals = laneValuesFromMap(
-            laneMapValue(rowRef, ccMapPi),
-            LANE_CC_FIELD,
-            count,
-          );
-          const effectiveCc = ccVals[slot] != null ? ccVals[slot] : ccFollow(slot);
+          const ccVals = laneCcsEffective(rowRef, spec).slice();
+          const effectiveCc = ccVals[slot];
           if (inst.ccs?.length && rowRef.kind !== "note") {
             if (slot === 0) {
               const baseHit = inst.ccs.find((c) => Number(c.cc) === Number(rowRef.cc));
@@ -8702,7 +8691,6 @@
           applyColumnOverlaysToSchema(rowRef, sc.port);
         }
       } else if (k === "laneCh" || k === "laneCc") {
-        // One lane of a packed Ch/CC Map; empty value = follow the base param.
         const spec = laneMapApp(rowRef.app);
         const pi = Number(el.dataset.pi);
         const slot = Number(el.dataset.slot);
@@ -8712,10 +8700,10 @@
           const field = isCh ? LANE_CH_FIELD : LANE_CC_FIELD;
           const follow = isCh ? laneBaseCh(rowRef) : laneBaseCcFollow(rowRef);
           const count = spec.lanes.length;
-          const vals = laneValuesFromMap(laneMapValue(rowRef, pi), field, count);
-          const raw = String(el.value).trim();
-          const n = raw === "" ? NaN : Number(raw);
-          vals[slot] = Number.isFinite(n) ? clampLaneValue(n, field) : null;
+          const vals = isCh
+            ? laneChsEffective(rowRef, spec).slice()
+            : laneCcsEffective(rowRef, spec).slice();
+          vals[slot] = clampLaneValue(Number(el.value), field);
           rowRef.schemaValues[pi] = i32(packMap(vals, { ...field, count, follow }));
           delete rowRef.rawParams;
         }
