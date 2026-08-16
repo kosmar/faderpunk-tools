@@ -4873,11 +4873,11 @@
     const APP_LANE_MAPS = {
       grooves: { lanes: GROOVES_VOICES },
       manifold: {
-        lanes: ["Ch0", "B", "C", "D"],
+        lanes: ["In/LFO", "B", "C", "D"],
         columns: true,
       },
       ripppple: {
-        lanes: ["Root", "B", "C", "D"],
+        lanes: ["In/LFO", "B", "C", "D"],
         columns: true,
       },
     };
@@ -5360,7 +5360,7 @@
 
     function laneModeSelectHtml(s, idx, slot, mode, spec, li) {
       if (slot === 0) {
-        return `<span class="vm led-muted" title="Ch0 always sends CC">CC</span>`;
+        return `<span class="vm led-muted" title="In/LFO always sends CC">CC</span>`;
       }
       const lab = spec.lanes[slot];
       const cvOnly = s.app === "manifold" && manifoldOutModeCv(s, slot);
