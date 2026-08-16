@@ -30,6 +30,36 @@ function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Compact wire summary for push logs (tag[+shape]) — catches Range/Drummer drift. */
+export function summarizeParamWire(values) {
+  if (!Array.isArray(values)) return "(none)";
+  return values
+    .map((v, i) => {
+      if (v == null) return `${i}:_`;
+      const tag = v.tag || "?";
+      if (tag === "Enum" || tag === "i32" || tag === "f32" || tag === "bool") {
+        const n = Array.isArray(v.value) ? v.value[0] : v.value;
+        return `${i}:${tag}=${n}`;
+      }
+      if (tag === "Range" || tag === "Color" || tag === "Curve" || tag === "Waveform") {
+        const t = v.value?.tag ?? v.value;
+        return `${i}:${tag}:${t}`;
+      }
+      if (tag === "MidiOut") {
+        const flags = Array.isArray(v.value?.[0]) ? v.value[0] : v.value;
+        return `${i}:MidiOut[${Array.isArray(flags) ? flags.map(Number).join("") : "?"}]`;
+      }
+      if (
+        (tag === "MidiNote" || tag === "MidiChannel" || tag === "MidiCc") &&
+        Array.isArray(v.value)
+      ) {
+        return `${i}:${tag}=${v.value[0]}`;
+      }
+      return `${i}:${tag}`;
+    })
+    .join(" ");
+}
+
 /**
  * Sleep without going SysEx-silent for long stretches — macOS/Web MIDI can
  * drop the config port after ~1min of idle during a long Full Push.
@@ -673,6 +703,12 @@ async function waitForSlotReady(
           : 0;
       if (n > 0) {
         log(`  ✓ layoutId=${id} ready (${n} params)`);
+        try {
+          const vals = response.value?.[1] ?? response.value?.values;
+          log(`  · device wire: ${summarizeParamWire(vals)}`);
+        } catch {
+          /* ignore */
+        }
         return cfg;
       }
       emptyStreak++;
@@ -1130,13 +1166,17 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         drainConfigQueue(cfg.rx);
+        const padded = padParams(values);
+        if (attempt === 0) {
+          log(`  · host wire: ${summarizeParamWire(padded)}`);
+        }
         const response = await sendAndReceiveExpect(
           cfg,
           {
             tag: "SetAppParams",
             value: {
               layout_id: id,
-              values: padParams(values),
+              values: padded,
             },
           },
           "AppState",

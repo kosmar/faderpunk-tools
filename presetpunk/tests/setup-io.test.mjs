@@ -15,6 +15,7 @@ import {
   padParams,
   partitionBySpawnWeight,
   spawnWeight,
+  summarizeParamWire,
   verifyLayoutSlot,
 } from "../lib/setup-io.js";
 import { serialize } from "../vendor/fp-config/index.js";
@@ -313,14 +314,33 @@ test("SetAppParams with padded grooves vector serializes", () => {
     { tag: "i32", value: 100 },
     { tag: "MidiOut", value: [true, true, true] }, // flat form on purpose
     { tag: "Enum", value: 0 },
-    { tag: "Range", value: { tag: "_0_10V" } },
-    { tag: "i32", value: 50 },
+    { tag: "i32", value: 50 }, // CV Att (post-Drummer catalog)
+    { tag: "Enum", value: 0 }, // Drummer
   ];
   const bytes = serialize("ConfigMsgIn", {
     tag: "SetAppParams",
     value: { layout_id: 0, values: padParams(groovesRow) },
   });
   assert.ok(bytes.length > 0);
+  assert.match(summarizeParamWire(padParams(groovesRow)), /15:Enum=0/);
+});
+
+test("summarizeParamWire flags legacy Range in Grooves tail", () => {
+  const legacyTail = padParams([
+    ...Array.from({ length: 14 }, () => ({ tag: "i32", value: 0 })),
+    { tag: "Range", value: { tag: "_0_10V" } },
+    { tag: "i32", value: 50 },
+  ]);
+  // Slot 0..13 overwritten; check tags at 14/15 via direct summarize
+  assert.match(
+    summarizeParamWire([
+      { tag: "Enum", value: 0 },
+      { tag: "Range", value: { tag: "_0_10V" } },
+      { tag: "i32", value: 50 },
+    ]),
+    /Range:_0_10V/,
+  );
+  assert.ok(legacyTail);
 });
 
 test("SetAppParams rejects stale Grooves schema tags (pre-7-voice layout)", () => {
