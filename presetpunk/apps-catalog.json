@@ -4652,7 +4652,7 @@
       "module": "ripppple",
       "channels": 4,
       "name": "Ripppple",
-      "description": "One root LFO cascading through three modulated LFOs",
+      "description": "Root CV or LFO through three cumulative waveshapers",
       "color": "Cyan",
       "icon": "Sine",
       "params": [
@@ -4747,33 +4747,33 @@
         {
           "tag": "Enum",
           "value": {
-            "name": "Target B",
+            "name": "Process B",
             "variants": [
-              "Rate",
-              "Depth",
-              "Shape"
+              "Fold",
+              "Soft",
+              "Rect"
             ]
           }
         },
         {
           "tag": "Enum",
           "value": {
-            "name": "Target C",
+            "name": "Process C",
             "variants": [
-              "Rate",
-              "Depth",
-              "Shape"
+              "Fold",
+              "Soft",
+              "Rect"
             ]
           }
         },
         {
           "tag": "Enum",
           "value": {
-            "name": "Target D",
+            "name": "Process D",
             "variants": [
-              "Rate",
-              "Depth",
-              "Shape"
+              "Fold",
+              "Soft",
+              "Rect"
             ]
           }
         },
