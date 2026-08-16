@@ -217,7 +217,11 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
     opts.matchLayoutId == null ? null : Number(opts.matchLayoutId);
   drainConfigQueue(config.rx);
   sendFrame(config.output, msg);
-  const deadline = Date.now() + timeoutMs * Math.max(2, Math.ceil(attempts / 2));
+  // Total wait window. Per-slice receive uses timeoutMs; silence must not abort
+  // early — SetAppParams can spend >15s in FRAM/respawn before AppState.
+  const deadline =
+    Date.now() +
+    (opts.deadlineMs ?? timeoutMs * Math.max(1, Math.ceil(attempts / 2)));
   let lastTag = null;
   while (Date.now() < deadline) {
     const remaining = Math.max(200, deadline - Date.now());
@@ -225,6 +229,10 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
     try {
       response = await receiveFromRx(config.rx, Math.min(timeoutMs, remaining));
     } catch (e) {
+      const timedOut = /timed out/i.test(String(e.message || e));
+      if (timedOut && Date.now() < deadline) {
+        continue;
+      }
       if (lastTag) {
         throw new Error(
           `Expected ${expectedTag}, last stray was ${lastTag} (${e.message || e})`,

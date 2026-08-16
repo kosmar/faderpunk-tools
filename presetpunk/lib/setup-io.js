@@ -23,8 +23,13 @@ const SET_PARAMS_SPAWN_RETRY_MS = 2500;
 const SET_PARAMS_RETRIES = 4;
 /** Pause after SetAppParams: firmware respawns the app (param_handler exits). */
 const SET_PARAMS_GAP_MS = 900;
-/** Host wait per attempt. Firmware may spend up to ~8s in FRAM before AppState. */
-const SET_PARAMS_TIMEOUT_MS = 15000;
+/**
+ * Host wait for SetAppParams AppState. Grooves (16 params + FRAM + respawn)
+ * can exceed 15s — shorter waits abort a still-working apply and stack retries.
+ */
+const SET_PARAMS_TIMEOUT_MS = 45000;
+/** Single receive slice inside the SetAppParams wait window. */
+const SET_PARAMS_RECEIVE_SLICE_MS = 8000;
 
 function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -972,7 +977,7 @@ async function applySetLayoutIncremental(
         underHold: false,
         skipReadyWait: false,
         expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
-        maxAttempts: 2,
+        maxAttempts: 1,
       });
     } catch (firstErr) {
       let err = firstErr;
@@ -995,7 +1000,7 @@ async function applySetLayoutIncremental(
           deviceRef,
           underHold: false,
           skipReadyWait: true,
-          maxAttempts: 2,
+          maxAttempts: 1,
         });
         continue;
       } catch (retryErr) {
@@ -1018,7 +1023,7 @@ async function applySetLayoutIncremental(
         deviceRef,
         underHold: false,
         skipReadyWait: true,
-        maxAttempts: 2,
+        maxAttempts: 1,
       });
     }
   }
@@ -1180,7 +1185,13 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
             },
           },
           "AppState",
-          { onLog: log, timeoutMs: SET_PARAMS_TIMEOUT_MS, matchLayoutId: id },
+          {
+            onLog: log,
+            timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
+            deadlineMs: SET_PARAMS_TIMEOUT_MS,
+            attempts: 1,
+            matchLayoutId: id,
+          },
         );
         const nvals = Array.isArray(response.value[1])
           ? response.value[1].length
@@ -1707,7 +1718,13 @@ export async function pushAppParamsToDevice(layoutId, values, opts = {}) {
             value: { layout_id: id, values: padded },
           },
           "AppState",
-          { onLog: log, timeoutMs: SET_PARAMS_TIMEOUT_MS, matchLayoutId: id },
+          {
+            onLog: log,
+            timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
+            deadlineMs: SET_PARAMS_TIMEOUT_MS,
+            attempts: 1,
+            matchLayoutId: id,
+          },
         );
         const n = Array.isArray(response.value[1]) ? response.value[1].length : 0;
         if (n === 0) {
