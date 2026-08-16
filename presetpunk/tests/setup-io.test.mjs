@@ -13,6 +13,7 @@ import {
   incrementalSpawnQuietMs,
   normalizeValueForWire,
   padParams,
+  paramsWireMatch,
   partitionBySpawnWeight,
   spawnWeight,
   summarizeParamWire,
@@ -157,6 +158,74 @@ test("padParams: empty / null input yields 16 undefined", () => {
   assert.equal(padParams([]).length, 16);
   assert.equal(padParams(null).length, 16);
   assert.ok(padParams(null).every((v) => v === undefined));
+});
+
+// ---- paramsWireMatch (SetAppParams verify without ACK) ----------------------
+
+test("paramsWireMatch: matching scalars, enums, and midi types", () => {
+  const sent = [
+    { tag: "MidiNote", value: [36] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "Enum", value: 5 },
+    { tag: "i32", value: 100 },
+    { tag: "bool", value: true },
+  ];
+  const got = [
+    { tag: "MidiNote", value: [36] },
+    { tag: "MidiChannel", value: [7] },
+    { tag: "Enum", value: 5 },
+    { tag: "i32", value: 100 },
+    { tag: "bool", value: true },
+  ];
+  assert.equal(paramsWireMatch(sent, got), true);
+});
+
+test("paramsWireMatch: tagged Range/Color/Curve values", () => {
+  const sent = [
+    { tag: "Range", value: { tag: "_0_10V" } },
+    { tag: "Color", value: { tag: "Pink" } },
+    { tag: "Curve", value: { tag: "Linear" } },
+  ];
+  const got = [
+    { tag: "Range", value: { tag: "_0_10V" } },
+    { tag: "Color", value: { tag: "Pink" } },
+    { tag: "Curve", value: { tag: "Linear" } },
+  ];
+  assert.equal(paramsWireMatch(sent, got), true);
+});
+
+test("paramsWireMatch: MidiOut flat vs nested flag triples", () => {
+  const sent = [{ tag: "MidiOut", value: [[true, false, true]] }];
+  const got = [{ tag: "MidiOut", value: [true, false, true] }];
+  assert.equal(paramsWireMatch(sent, got), true);
+});
+
+test("paramsWireMatch: ignores trailing undefined holes on sent", () => {
+  const sent = [
+    { tag: "i32", value: 42 },
+    undefined,
+    undefined,
+  ];
+  const got = [{ tag: "i32", value: 42 }, { tag: "Enum", value: 0 }];
+  assert.equal(paramsWireMatch(sent, got), true);
+});
+
+test("paramsWireMatch: mismatch on scalar value", () => {
+  const sent = [{ tag: "i32", value: 70 }];
+  const got = [{ tag: "i32", value: 21 }];
+  assert.equal(paramsWireMatch(sent, got), false);
+});
+
+test("paramsWireMatch: mismatch on tag", () => {
+  const sent = [{ tag: "Enum", value: 2 }];
+  const got = [{ tag: "i32", value: 2 }];
+  assert.equal(paramsWireMatch(sent, got), false);
+});
+
+test("paramsWireMatch: rejects empty or non-array input", () => {
+  assert.equal(paramsWireMatch([], [{ tag: "i32", value: 1 }]), false);
+  assert.equal(paramsWireMatch(null, []), false);
+  assert.equal(paramsWireMatch([{ tag: "i32", value: 1 }], null), false);
 });
 
 // ---- buildSendLayout ---------------------------------------------------------

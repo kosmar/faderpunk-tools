@@ -1,5 +1,6 @@
 import {
   cachedAppState,
+  clearCachedAppState,
   clearCachedAppStates,
   connectDevice,
   disconnectDevice,
@@ -30,6 +31,12 @@ const SET_PARAMS_GAP_MS = 900;
 const SET_PARAMS_TIMEOUT_MS = 45000;
 /** Single receive slice inside the SetAppParams wait window. */
 const SET_PARAMS_RECEIVE_SLICE_MS = 8000;
+/** Fast path: race AppState ACK before GetAppParams verify (FW 1.12 may omit ACK). */
+const SET_PARAMS_ACK_RACE_MS = 5000;
+/** Quiet before first GetAppParams verify after missing ACK. */
+const SET_PARAMS_VERIFY_QUIET_MS = 600;
+/** Second verify attempt when device is still applying params. */
+const SET_PARAMS_VERIFY_RETRY_QUIET_MS = 2000;
 
 function delay(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -601,6 +608,161 @@ export function padParams(values) {
   return result;
 }
 
+function scalarWireValue(v) {
+  if (v == null) return undefined;
+  const val = v.value;
+  if (Array.isArray(val) && val.length === 1) return val[0];
+  return val;
+}
+
+function taggedWireValue(v) {
+  if (v == null) return undefined;
+  const inner = v.value;
+  if (inner && typeof inner === "object" && "tag" in inner) return inner.tag;
+  return inner?.tag ?? inner;
+}
+
+function midiOutWireFlags(v) {
+  if (!v || v.tag !== "MidiOut") return null;
+  const raw = v.value;
+  const flags = Array.isArray(raw?.[0]) ? raw[0] : raw;
+  if (!Array.isArray(flags)) return null;
+  return flags.map(Boolean);
+}
+
+function wireValueMatch(sent, got) {
+  if (sent == null && got == null) return true;
+  if (sent == null || got == null) return false;
+  if (sent.tag !== got.tag) return false;
+  switch (sent.tag) {
+    case "MidiNote":
+    case "MidiChannel":
+    case "MidiCc":
+      return Number(scalarWireValue(sent)) === Number(scalarWireValue(got));
+    case "Enum":
+    case "i32":
+    case "bool":
+    case "MidiNrpn":
+      return scalarWireValue(sent) === scalarWireValue(got);
+    case "f32": {
+      const a = Number(scalarWireValue(sent));
+      const b = Number(scalarWireValue(got));
+      if (!Number.isFinite(a) || !Number.isFinite(b)) return a === b;
+      return Math.abs(a - b) < 1e-5;
+    }
+    case "Range":
+    case "Color":
+    case "Curve":
+    case "Waveform":
+      return taggedWireValue(sent) === taggedWireValue(got);
+    case "MidiOut": {
+      const sf = midiOutWireFlags(sent);
+      const gf = midiOutWireFlags(got);
+      if (!sf || !gf || sf.length !== gf.length) return false;
+      return sf.every((b, i) => b === gf[i]);
+    }
+    default:
+      return JSON.stringify(sent) === JSON.stringify(got);
+  }
+}
+
+/**
+ * Compare host SetAppParams wire vector to device GetAppParams reply.
+ * Compares up to min length; ignores trailing undefined holes on `sent`.
+ */
+export function paramsWireMatch(sent, got) {
+  if (!Array.isArray(sent) || !Array.isArray(got)) return false;
+  let sentLen = sent.length;
+  while (sentLen > 0 && sent[sentLen - 1] === undefined) sentLen--;
+  if (sentLen === 0) return false;
+  const n = Math.min(sentLen, got.length);
+  for (let i = 0; i < n; i++) {
+    const s = sent[i];
+    if (s === undefined) continue;
+    if (!wireValueMatch(s, got[i])) return false;
+  }
+  return true;
+}
+
+async function fetchAppParamsValues(cfg, layoutId, log) {
+  clearCachedAppState(cfg.rx, layoutId);
+  drainConfigQueue(cfg.rx);
+  const response = await sendAndReceiveExpect(
+    cfg,
+    { tag: "GetAppParams", value: { layout_id: layoutId } },
+    "AppState",
+    { onLog: log, timeoutMs: 3500, attempts: 2, matchLayoutId: layoutId },
+  );
+  const values = response.value?.[1] ?? response.value?.values;
+  return Array.isArray(values) && values.length > 0 ? values : null;
+}
+
+async function verifySetAppParamsViaGet(cfg, layoutId, padded, log) {
+  const got = await fetchAppParamsValues(cfg, layoutId, log);
+  if (!got) return { ok: false, reason: "empty AppState from GetAppParams" };
+  log(`  · device wire: ${summarizeParamWire(got)}`);
+  if (paramsWireMatch(padded, got)) {
+    return { ok: true, nvals: got.length };
+  }
+  return { ok: false, reason: "values mismatch" };
+}
+
+/**
+ * SetAppParams with AppState ACK race, then GetAppParams verify when ACK is missing.
+ * FW 1.12.0 may apply params without returning AppState.
+ */
+async function setAppParamsWithAckOrVerify(cfg, layoutId, padded, log) {
+  drainConfigQueue(cfg.rx);
+  try {
+    const response = await sendAndReceiveExpect(
+      cfg,
+      {
+        tag: "SetAppParams",
+        value: { layout_id: layoutId, values: padded },
+      },
+      "AppState",
+      {
+        onLog: log,
+        timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
+        deadlineMs: SET_PARAMS_ACK_RACE_MS,
+        attempts: 1,
+        matchLayoutId: layoutId,
+      },
+    );
+    const nvals = Array.isArray(response.value[1]) ? response.value[1].length : 0;
+    if (nvals === 0) {
+      throw new Error(`SetAppParams(${layoutId}): empty AppState`);
+    }
+    log(`  ✓ layoutId=${layoutId} (${nvals} params)`);
+    return { cfg, nvals };
+  } catch (ackErr) {
+    log(
+      `  ↷ SetAppParams(${layoutId}): no AppState ACK (${ackErr.message || ackErr}) — verifying via GetAppParams …`,
+    );
+  }
+
+  await delay(SET_PARAMS_VERIFY_QUIET_MS);
+  let verify = await verifySetAppParamsViaGet(cfg, layoutId, padded, log);
+  if (verify.ok) {
+    log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
+    return { cfg, nvals: verify.nvals };
+  }
+
+  log(
+    `  ↷ verify failed (${verify.reason}) — retry GetAppParams after ${SET_PARAMS_VERIFY_RETRY_QUIET_MS}ms …`,
+  );
+  await delay(SET_PARAMS_VERIFY_RETRY_QUIET_MS);
+  verify = await verifySetAppParamsViaGet(cfg, layoutId, padded, log);
+  if (verify.ok) {
+    log(`  ✓ layoutId=${layoutId} (verified via GetAppParams, no AppState ACK)`);
+    return { cfg, nvals: verify.nvals };
+  }
+
+  throw new Error(
+    `SetAppParams(${layoutId}): no AppState ACK and GetAppParams mismatch (${verify.reason})`,
+  );
+}
+
 /**
  * Cheap cable check — if this times out, SetLayout likely killed USB MIDI
  * or another tab holds the config port.
@@ -989,6 +1151,7 @@ async function applySetLayoutIncremental(
         `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
       );
       await delay(SET_PARAMS_SPAWN_RETRY_MS);
+      clearCachedAppState(cfg.rx, id);
       try {
         cfg = await waitForSlotReady(cfg, id, log, 45_000, {
           label: "after params fail",
@@ -1013,6 +1176,7 @@ async function applySetLayoutIncremental(
       cfg = deviceRef.device.config;
       log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
       await delay(SET_PARAMS_SPAWN_RETRY_MS);
+      clearCachedAppState(cfg.rx, id);
       cfg = await waitForSlotReady(cfg, id, log, 45_000, {
         label: "after reconnect",
         deviceRef,
@@ -1170,38 +1334,12 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
     let lastErr = null;
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        drainConfigQueue(cfg.rx);
         const padded = padParams(values);
         if (attempt === 0) {
           log(`  · host wire: ${summarizeParamWire(padded)}`);
         }
-        const response = await sendAndReceiveExpect(
-          cfg,
-          {
-            tag: "SetAppParams",
-            value: {
-              layout_id: id,
-              values: padded,
-            },
-          },
-          "AppState",
-          {
-            onLog: log,
-            timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
-            deadlineMs: SET_PARAMS_TIMEOUT_MS,
-            attempts: 1,
-            matchLayoutId: id,
-          },
-        );
-        const nvals = Array.isArray(response.value[1])
-          ? response.value[1].length
-          : 0;
-        if (nvals === 0) {
-          throw new Error(
-            `SetAppParams(${id}): empty AppState (slot not running — pool/spawn?)`,
-          );
-        }
-        log(`  ✓ layoutId=${id} (${nvals} params)`);
+        const result = await setAppParamsWithAckOrVerify(cfg, id, padded, log);
+        cfg = result.cfg;
         lastErr = null;
         break;
       } catch (e) {
@@ -1710,30 +1848,8 @@ export async function pushAppParamsToDevice(layoutId, values, opts = {}) {
     let lastErr = null;
     for (let attempt = 0; attempt < SET_PARAMS_RETRIES; attempt++) {
       try {
-        drainConfigQueue(config.rx);
-        const response = await sendAndReceiveExpect(
-          config,
-          {
-            tag: "SetAppParams",
-            value: { layout_id: id, values: padded },
-          },
-          "AppState",
-          {
-            onLog: log,
-            timeoutMs: SET_PARAMS_RECEIVE_SLICE_MS,
-            deadlineMs: SET_PARAMS_TIMEOUT_MS,
-            attempts: 1,
-            matchLayoutId: id,
-          },
-        );
-        const n = Array.isArray(response.value[1]) ? response.value[1].length : 0;
-        if (n === 0) {
-          throw new Error(
-            `empty AppState — slot ${id} not running (spawn/pool?). Full Push layout first.`,
-          );
-        }
-        log(`  ✓ layoutId=${id} (${n} params)`);
-        return { ok: true, layoutId: id, n, version: device.config.version };
+        const { nvals } = await setAppParamsWithAckOrVerify(config, id, padded, log);
+        return { ok: true, layoutId: id, n: nvals, version: device.config.version };
       } catch (e) {
         lastErr = e;
         log(

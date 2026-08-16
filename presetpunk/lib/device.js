@@ -194,6 +194,11 @@ export function clearCachedAppStates(rx) {
   rx?.appStates?.clear();
 }
 
+/** Drop one layout slot from passive AppState cache (stale after SetAppParams timeout). */
+export function clearCachedAppState(rx, layoutId) {
+  rx?.appStates?.delete(Number(layoutId));
+}
+
 export function cachedAppState(rx, layoutId) {
   return rx?.appStates?.get(Number(layoutId)) ?? null;
 }
