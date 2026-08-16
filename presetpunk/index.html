@@ -1028,10 +1028,6 @@
     .lane-midi-matrix select[data-k="laneMode"] {
       width: 4.5rem;
     }
-    .lane-midi-matrix .lane-retained {
-      margin-left: 0.2rem;
-      font-style: italic;
-    }
     th { color: var(--muted); font-size: 12px; font-weight: 400; background: #191919; }
     tr:last-child td { border-bottom: 0; }
     tbody tr[data-row] > td {
@@ -5363,14 +5359,14 @@
       const lab = spec.lanes[slot];
       const cur = mode ? 1 : 0;
       const cv = s.app === "manifold" && manifoldOutModeCv(s, slot);
-      const retained =
+      const title =
         cur === 1 && cv
-          ? `<span class="vm led-muted lane-retained" title="${escapeAttr(t("midi.retainedTitle"))}">${escapeHtml(t("midi.retained"))}</span>`
-          : "";
-      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(t("midi.laneModeTitle", { lab }))}">
+          ? t("midi.retainedTitle")
+          : t("midi.laneModeTitle", { lab });
+      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(title)}">
         <option value="0" ${cur === 0 ? "selected" : ""}>CC</option>
         <option value="1" ${cur === 1 ? "selected" : ""}>Note</option>
-      </select>${retained}`;
+      </select>`;
     }
 
     function laneCcControlHtml(s, idx, slot, cur, spec, li, { noLabel = false, mode = 0 } = {}) {
