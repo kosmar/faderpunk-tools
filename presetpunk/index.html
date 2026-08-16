@@ -1015,11 +1015,18 @@
       width: 100%;
       max-width: 100%;
     }
+    /* Manifold adds a CC/Note mode column between CH and the value. */
+    .lane-midi-matrix.has-mode {
+      grid-template-columns: auto minmax(9rem, 1fr) 4.75rem 4.5rem minmax(5.5rem, 8rem);
+    }
     .lane-midi-matrix .vm { color: var(--muted); font-size: 11px; min-width: 1.4rem; }
     .lane-midi-matrix select,
     .lane-midi-matrix input {
       width: 100%;
       min-width: 0;
+    }
+    .lane-midi-matrix select[data-k="laneMode"] {
+      width: 4.5rem;
     }
     th { color: var(--muted); font-size: 12px; font-weight: 400; background: #191919; }
     tr:last-child td { border-bottom: 0; }
@@ -5357,11 +5364,14 @@
       }
       const lab = spec.lanes[slot];
       const cvOnly = s.app === "manifold" && manifoldOutModeCv(s, slot);
-      const cur = cvOnly ? 0 : mode ? 1 : 0;
-      const noteDisabled = cvOnly ? " disabled" : "";
-      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI output`)}">
+      // CV outs have no Note path in firmware — show that instead of a dead option.
+      if (cvOnly) {
+        return `<span class="vm led-muted" title="${escapeAttr(`${lab} is CV — MIDI stays CC`)}">CC</span>`;
+      }
+      const cur = mode ? 1 : 0;
+      return `<select data-i="${idx}" data-k="laneMode" data-pi="${li.modeMap}" data-slot="${slot}" title="${escapeAttr(`${lab} MIDI output (Gate/Trigger only)`)}">
         <option value="0" ${cur === 0 ? "selected" : ""}>CC</option>
-        <option value="1" ${cur === 1 ? "selected" : ""}${noteDisabled}>Note</option>
+        <option value="1" ${cur === 1 ? "selected" : ""}>Note</option>
       </select>`;
     }
 
@@ -5422,7 +5432,8 @@
         s.app === "manifold"
           ? "Per-lane instrument, MIDI channel, CC/Note mode, and pitch"
           : "Per-lane instrument, MIDI channel, and CC";
-      return `<div class="lane-midi-matrix" title="${escapeAttr(matrixTitle)}">${laneRows}</div>`;
+      const modeClass = s.app === "manifold" ? " has-mode" : "";
+      return `<div class="lane-midi-matrix${modeClass}" title="${escapeAttr(matrixTitle)}">${laneRows}</div>`;
     }
 
     /** Base CC plus one 0…127 field per lane (CC Map). */
