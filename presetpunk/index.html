@@ -3542,7 +3542,11 @@
         if (p.tag === "MidiMode" && APPS_WITH_MIDI_MODE.has(row.app)) {
           p.value = { tag: rowMidiMode(row) };
         }
-        if (p.tag === "Range" && APPS_WITH_RANGE.has(row.app)) {
+        if (
+          p.tag === "Range" &&
+          APPS_WITH_RANGE.has(row.app) &&
+          !appHasMultipleRanges(row.app)
+        ) {
           p.value = { tag: cvR };
         }
         if (p.tag === "Enum") {
@@ -5569,6 +5573,12 @@
       return null;
     }
 
+    function appHasMultipleRanges(app) {
+      const cat = catalogApp(app);
+      if (!cat) return false;
+      return (cat.params || []).filter((p) => p?.tag === "Range").length > 1;
+    }
+
     async function loadAppsCatalog() {
       try {
         const res = await fetch("./apps-catalog.json", { cache: "no-store" });
@@ -5653,6 +5663,9 @@
         // Manifold defaults to ±5 V (LFO-friendly), matching firmware.
         if (row?.app === "manifold" && vars.includes("_Neg5_5V")) {
           return range("_Neg5_5V");
+        }
+        if (appHasMultipleRanges(row?.app)) {
+          return range(vars[0] || "_0_10V");
         }
         const want = row?.cvRange;
         const pick = vars.includes(want) ? want : vars[0] || "_0_10V";
@@ -5951,7 +5964,9 @@
           // Always write the row’s chosen color (remap to app-allowed subset).
           v.value = colorForApp(row.instrumentId || row.app, col).value;
         }
-        if (p.tag === "Range" && row.cvRange) v.value = { tag: row.cvRange };
+        if (p.tag === "Range" && row.cvRange && !appHasMultipleRanges(row.app)) {
+          v.value = { tag: row.cvRange };
+        }
         if (p.tag === "MidiMode") v.value = { tag: rowMidiMode(row) };
         if (p.tag === "MidiChannel") {
           // Keep in sync with lib/midi-channel-overlay.js (unit-tested).
@@ -6249,7 +6264,13 @@
       const cat = catalogApp(row.app);
       const p = cat?.params?.[pi];
       if (!p) return;
-      if (p.tag === "Range" && value?.value?.tag) row.cvRange = value.value.tag;
+      if (
+        p.tag === "Range" &&
+        value?.value?.tag &&
+        !appHasMultipleRanges(row.app)
+      ) {
+        row.cvRange = value.value.tag;
+      }
       if (p.tag === "MidiMode" && value?.value?.tag) {
         row.midiMode = value.value.tag === "Cc" ? "Cc" : "Note";
         row.kind = kindForApp(row.app, row.midiMode);
@@ -6522,6 +6543,34 @@
           ${outRow("B", "Mode B", "Range B")}
           ${outRow("C", "Mode C", "Range C")}
           ${outRow("D", "Mode D", "Range D")}
+        </span>`;
+      }
+
+      // Ripppple: In / B / C / D (Target + Range) + Source / LFO Speed.
+      if (s.app === "ripppple") {
+        const byName = Object.fromEntries(bits.map((b) => [b.name, b]));
+        const field = (lab, bit, title) => {
+          if (!bit) return "";
+          return `<span class="param-field" title="${escapeAttr(title || bit.name)}"><span class="param-name">${escapeHtml(lab)}</span>${bit.html}</span>`;
+        };
+        const outRow = (letter, targetName, rangeName) => {
+          const target = byName[targetName];
+          const range = byName[rangeName];
+          if (!target && !range) return "";
+          return `<span class="extras-row">${field(letter, target, targetName)}${field("Rng", range, rangeName)}</span>`;
+        };
+        const src = byName["Source"];
+        const spd = byName["LFO Speed"];
+        const bottom =
+          src || spd
+            ? `<span class="extras-row">${field("Src", src, "Source")}${field("Spd", spd, "LFO Speed")}</span>`
+            : "";
+        return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
+          <span class="extras-row">${field("In", byName["In Range"], "In Range")}</span>
+          ${outRow("B", "Target B", "Range B")}
+          ${outRow("C", "Target C", "Range C")}
+          ${outRow("D", "Target D", "Range D")}
+          ${bottom}
         </span>`;
       }
 
@@ -7369,7 +7418,9 @@
             if (val?.tag === "MidiMode" && val.value?.tag) midiModeTag = val.value.tag;
             if (val?.tag === "Color" && val.value?.tag) colorTag = val.value.tag;
             if (val?.tag === "MidiOut") port = portFromMidiOut(val);
-            if (val?.tag === "Range" && val.value?.tag) cvRange = val.value.tag;
+            if (val?.tag === "Range" && val.value?.tag && !appHasMultipleRanges(appKey)) {
+              cvRange = val.value.tag;
+            }
             if (
               val?.tag === "Enum" &&
               (appKey === "lfo" || appKey === "lfo_plus") &&
