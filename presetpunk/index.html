@@ -3485,6 +3485,7 @@
         return out;
       }
       if (row.app === "echolot") {
+        ensureEcholotMidi(row);
         const chs = echolotChs(row);
         const enums = [
           Number(row.echoIo != null ? row.echoIo : 0),
@@ -4110,6 +4111,7 @@
         // Echolot: I/O, Delay mode, Max delay ms, Interval, Routing, Signal,
         // Range, Color, MIDI In, MIDI In CH, MIDI Out, Out A, Out B, CC, Note
         case "echolot": {
+          ensureEcholotMidi(row);
           const echs = echolotChs(row);
           return [
             enumVal(row.echoIo != null ? row.echoIo : 0),
@@ -4261,6 +4263,7 @@
         return params;
       }
       if (row.app === "echolot") {
+        ensureEcholotMidi(row);
         const chs = echolotChs(row);
         let ci = 0;
         for (const p of params) {
@@ -5251,11 +5254,45 @@
         return i === 2 ? Math.min(16, base + 1) : base;
       });
     }
+    /** CV→MIDI + Routing Ping-Pong — dual Note/CC pickers in the table. */
+    function echolotPingPong(row) {
+      if (!row || row.app !== "echolot") return false;
+      coerceParamDeps(row);
+      return schemaEnumIndex(row, 0) === 2 && schemaEnumIndex(row, 4) === 1;
+    }
+
+    /**
+     * Ping-pong reuses the inactive param slot for pong (firmware contract).
+     * Gate→Note: row.note=ping, row.cc=pong note#; CV→CC: row.cc=ping, row.note=pong cc#.
+     * When pong is still at factory default, copy ping.
+     */
+    /**
+     * @param {{ force?: boolean }} [opts] force=true when user enables Ping-Pong / flips
+     *   signal — seed pong from ping once. Soft path only copies obvious factory defaults
+     *   (CC 32; Note 36|60) so intentional pong values survive stamp/pull.
+     */
+    function migrateEcholotPingPong(row, opts = {}) {
+      if (!echolotPingPong(row)) return;
+      ensureNoteAndCc(row);
+      const force = !!opts.force;
+      const mode = paramDeps(row).echolotCcMode;
+      if (mode === "note") {
+        const ping = rowNoteNum(row);
+        const pong = rowCcNum(row);
+        if (force || (pong === 32 && ping !== pong)) row.cc = ping;
+      } else if (mode === "cc") {
+        const ping = rowCcNum(row);
+        const pong = rowNoteNum(row);
+        if (force || ((pong === 36 || pong === 60) && ping !== pong)) row.note = ping;
+      }
+    }
+
     function ensureEcholotMidi(row) {
       if (!row || row.app !== "echolot") return;
       row.chs = echolotChs(row);
       row.ch = row.chs[0];
       ensureNoteAndCc(row);
+      migrateEcholotPingPong(row);
     }
 
     const FP_GRIDS_VOICES = ["BD", "SD", "HH", "X"];
@@ -5668,12 +5705,29 @@
         if (mode === "none") {
           return `<span class="led-muted" title="No Note/CC in this I/O mode">—</span>`;
         }
-        ensureNoteAndCc(s);
+        ensureEcholotMidi(s);
+        const pingPong = echolotPingPong(s);
         if (mode === "note") {
+          if (pingPong) {
+            return `<div class="multi-midi" title="Echolot: Ping / Pong Note">
+              <span class="vm">Ping</span>
+              ${noteSelectHtml(idx, rowNoteNum(s), { key: "note", title: "Ping Note" })}
+              <span class="vm">Pong</span>
+              ${noteSelectHtml(idx, rowCcNum(s), { key: "cc", title: "Pong Note" })}
+            </div>`;
+          }
           return `<span class="cc-cell"><span class="span">Note</span>
             ${noteSelectHtml(idx, rowNoteNum(s), { key: "note" })}</span>`;
         }
         if (mode === "cc") {
+          if (pingPong) {
+            return `<div class="multi-midi" title="Echolot: Ping / Pong CC">
+              <span class="vm">Ping</span>
+              ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc" })}
+              <span class="vm">Pong</span>
+              ${ccValueControlHtml(s, idx, rowNoteNum(s), { key: "note" })}
+            </div>`;
+          }
           return `<span class="cc-cell"><span class="span">CC</span>
             ${ccValueControlHtml(s, idx, rowCcNum(s), { key: "cc" })}</span>`;
         }
@@ -6080,6 +6134,7 @@
       // stale pull defaults while the editor shows the new fields).
       const sv = row.schemaValues;
       if (row.app === "echolot") {
+        ensureEcholotMidi(row);
         if (sv[0]?.tag === "Enum") {
           sv[0] = enumVal(Number(row.echoIo != null ? row.echoIo : 0));
         }
@@ -6248,8 +6303,13 @@
             hide.add(14);
           }
           if (io === 2) {
-            if (signal === 2) hide.add(14);
-            if (signal === 3) hide.add(13);
+            if (routing === 1) {
+              hide.add(13);
+              hide.add(14); // Ping/Pong Note/CC edited in table column
+            } else {
+              if (signal === 2) hide.add(14);
+              if (signal === 3) hide.add(13);
+            }
           }
           if (routing !== 1) hide.add(12); // Pong only when Routing = Ping-Pong
         }
@@ -7745,7 +7805,7 @@
               Number.isFinite(allChs[i]) ? allChs[i] : i === 2 ? Math.min(16, baseCh + 1) : baseCh,
             );
             row.ch = row.chs[0];
-            ensureNoteAndCc(row);
+            ensureEcholotMidi(row);
           }
           if (appKey === "harmonica") {
             // allChs[0]=In, allChs[1]=Out — denormalized row.ch is Out only.
@@ -8952,6 +9012,7 @@
         }
       } else if (k === "echoIo") {
         rowRef.echoIo = Math.max(0, Math.min(2, Number(el.value) || 0));
+        if (rowRef.app === "echolot") migrateEcholotPingPong(rowRef, { force: true });
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
@@ -8980,6 +9041,7 @@
         }
       } else if (k === "echoRouting") {
         rowRef.echoRouting = Math.max(0, Math.min(1, Number(el.value) || 0));
+        if (rowRef.app === "echolot") migrateEcholotPingPong(rowRef, { force: true });
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);
@@ -8987,6 +9049,7 @@
         }
       } else if (k === "echoSignal") {
         rowRef.echoSignal = Math.max(0, Math.min(3, Number(el.value) || 0));
+        if (rowRef.app === "echolot") migrateEcholotPingPong(rowRef, { force: true });
         delete rowRef.rawParams;
         if (catalogApp(rowRef.app)) {
           ensureSchemaValues(rowRef);

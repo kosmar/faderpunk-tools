@@ -1674,7 +1674,7 @@
       "channels": [
         {
           "jackTitle": "CV / MIDI I/O",
-          "jackDescription": "Jack role depends on I/O and Signal parameters (pitch CV, gate, or pass-through).",
+          "jackDescription": "Jack role depends on I/O and Signal (pitch CV, gate, or pass-through). Ping-Pong + CV→MIDI reuses Note/CC params for separate Ping and Pong targets.",
           "faderTitle": "Delay",
           "faderDescription": "Delay time (up = shorter / faster repeats).",
           "faderPlusShiftTitle": "Feedback",

@@ -398,7 +398,11 @@ function wireLabelFor(track: AppTrack): string {
       ? ` n${midi.setupNotes.join("/")}`
       : " notes";
   const ccHint =
-    midi.cc !== null ? ` CC${midi.cc}${midi.nrpn ? " NRPN" : ""}` : " CC";
+    midi.cc !== null
+      ? midi.setupCcs.length > 0
+        ? ` CC${midi.cc}/${midi.setupCcs.join("/")}`
+        : ` CC${midi.cc}${midi.nrpn ? " NRPN" : ""}`
+      : " CC";
   const outPorts: string[] = [];
   if (midi.usbEnabled) outPorts.push("USB");
   if (midi.out1) outPorts.push("1");
@@ -424,7 +428,11 @@ function wireLabelFor(track: AppTrack): string {
   }
   if (midi.noteMode) return `MIDI ${outs} · notes${portHint}`;
   if (midi.cc !== null) {
-    return `MIDI ${outs} · CC${midi.cc}${midi.nrpn ? " NRPN" : ""}${portHint}`;
+    const ccLabel =
+      midi.setupCcs.length > 0
+        ? `CC${midi.cc}/${midi.setupCcs.join("/")}`
+        : `CC${midi.cc}${midi.nrpn ? " NRPN" : ""}`;
+    return `MIDI ${outs} · ${ccLabel}${portHint}`;
   }
   return `MIDI ${outs}${portHint}`;
 }
@@ -1090,6 +1098,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             noteMode: false,
             playCc: true,
             setupNotes: [],
+            setupCcs: [],
             nrpn: false,
           },
           paramRows: [
@@ -1128,6 +1137,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             noteMode: true,
             playCc: false,
             setupNotes: [48],
+            setupCcs: [],
             nrpn: false,
           },
           paramRows: [
@@ -1166,6 +1176,7 @@ export const useDiag = create<DiagState>((set, get) => ({
             noteMode: false,
             playCc: true,
             setupNotes: [],
+            setupCcs: [],
             nrpn: false,
           },
           paramRows: [

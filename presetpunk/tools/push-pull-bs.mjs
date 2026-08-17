@@ -197,8 +197,11 @@ function paramsForRow(row) {
       if (sv[9]?.tag === "MidiChannel") sv[9] = ch(chs[0]);
       if (sv[11]?.tag === "MidiChannel") sv[11] = ch(chs[1]);
       if (sv[12]?.tag === "MidiChannel") sv[12] = ch(chs[2]);
-      if (sv[13]?.tag === "MidiCc") sv[13] = cc(n);
-      if (sv[14]?.tag === "MidiNote") sv[14] = note(row.note ?? 36);
+      // Ping-pong cross-mapping lives in row fields: sv[13]=row.cc, sv[14]=row.note.
+      const noteN = Number(row.note);
+      const ccN = Number(row.cc);
+      if (sv[13]?.tag === "MidiCc") sv[13] = cc(Number.isFinite(ccN) ? ccN : n);
+      if (sv[14]?.tag === "MidiNote") sv[14] = note(Number.isFinite(noteN) ? noteN : 36);
     }
     if (row.app === "fibonacci_gate") {
       if (sv[0]?.tag === "MidiChannel") sv[0] = ch(c);

@@ -69,6 +69,8 @@ export interface TrackMidi {
   playCc: boolean;
   /** Configured MidiNote values (Kick/Snare/… setup) — for labels / sanity. */
   setupNotes: number[];
+  /** Secondary out CC numbers (Echolot Ping-Pong CV→CC pong slot). */
+  setupCcs: number[];
   nrpn: boolean;
 }
 
@@ -339,28 +341,118 @@ function buildParamRows(
   const rows: ParamRow[] = [];
   const n = Math.max(params.length, values.length);
   const echolot = appName !== undefined && /^echolot$/i.test(appName);
-  const ioMode = echolot ? echolotIoModeIndex(params, values) : null;
+  const echolotLive = echolot ? echolotCtx(params, values) : null;
   for (let i = 0; i < n; i++) {
     const param = params[i];
     if (!param || param.tag === "None") continue;
-    if (echolot && ioMode !== null && !isEcholotParamVisible(param, ioMode)) {
+    if (echolotLive && !isEcholotParamVisible(param, echolotLive)) {
       continue;
     }
     const row = formatParamRow(param, values[i]);
-    if (row) rows.push(row);
+    if (!row) continue;
+    const label = echolotLive ? echolotParamLabel(param, echolotLive) : null;
+    rows.push(label ? { ...row, name: label } : row);
   }
   return rows;
 }
 
 /** Echolot I/O enum index (matches firmware: MIDI→MIDI=0, MIDI→CV=1, CV→MIDI=2). */
 function echolotIoModeIndex(params: Param[], values: Value[]): number | null {
+  return echolotCtx(params, values)?.ioMode ?? null;
+}
+
+/** Live Echolot routing/signal indices — mirrors Presetpunk `paramDeps`. */
+interface EcholotCtx {
+  ioMode: number;
+  /** 0 = Single, 1 = Ping-Pong */
+  routing: number;
+  /** -1 unused (MIDI→MIDI); 0/1 MIDI→CV; 2 CV→CC / 3 Gate→Note on CV→MIDI */
+  signal: number;
+}
+
+function echolotCtx(params: Param[], values: Value[]): EcholotCtx | null {
+  let ioMode: number | null = null;
+  let routing = 0;
+  let signalRaw = 0;
   for (let i = 0; i < params.length; i++) {
     const param = params[i];
-    if (param?.tag !== "Enum" || !/^i\/?o$/i.test(param.value.name)) continue;
+    if (param?.tag !== "Enum") continue;
+    const name = paramName(param);
     const raw = values[i];
-    if (raw?.tag !== "Enum") return null;
+    if (raw?.tag !== "Enum") continue;
     const idx = Number(raw.value);
-    return Number.isFinite(idx) ? idx : null;
+    if (!Number.isFinite(idx)) continue;
+    if (/^i\/?o$/i.test(name)) ioMode = idx;
+    else if (/^routing$/i.test(name)) routing = idx;
+    else if (/^signal$/i.test(name)) signalRaw = idx;
+  }
+  if (ioMode === null) return null;
+  let signal = -1;
+  if (ioMode === 1) signal = signalRaw === 1 ? 1 : 0;
+  else if (ioMode === 2) signal = signalRaw === 2 ? 2 : 3;
+  return { ioMode, routing, signal };
+}
+
+function paramValueByTag(
+  params: Param[],
+  values: Value[],
+  tag: Param["tag"],
+): Value | undefined {
+  for (let i = 0; i < params.length; i++) {
+    if (params[i]?.tag === tag) return values[i];
+  }
+  return undefined;
+}
+
+/**
+ * CV→MIDI: MidiNote/MidiCc slots hold ping vs pong per signal (firmware reuse).
+ * Returns null when I/O is not CV→MIDI.
+ */
+function echolotCvMidiTargets(
+  params: Param[],
+  values: Value[],
+  ctx: EcholotCtx,
+): Pick<TrackMidi, "cc" | "setupNotes" | "setupCcs" | "noteMode" | "playCc"> | null {
+  if (ctx.ioMode !== 2) return null;
+  const pingPong = ctx.routing === 1;
+  const ccVal = paramValueByTag(params, values, "MidiCc");
+  const noteVal = paramValueByTag(params, values, "MidiNote");
+
+  if (ctx.signal === 3) {
+    const ping = midiNoteFromValue(noteVal);
+    const notes = ping !== null ? [ping] : [];
+    if (pingPong) {
+      const pong = midiNoteFromValue(ccVal);
+      if (pong !== null) notes.push(pong);
+    }
+    return { cc: null, setupNotes: notes, setupCcs: [], noteMode: true, playCc: false };
+  }
+  if (ctx.signal === 2) {
+    const ping = midiCcFromValue(ccVal, 127);
+    const setupCcs: number[] = [];
+    if (pingPong) {
+      const pong = midiNoteFromValue(noteVal);
+      if (pong !== null) setupCcs.push(pong);
+    }
+    return {
+      cc: ping,
+      setupNotes: [],
+      setupCcs,
+      noteMode: false,
+      playCc: true,
+    };
+  }
+  return null;
+}
+
+/** Ping/Pong labels when both reused slots are visible (CV→MIDI + Ping-Pong). */
+function echolotParamLabel(param: Param, ctx: EcholotCtx): string | null {
+  if (ctx.ioMode !== 2 || ctx.routing !== 1) return null;
+  if (param.tag === "MidiNote") {
+    return ctx.signal === 3 ? "Ping Note" : "Pong CC";
+  }
+  if (param.tag === "MidiCc") {
+    return ctx.signal === 3 ? "Pong Note" : "Ping CC";
   }
   return null;
 }
@@ -369,11 +461,14 @@ function echolotIoModeIndex(params: Param[], values: Value[]): number | null {
  * Mirror configurator `echolot-params` (+ hide Signal in MIDI→MIDI — unused there).
  * Keeps Scopepunk's param grid aligned with the live layout strip.
  */
-function isEcholotParamVisible(param: Param, ioMode: number): boolean {
+function isEcholotParamVisible(param: Param, ctx: EcholotCtx): boolean {
   const name = paramName(param);
-  const midiMidi = ioMode === 0;
-  const midiCv = ioMode === 1;
-  const cvMidi = ioMode === 2;
+  const midiMidi = ctx.ioMode === 0;
+  const midiCv = ctx.ioMode === 1;
+  const cvMidi = ctx.ioMode === 2;
+  const pingPong = ctx.routing === 1;
+  const gateToNote = ctx.signal === 3;
+  const cvToCc = ctx.signal === 2;
 
   if (name === "Routing" || name === "MIDI Out Pong") {
     return midiMidi || cvMidi;
@@ -389,10 +484,15 @@ function isEcholotParamVisible(param: Param, ioMode: number): boolean {
     return !midiMidi;
   }
   if (param.tag === "MidiCc" || name === "MIDI CC") {
-    return cvMidi;
+    if (!cvMidi) return false;
+    if (gateToNote) return pingPong;
+    return cvToCc;
   }
   if (param.tag === "MidiNote" || name === "MIDI Note") {
-    return midiCv || cvMidi;
+    if (midiCv) return true;
+    if (!cvMidi) return false;
+    if (cvToCc) return pingPong;
+    return gateToNote;
   }
   if (param.tag === "MidiOut" || /^MIDI Out$/i.test(name)) {
     return midiMidi || cvMidi;
@@ -463,22 +563,38 @@ function monitorFlagsOnly(
   appName: string,
   prior: TrackMidi,
   appId?: number,
-): Pick<TrackMidi, "noteMode" | "playCc" | "cc" | "ccSpan"> {
-  const { noteMode, playCc } = inferMonitorFlags(params, values, appName);
+): Pick<TrackMidi, "noteMode" | "playCc" | "cc" | "ccSpan" | "setupNotes" | "setupCcs"> {
+  let { noteMode, playCc } = inferMonitorFlags(params, values, appName);
   let nrpn = prior.nrpn;
   for (let i = 0; i < params.length; i++) {
     if (params[i]?.tag === "MidiNrpn") nrpn = midiNrpn(values[i]);
   }
   let cc = prior.cc;
-  for (let i = 0; i < params.length; i++) {
-    if (params[i]?.tag !== "MidiCc") continue;
-    const next = midiCcFromValue(values[i], nrpn ? 16383 : 127);
-    if (next !== null) cc = next;
+  let setupNotes = prior.setupNotes;
+  let setupCcs = prior.setupCcs;
+  if (/^echolot$/i.test(appName)) {
+    const ctx = echolotCtx(params, values);
+    const remapped = ctx ? echolotCvMidiTargets(params, values, ctx) : null;
+    if (remapped) {
+      noteMode = remapped.noteMode;
+      playCc = remapped.playCc;
+      cc = remapped.cc;
+      setupNotes = remapped.setupNotes;
+      setupCcs = remapped.setupCcs;
+    }
+  } else {
+    for (let i = 0; i < params.length; i++) {
+      if (params[i]?.tag !== "MidiCc") continue;
+      const next = midiCcFromValue(values[i], nrpn ? 16383 : 127);
+      if (next !== null) cc = next;
+    }
   }
   return {
     noteMode,
     playCc,
     cc,
+    setupNotes,
+    setupCcs,
     ccSpan: ccSpanFor(appId, cc, prior.channel, params, values, nrpn),
   };
 }
@@ -621,6 +737,7 @@ function buildTracksFromLayout(
           noteMode: true,
           playCc: false,
           setupNotes: [],
+          setupCcs: [],
           nrpn: false,
         },
         paramRows: [],
@@ -882,7 +999,7 @@ function extractMidi(
   let sawMidiIn = false;
   let sawMidiOut = false;
   let outChannelSet = false;
-  const setupNotes: number[] = [];
+  let setupNotes: number[] = [];
 
   params.forEach((param, i) => {
     const value = values[i];
@@ -991,6 +1108,19 @@ function extractMidi(
 
   if (cc !== null && !nrpn) cc = Math.min(127, cc);
 
+  let setupCcs: number[] = [];
+  if (/^echolot$/i.test(appName)) {
+    const ctx = echolotCtx(params, values);
+    const remapped = ctx ? echolotCvMidiTargets(params, values, ctx) : null;
+    if (remapped) {
+      cc = remapped.cc;
+      setupNotes = remapped.setupNotes;
+      setupCcs = remapped.setupCcs;
+      noteMode = remapped.noteMode;
+      playCc = remapped.playCc;
+    }
+  }
+
   return {
     usbEnabled,
     out1,
@@ -1006,6 +1136,7 @@ function extractMidi(
     noteMode,
     playCc,
     setupNotes,
+    setupCcs,
     nrpn,
   };
 }
