@@ -5,7 +5,7 @@ import {
   monitorNoteValue,
   parseMonitorNoteValue,
 } from "../audio/music";
-import type { TrackRuntime } from "../store";
+import { midiLaneSlot, type TrackRuntime } from "../store";
 import { useDiag } from "../store";
 import { AppUxPanel } from "../ux/AppUxPanel";
 import { loadAppUxCatalog, uxForApp } from "../ux/catalog";
@@ -119,6 +119,7 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
     wireLabel,
     collisionPeers,
     collisionGroup,
+    collidingSlots,
     ambiguousHit,
   } = runtime;
 
@@ -366,8 +367,15 @@ export function TrackPanel({ runtime, dimmed, compact }: Props) {
                   lane.role === "out"
                     ? (lane.name ?? track.midi.outChannelNames[outIndex])
                     : undefined;
+                const laneSlot =
+                  lane.role === "out" ? midiLaneSlot(track, lane) : null;
+                const laneShared =
+                  collision &&
+                  lane.role === "out" &&
+                  laneSlot !== null &&
+                  collidingSlots.has(laneSlot);
                 const baseLabel =
-                  collision && lane.role === "out"
+                  laneShared
                     ? `shared · ${laneLabel(lane.role, lane.channel, outIndex, outLanes.length, outName, lane.name)}`
                     : laneLabel(
                         lane.role,

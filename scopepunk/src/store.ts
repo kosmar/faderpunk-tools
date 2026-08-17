@@ -18,7 +18,9 @@ import type {
 import {
   applyAppStateToTrack,
   assignUniqueMidiChannels,
+  ccSpanFingerprint,
   countUsbEnabled,
+  midiFootprint,
   enableUsbMidiOnAll,
   ensureMidiUsbClockSource,
   ensureUsbOutputLocal,
@@ -83,6 +85,8 @@ export interface TrackRuntime {
   collisionPeers: string[];
   /** Collision group index for matching stripe colors (0-based). */
   collisionGroup: number;
+  /** Wire slots (ch+cc) that collide with another app on this track. */
+  collidingSlots: ReadonlySet<string>;
   /** Last routed event matched multiple apps. */
   ambiguousHit: boolean;
   /** 0–1 activity on the MidiIn lane (if any). */
@@ -276,6 +280,7 @@ function stopParamsPoll() {
 function paramRowsEqual(a: AppTrack, b: AppTrack): boolean {
   if (a.layoutId !== b.layoutId || a.key !== b.key) return false;
   if (a.midi.channel !== b.midi.channel) return false;
+  if (ccSpanFingerprint(a.midi) !== ccSpanFingerprint(b.midi)) return false;
   if (a.midi.noteMode !== b.midi.noteMode || a.midi.playCc !== b.midi.playCc) {
     return false;
   }
@@ -500,6 +505,39 @@ function scopeRing(prior?: SampleRing): SampleRing {
   return new SampleRing(SCOPE_RING_CAPACITY);
 }
 
+/** Keep one out-lane per CC-span name — prefer the track's base MIDI channel. */
+function dedupeCcSpanOutLanes(
+  lanes: MidiLane[],
+  baseChannel: number,
+): MidiLane[] {
+  const ins = lanes.filter((l) => l.role === "in");
+  const outs = lanes.filter((l) => l.role === "out");
+  const byName = new Map<string, MidiLane>();
+  for (const lane of outs) {
+    const name = lane.name ?? lane.key;
+    const prev = byName.get(name);
+    if (!prev) {
+      byName.set(name, lane);
+      continue;
+    }
+    if (lane.channel === baseChannel && prev.channel !== baseChannel) {
+      byName.set(name, lane);
+    }
+  }
+  return [...ins, ...byName.values()];
+}
+
+export function midiLaneSlot(track: AppTrack, lane: MidiLane): string | null {
+  const suffix = track.midi.nrpn ? ":nrpn" : "";
+  if (lane.cc !== undefined) {
+    return `ch${lane.channel}:cc${lane.cc}${suffix}`;
+  }
+  if (track.midi.noteMode && lane.role === "out") {
+    return `ch${lane.channel}:notes`;
+  }
+  return null;
+}
+
 function buildLanes(
   track: AppTrack,
   prev?: MidiLane[],
@@ -541,7 +579,7 @@ function buildLanes(
         monitorNote: prior?.monitorNote ?? defaultMonitorNote(trackIndex * 3 + i),
       });
     });
-    return lanes;
+    return dedupeCcSpanOutLanes(lanes, channel);
   }
   if (track.midi.inChannel !== null) {
     const key = `in:${track.midi.inChannel}`;
@@ -607,10 +645,34 @@ function inLane(lanes: MidiLane[]): MidiLane | undefined {
 
 function collisionMeta(tracks: AppTrack[]): {
   collisions: MidiCollision[];
-  byKey: Map<string, { peers: string[]; group: number; wire: string }>;
+  byKey: Map<
+    string,
+    { peers: string[]; group: number; wire: string; slots: Set<string> }
+  >;
 } {
   const collisions = findMidiCollisions(tracks);
-  const byKey = new Map<string, { peers: string[]; group: number; wire: string }>();
+  const slotOwners = new Map<string, string[]>();
+  for (const track of tracks) {
+    if (!track.hasMidiMirror) continue;
+    for (const slot of midiFootprint(track)) {
+      const list = slotOwners.get(slot) ?? [];
+      list.push(track.key);
+      slotOwners.set(slot, list);
+    }
+  }
+  const slotsByKey = new Map<string, Set<string>>();
+  for (const [slot, keys] of slotOwners) {
+    if (keys.length < 2) continue;
+    for (const key of keys) {
+      const set = slotsByKey.get(key) ?? new Set<string>();
+      set.add(slot);
+      slotsByKey.set(key, set);
+    }
+  }
+  const byKey = new Map<
+    string,
+    { peers: string[]; group: number; wire: string; slots: Set<string> }
+  >();
   collisions.forEach((c, group) => {
     const names = new Map(tracks.map((t) => [t.key, t.app.name]));
     for (const key of c.trackKeys) {
@@ -622,6 +684,7 @@ function collisionMeta(tracks: AppTrack[]): {
         peers,
         group,
         wire: track ? wireLabelFor(track) : c.key,
+        slots: slotsByKey.get(key) ?? new Set(),
       });
     }
   });
@@ -658,6 +721,7 @@ function buildTrackRuntimes(
       wireLabel: wireLabelFor(track),
       collisionPeers: meta?.peers ?? [],
       collisionGroup: meta?.group ?? -1,
+      collidingSlots: meta?.slots ?? new Set(),
       ambiguousHit: prior?.ambiguousHit ?? false,
       inputLevel: prior?.inputLevel ?? 0,
     };

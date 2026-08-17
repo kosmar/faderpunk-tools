@@ -143,6 +143,24 @@ function namedI32(params: Param[], values: Value[], re: RegExp): number {
   return 0;
 }
 
+function i32ParamIndex(params: Param[], re: RegExp): number | null {
+  for (let i = 0; i < params.length; i++) {
+    const p = params[i];
+    if (p?.tag !== "i32") continue;
+    if (!re.test(p.value.name)) continue;
+    return i;
+  }
+  return null;
+}
+
+/** Stable fingerprint for ccSpan equality (Ch/CC Map + per-wave channels). */
+export function ccSpanFingerprint(midi: TrackMidi): string {
+  const span = midi.ccSpan;
+  if (!span) return "";
+  const chs = span.channels?.join(",") ?? "";
+  return `${span.inCc ?? "x"}|${span.outCcs.join(",")}|${chs}|${span.outNames.join(",")}|${span.inName ?? ""}`;
+}
+
 function midiOutFlags(
   value: Value | undefined,
 ): { usb: boolean; out1: boolean; out2: boolean } | null {
@@ -1538,7 +1556,7 @@ export function midiIdentityKey(track: AppTrack): string {
  * where another app sends into the middle of that run — its scope then shows a
  * foreign wave with no warning.
  */
-function midiFootprint(track: AppTrack): string[] {
+export function midiFootprint(track: AppTrack): string[] {
   if (track.midi.noteMode) {
     return track.midi.outChannels.map((ch) => `ch${ch}:notes`);
   }
@@ -1712,6 +1730,14 @@ export async function assignUniqueMidiChannels(snapshot: Snapshot): Promise<numb
       if (ch === null) break;
       sparse[chIdx] = { tag: "MidiChannel", value: [ch] };
       wrote = true;
+    }
+    // Packed Ch Map pins waves to old channels — clear so outs follow the new base.
+    if (CC_SPAN_APPS[track.app.appId]) {
+      const chMapIdx = i32ParamIndex(track.app.params, /^Ch Map$/i);
+      if (chMapIdx !== null && (i32FromValue(values[chMapIdx]) ?? 0) !== 0) {
+        sparse[chMapIdx] = { tag: "i32", value: 0 };
+        wrote = true;
+      }
     }
     if (!wrote) continue;
 
