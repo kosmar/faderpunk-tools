@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { serialize, deserialize } from "../vendor/fp-config/index.js";
 import { buildConfigFrame, parseConfigFrame } from "../lib/sysex.js";
+import { echolotMidiMapPacked } from "../lib/echolot-midi-map.js";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RX_PORT = "Faderpunk";
@@ -187,6 +188,14 @@ function paramsForRow(row) {
     }
     if (row.app === "echolot") {
       const chs = row.chs || [c, c, Math.min(16, c + 1)];
+      const pingPong = Number(row.echoIo) === 2 && Number(row.echoRouting) === 1;
+      const map = echolotMidiMapPacked(row, pingPong);
+      const pingCc = Number.isFinite(Number(row.pingCc)) ? Number(row.pingCc) : n;
+      const pingNote = Number.isFinite(Number(row.pingNote))
+        ? Number(row.pingNote)
+        : Number.isFinite(Number(row.note))
+          ? Number(row.note)
+          : 36;
       if (sv[0]?.tag === "Enum") sv[0] = enumVal(row.echoIo ?? sv[0].value);
       if (sv[1]?.tag === "Enum") sv[1] = enumVal(row.echoDelayMode ?? sv[1].value);
       if (sv[2]?.tag === "i32") sv[2] = i32(row.echoMaxMs ?? sv[2].value);
@@ -197,11 +206,9 @@ function paramsForRow(row) {
       if (sv[9]?.tag === "MidiChannel") sv[9] = ch(chs[0]);
       if (sv[11]?.tag === "MidiChannel") sv[11] = ch(chs[1]);
       if (sv[12]?.tag === "MidiChannel") sv[12] = ch(chs[2]);
-      // Ping-pong cross-mapping lives in row fields: sv[13]=row.cc, sv[14]=row.note.
-      const noteN = Number(row.note);
-      const ccN = Number(row.cc);
-      if (sv[13]?.tag === "MidiCc") sv[13] = cc(Number.isFinite(ccN) ? ccN : n);
-      if (sv[14]?.tag === "MidiNote") sv[14] = note(Number.isFinite(noteN) ? noteN : 36);
+      if (sv[13]?.tag === "MidiCc") sv[13] = cc(pingCc);
+      if (sv[14]?.tag === "MidiNote") sv[14] = note(pingNote);
+      if (sv[15]?.tag === "i32") sv[15] = i32(map);
     }
     if (row.app === "fibonacci_gate") {
       if (sv[0]?.tag === "MidiChannel") sv[0] = ch(c);
@@ -288,13 +295,21 @@ function paramsForRow(row) {
       ];
     case "echolot": {
       const chs = row.chs || [c, c, Math.min(16, c + 1)];
+      const pingPong = Number(row.echoIo) === 2 && Number(row.echoRouting) === 1;
+      const map = echolotMidiMapPacked(row, pingPong);
+      const pingCc = Number.isFinite(Number(row.pingCc)) ? Number(row.pingCc) : n;
+      const pingNote = Number.isFinite(Number(row.pingNote))
+        ? Number(row.pingNote)
+        : Number.isFinite(Number(row.note))
+          ? Number(row.note)
+          : 36;
       return [
         enumVal(row.echoIo ?? 0), enumVal(row.echoDelayMode ?? 0),
         i32(row.echoMaxMs ?? 500), enumVal(row.echoInterval ?? 0),
         enumVal(row.echoRouting ?? 0), enumVal(row.echoSignal ?? 0),
         range(cvR), color(col), midiIn([true, true]),
         ch(chs[0]), out(flags), ch(chs[1]), ch(chs[2]),
-        cc(n), note(row.note ?? 36),
+        cc(pingCc), note(pingNote), i32(map),
       ];
     }
     default:

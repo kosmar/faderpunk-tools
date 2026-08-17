@@ -319,12 +319,20 @@ function routeEvent(tracks: TrackRuntime[], ev: MidiEvent): {
   if (onChannel.length === 0) return { matches: [], ambiguous: false };
 
   if (ev.kind === "cc" || ev.kind === "nrpn") {
+    const ccMatchesTrack = (tr: TrackRuntime, cc: number) => {
+      const m = tr.track.midi;
+      return (
+        m.cc === cc ||
+        m.setupCcs.includes(cc) ||
+        ccInSpan(m.ccSpan, cc)
+      );
+    };
     const byCc = onChannel.filter(
       (tr) =>
         tr.track.midi.playCc &&
         tr.track.midi.cc !== null &&
         ev.cc !== undefined &&
-        (tr.track.midi.cc === ev.cc || ccInSpan(tr.track.midi.ccSpan, ev.cc)),
+        ccMatchesTrack(tr, ev.cc),
     );
     if (byCc.length > 0) {
       return { matches: byCc, ambiguous: byCc.length > 1 };

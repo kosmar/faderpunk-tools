@@ -69,7 +69,7 @@ export interface TrackMidi {
   playCc: boolean;
   /** Configured MidiNote values (Kick/Snare/… setup) — for labels / sanity. */
   setupNotes: number[];
-  /** Secondary out CC numbers (Echolot Ping-Pong CV→CC pong slot). */
+  /** Secondary out CC numbers (Echolot Ping-Pong pong CC from MIDI Map). */
   setupCcs: number[];
   nrpn: boolean;
 }
@@ -350,8 +350,7 @@ function buildParamRows(
     }
     const row = formatParamRow(param, values[i]);
     if (!row) continue;
-    const label = echolotLive ? echolotParamLabel(param, echolotLive) : null;
-    rows.push(label ? { ...row, name: label } : row);
+    rows.push(row);
   }
   return rows;
 }
@@ -404,8 +403,34 @@ function paramValueByTag(
   return undefined;
 }
 
+/** Echolot Idx 15 “MIDI Map” — bits 0..6 ping_cc, 7..13 pong_cc, 14..20 ping_note, 21..27 pong_note. */
+interface EcholotMidiMap {
+  pingCc: number;
+  pongCc: number;
+  pingNote: number;
+  pongNote: number;
+}
+
+function unpackEcholotMidiMapWord(map: number): EcholotMidiMap {
+  return {
+    pingCc: map & 0x7f,
+    pongCc: (map >> 7) & 0x7f,
+    pingNote: (map >> 14) & 0x7f,
+    pongNote: (map >> 21) & 0x7f,
+  };
+}
+
+/** Map==0 → seed ping from legacy MidiCc/MidiNote; pong mirrors ping (firmware `ensure_midi_map`). */
+function echolotMidiMapFromValues(params: Param[], values: Value[]): EcholotMidiMap {
+  const map = namedI32(params, values, /^MIDI Map$/i);
+  if (map !== 0) return unpackEcholotMidiMapWord(map);
+  const pingCc = midiCcFromValue(paramValueByTag(params, values, "MidiCc"), 127) ?? 0;
+  const pingNote = midiNoteFromValue(paramValueByTag(params, values, "MidiNote")) ?? 0;
+  return { pingCc, pongCc: pingCc, pingNote, pongNote: pingNote };
+}
+
 /**
- * CV→MIDI: MidiNote/MidiCc slots hold ping vs pong per signal (firmware reuse).
+ * CV→MIDI monitor targets from packed MIDI Map (not MidiCc/MidiNote slot reuse).
  * Returns null when I/O is not CV→MIDI.
  */
 function echolotCvMidiTargets(
@@ -415,44 +440,34 @@ function echolotCvMidiTargets(
 ): Pick<TrackMidi, "cc" | "setupNotes" | "setupCcs" | "noteMode" | "playCc"> | null {
   if (ctx.ioMode !== 2) return null;
   const pingPong = ctx.routing === 1;
-  const ccVal = paramValueByTag(params, values, "MidiCc");
-  const noteVal = paramValueByTag(params, values, "MidiNote");
+  const map = echolotMidiMapFromValues(params, values);
 
-  if (ctx.signal === 3) {
-    const ping = midiNoteFromValue(noteVal);
-    const notes = ping !== null ? [ping] : [];
-    if (pingPong) {
-      const pong = midiNoteFromValue(ccVal);
-      if (pong !== null) notes.push(pong);
-    }
-    return { cc: null, setupNotes: notes, setupCcs: [], noteMode: true, playCc: false };
-  }
-  if (ctx.signal === 2) {
-    const ping = midiCcFromValue(ccVal, 127);
-    const setupCcs: number[] = [];
-    if (pingPong) {
-      const pong = midiNoteFromValue(noteVal);
-      if (pong !== null) setupCcs.push(pong);
-    }
+  if (pingPong) {
     return {
-      cc: ping,
-      setupNotes: [],
-      setupCcs,
-      noteMode: false,
+      cc: map.pingCc,
+      setupNotes: [map.pingNote, map.pongNote],
+      setupCcs: [map.pongCc],
+      noteMode: true,
       playCc: true,
     };
   }
-  return null;
-}
-
-/** Ping/Pong labels when both reused slots are visible (CV→MIDI + Ping-Pong). */
-function echolotParamLabel(param: Param, ctx: EcholotCtx): string | null {
-  if (ctx.ioMode !== 2 || ctx.routing !== 1) return null;
-  if (param.tag === "MidiNote") {
-    return ctx.signal === 3 ? "Ping Note" : "Pong CC";
+  if (ctx.signal === 3) {
+    return {
+      cc: null,
+      setupNotes: [map.pingNote],
+      setupCcs: [],
+      noteMode: true,
+      playCc: false,
+    };
   }
-  if (param.tag === "MidiCc") {
-    return ctx.signal === 3 ? "Pong Note" : "Ping CC";
+  if (ctx.signal === 2) {
+    return {
+      cc: map.pingCc,
+      setupNotes: [],
+      setupCcs: [],
+      noteMode: false,
+      playCc: true,
+    };
   }
   return null;
 }
@@ -483,15 +498,18 @@ function isEcholotParamVisible(param: Param, ctx: EcholotCtx): boolean {
     // Firmware ignores Signal in MIDI→MIDI — don't show a stale Pitch/Gate row.
     return !midiMidi;
   }
+  if (param.tag === "i32" && /^MIDI Map$/i.test(name)) return false;
   if (param.tag === "MidiCc" || name === "MIDI CC") {
     if (!cvMidi) return false;
-    if (gateToNote) return pingPong;
+    if (pingPong) return false;
+    if (gateToNote) return false;
     return cvToCc;
   }
   if (param.tag === "MidiNote" || name === "MIDI Note") {
     if (midiCv) return true;
     if (!cvMidi) return false;
-    if (cvToCc) return pingPong;
+    if (pingPong) return false;
+    if (cvToCc) return false;
     return gateToNote;
   }
   if (param.tag === "MidiOut" || /^MIDI Out$/i.test(name)) {
