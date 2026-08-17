@@ -1002,10 +1002,6 @@
       width: max-content;
       max-width: 100%;
     }
-    /* Echolot Ping-Pong Note+CC: note | CC per row (Ping then Pong). */
-    .multi-midi.multi-midi-echolot-map {
-      grid-template-columns: auto auto;
-    }
     /* Harmonica / Echolot: instrument selects live in the Instrument column */
     .multi-midi.multi-midi-inst-col select[data-k="chsInst"] {
       width: 9rem;
@@ -5829,12 +5825,18 @@
         const pingInstId = resolveChInstId(s, 1, echs[1]);
         const pongInstId = resolveChInstId(s, 2, echs[2]);
         if (pingPong) {
-          return `<div class="multi-midi multi-midi-echolot-map" title="Echolot: Ping / Pong Note + CC">
-            ${noteSelectHtml(idx, echolotPingNote(s), { key: "pingNote", title: "Ping Note" })}
-            ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "pingCc", instrumentId: pingInstId, title: "Ping CC" })}
-            ${noteSelectHtml(idx, echolotPongNote(s), { key: "pongNote", title: "Pong Note" })}
-            ${ccValueControlHtml(s, idx, echolotPongCc(s), { key: "pongCc", instrumentId: pongInstId, title: "Pong CC" })}
-          </div>`;
+          if (mode === "note") {
+            return `<div class="multi-midi multi-midi-nolabels" title="Echolot: Ping / Pong Note">
+              ${noteSelectHtml(idx, echolotPingNote(s), { key: "pingNote", title: "Ping Note" })}
+              ${noteSelectHtml(idx, echolotPongNote(s), { key: "pongNote", title: "Pong Note" })}
+            </div>`;
+          }
+          if (mode === "cc") {
+            return `<div class="multi-midi multi-midi-nolabels" title="Echolot: Ping / Pong CC">
+              ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "pingCc", instrumentId: pingInstId, title: "Ping CC" })}
+              ${ccValueControlHtml(s, idx, echolotPongCc(s), { key: "pongCc", instrumentId: pongInstId, title: "Pong CC" })}
+            </div>`;
+          }
         }
         if (mode === "note") {
           return `<span class="cc-cell"><span class="span">Note</span>
