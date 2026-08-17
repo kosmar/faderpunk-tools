@@ -5281,10 +5281,10 @@
     }
 
     function packEcholotMidiMap(pingCc, pongCc, pingNote, pongNote) {
-      const pc = clampMidi7(pingCc, 0);
-      const pg = clampMidi7(pongCc, 0);
-      const pn = clampMidi7(pingNote, 0);
-      const po = clampMidi7(pongNote, 0);
+      const pc = clampMidi7(pingCc, 32);
+      const pg = clampMidi7(pongCc, 32);
+      const pn = clampMidi7(pingNote, 60);
+      const po = clampMidi7(pongNote, 60);
       return pc | (pg << 7) | (pn << 14) | (po << 21);
     }
 
@@ -5303,7 +5303,7 @@
       // Pack from row fields only — never re-hydrate from schema here (would
       // wipe in-flight select edits, same footgun as Grooves notes).
       const pingCc = clampMidi7(row.pingCc ?? row.cc, 32);
-      const pingNote = clampMidi7(row.pingNote ?? row.note, 36);
+      const pingNote = clampMidi7(row.pingNote ?? row.note, 60);
       if (!echolotPingPong(row)) {
         return packEcholotMidiMap(pingCc, pingCc, pingNote, pingNote);
       }
@@ -5327,7 +5327,7 @@
           : rowNoteNum(row);
       return {
         pingCc: clampMidi7(legacyCc, 32),
-        pingNote: clampMidi7(legacyNote, 36),
+        pingNote: clampMidi7(legacyNote, 60),
       };
     }
 
@@ -5344,7 +5344,7 @@
         row.pongNote == null;
       if (missing) hydrateEcholotMidiMapFromSchema(row);
       row.cc = clampMidi7(row.pingCc, 32);
-      row.note = clampMidi7(row.pingNote, 36);
+      row.note = clampMidi7(row.pingNote, 60);
       row.kind = "both";
     }
 

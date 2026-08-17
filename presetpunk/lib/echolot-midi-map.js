@@ -9,10 +9,10 @@ export const ECHOLOT_MIDI_MAP_MAX = 0x0fffffff;
  * @param {number} pongNote
  */
 export function packEcholotMidiMap(pingCc, pongCc, pingNote, pongNote) {
-  const pc = clamp7(pingCc);
-  const pg = clamp7(pongCc);
-  const pn = clamp7(pingNote);
-  const po = clamp7(pongNote);
+  const pc = clamp7(pingCc, 32);
+  const pg = clamp7(pongCc, 32);
+  const pn = clamp7(pingNote, 60);
+  const po = clamp7(pongNote, 60);
   return pc | (pg << 7) | (pn << 14) | (po << 21);
 }
 
@@ -28,8 +28,9 @@ export function unpackEcholotMidiMap(map) {
   };
 }
 
-function clamp7(n) {
-  return Math.max(0, Math.min(127, Number(n) || 0));
+function clamp7(n, fallback = 0) {
+  const v = Number(n);
+  return Math.max(0, Math.min(127, Number.isFinite(v) ? v : fallback));
 }
 
 /**
@@ -39,7 +40,7 @@ function clamp7(n) {
  */
 export function echolotMidiMapPacked(row, pingPong = false) {
   const pingCc = slot(row, "pingCc", row.cc, 32);
-  const pingNote = slot(row, "pingNote", row.note, 36);
+  const pingNote = slot(row, "pingNote", row.note, 60);
   let pongCc = slot(row, "pongCc", pingCc, pingCc);
   let pongNote = slot(row, "pongNote", pingNote, pingNote);
   if (!pingPong) {
