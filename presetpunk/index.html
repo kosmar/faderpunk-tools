@@ -1002,6 +1002,10 @@
       width: max-content;
       max-width: 100%;
     }
+    /* Echolot Ping-Pong Note+CC: note | CC per row (Ping then Pong). */
+    .multi-midi.multi-midi-echolot-map {
+      grid-template-columns: auto auto;
+    }
     /* Harmonica / Echolot: instrument selects live in the Instrument column */
     .multi-midi.multi-midi-inst-col select[data-k="chsInst"] {
       width: 9rem;
@@ -1015,7 +1019,9 @@
       width: 4.75rem; min-width: 0;
     }
     .multi-midi select[data-note] { width: 5.25rem; }
-    .multi-midi select:not([data-note])[data-k="cc"] {
+    .multi-midi select:not([data-note])[data-k="cc"],
+    .multi-midi select:not([data-note])[data-k="pingCc"],
+    .multi-midi select:not([data-note])[data-k="pongCc"] {
       width: auto;
       min-width: 6.5rem;
       max-width: 12rem;
@@ -5811,11 +5817,9 @@
         ensureEcholotMidi(s);
         const pingPong = echolotPingPong(s);
         if (pingPong) {
-          return `<div class="multi-midi" title="Echolot: Ping / Pong Note + CC">
-            <span class="vm">Ping</span>
+          return `<div class="multi-midi multi-midi-echolot-map" title="Echolot: Ping / Pong Note + CC">
             ${noteSelectHtml(idx, echolotPingNote(s), { key: "pingNote", title: "Ping Note" })}
             ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "pingCc", title: "Ping CC" })}
-            <span class="vm">Pong</span>
             ${noteSelectHtml(idx, echolotPongNote(s), { key: "pongNote", title: "Pong Note" })}
             ${ccValueControlHtml(s, idx, echolotPongCc(s), { key: "pongCc", title: "Pong CC" })}
           </div>`;
