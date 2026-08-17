@@ -5304,13 +5304,19 @@
     }
 
     function echolotMidiMapPacked(row) {
-      ensureEcholotMidiMap(row);
-      const pingCc = row.pingCc;
-      const pingNote = row.pingNote;
+      // Pack from row fields only — never re-hydrate from schema here (would
+      // wipe in-flight select edits, same footgun as Grooves notes).
+      const pingCc = clampMidi7(row.pingCc ?? row.cc, 32);
+      const pingNote = clampMidi7(row.pingNote ?? row.note, 36);
       if (!echolotPingPong(row)) {
         return packEcholotMidiMap(pingCc, pingCc, pingNote, pingNote);
       }
-      return packEcholotMidiMap(pingCc, row.pongCc, pingNote, row.pongNote);
+      return packEcholotMidiMap(
+        pingCc,
+        clampMidi7(row.pongCc, pingCc),
+        pingNote,
+        clampMidi7(row.pongNote, pingNote),
+      );
     }
 
     function echolotLegacyMidiSlots(row) {
@@ -5330,11 +5336,23 @@
     }
 
     /**
-     * Unpack map idx 15; if 0 seed from MidiCc/MidiNote (ping) and recover pong
-     * from legacy cross-mapped row.cc/note when needed.
+     * Seed ping/pong note+cc from schema map (or legacy 13/14) when row slots
+     * are missing. Never overwrite fields the UI just edited.
      */
     function ensureEcholotMidiMap(row) {
       if (!row || row.app !== "echolot") return;
+      const missing =
+        row.pingCc == null ||
+        row.pongCc == null ||
+        row.pingNote == null ||
+        row.pongNote == null;
+      if (missing) hydrateEcholotMidiMapFromSchema(row);
+      row.cc = clampMidi7(row.pingCc, 32);
+      row.note = clampMidi7(row.pingNote, 36);
+      row.kind = "both";
+    }
+
+    function hydrateEcholotMidiMapFromSchema(row) {
       const sv = row.schemaValues;
       let map = 0;
       if (Array.isArray(sv) && sv[ECHOLOT_MIDI_MAP_IDX]?.tag === "i32") {
@@ -5343,40 +5361,31 @@
       }
       const unpacked = map ? unpackEcholotMidiMap(map) : null;
       if (unpacked) {
-        row.pingCc = unpacked.pingCc;
-        row.pongCc = unpacked.pongCc;
-        row.pingNote = unpacked.pingNote;
-        row.pongNote = unpacked.pongNote;
-      } else {
-        const { pingCc, pingNote } = echolotLegacyMidiSlots(row);
-        if (echolotPingPong(row)) {
-          const mode = paramDeps(row).echolotCcMode;
-          if (mode === "note") {
-            row.pingNote = pingNote;
-            row.pongNote = clampMidi7(rowCcNum(row), pingNote);
-            row.pingCc = pingCc;
-            row.pongCc = pingCc;
-          } else if (mode === "cc") {
-            row.pingCc = pingCc;
-            row.pongCc = clampMidi7(rowNoteNum(row), pingCc);
-            row.pingNote = pingNote;
-            row.pongNote = pingNote;
-          } else {
-            row.pingCc = pingCc;
-            row.pongCc = pingCc;
-            row.pingNote = pingNote;
-            row.pongNote = pingNote;
-          }
-        } else {
-          row.pingCc = pingCc;
-          row.pongCc = pingCc;
-          row.pingNote = pingNote;
-          row.pongNote = pingNote;
-        }
+        if (row.pingCc == null) row.pingCc = unpacked.pingCc;
+        if (row.pongCc == null) row.pongCc = unpacked.pongCc;
+        if (row.pingNote == null) row.pingNote = unpacked.pingNote;
+        if (row.pongNote == null) row.pongNote = unpacked.pongNote;
+        return;
       }
-      row.cc = row.pingCc;
-      row.note = row.pingNote;
-      row.kind = "both";
+      const { pingCc, pingNote } = echolotLegacyMidiSlots(row);
+      if (row.pingCc == null) row.pingCc = pingCc;
+      if (row.pingNote == null) row.pingNote = pingNote;
+      if (echolotPingPong(row)) {
+        const mode = paramDeps(row).echolotCcMode;
+        if (mode === "note") {
+          if (row.pongNote == null) row.pongNote = clampMidi7(rowCcNum(row), pingNote);
+          if (row.pongCc == null) row.pongCc = pingCc;
+        } else if (mode === "cc") {
+          if (row.pongCc == null) row.pongCc = clampMidi7(rowNoteNum(row), pingCc);
+          if (row.pongNote == null) row.pongNote = pingNote;
+        } else {
+          if (row.pongCc == null) row.pongCc = pingCc;
+          if (row.pongNote == null) row.pongNote = pingNote;
+        }
+      } else {
+        if (row.pongCc == null) row.pongCc = pingCc;
+        if (row.pongNote == null) row.pongNote = pingNote;
+      }
     }
 
     function echolotPingCc(row) {
@@ -5816,12 +5825,15 @@
         }
         ensureEcholotMidi(s);
         const pingPong = echolotPingPong(s);
+        const echs = echolotChs(s);
+        const pingInstId = resolveChInstId(s, 1, echs[1]);
+        const pongInstId = resolveChInstId(s, 2, echs[2]);
         if (pingPong) {
           return `<div class="multi-midi multi-midi-echolot-map" title="Echolot: Ping / Pong Note + CC">
             ${noteSelectHtml(idx, echolotPingNote(s), { key: "pingNote", title: "Ping Note" })}
-            ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "pingCc", title: "Ping CC" })}
+            ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "pingCc", instrumentId: pingInstId, title: "Ping CC" })}
             ${noteSelectHtml(idx, echolotPongNote(s), { key: "pongNote", title: "Pong Note" })}
-            ${ccValueControlHtml(s, idx, echolotPongCc(s), { key: "pongCc", title: "Pong CC" })}
+            ${ccValueControlHtml(s, idx, echolotPongCc(s), { key: "pongCc", instrumentId: pongInstId, title: "Pong CC" })}
           </div>`;
         }
         if (mode === "note") {
@@ -5830,7 +5842,7 @@
         }
         if (mode === "cc") {
           return `<span class="cc-cell"><span class="span">CC</span>
-            ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "cc" })}</span>`;
+            ${ccValueControlHtml(s, idx, echolotPingCc(s), { key: "cc", instrumentId: pingInstId })}</span>`;
         }
         return `<div class="multi-midi" title="MIDI Note + CC">
           <span class="vm">Note</span>
