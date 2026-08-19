@@ -865,7 +865,7 @@ async function waitForSlotReady(
   const label = opts.label ? ` ${opts.label}` : "";
   const deviceRef = opts.deviceRef || null;
   const underHold = !!opts.underHold;
-  log(`  wait layoutId=${id}${label} ready (not muted / spawned) …`);
+  log(`  wait layoutId=${id}${label} ready (hold=${underHold}) …`);
   const deadline = Date.now() + timeoutMs;
   let lastDetail = "no reply";
   let emptyStreak = 0;
