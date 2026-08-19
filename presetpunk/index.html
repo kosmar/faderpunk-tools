@@ -7020,7 +7020,7 @@
           DIT_DAH_PHRASE0_PI + DIT_DAH_PHRASE_PACKS,
         );
         const phrase = unpackDitDahPhrase(packs);
-        const phraseHtml = `<span class="param-field" title="ITU Morse phrase (max 40 ASCII; packed into Phrase 1–10)"><span class="param-name">Phrase</span><input data-i="${idx}" data-k="ditPhrase" type="text" maxlength="${DIT_DAH_PHRASE_MAX}" spellcheck="false" autocomplete="off" autocapitalize="characters" value="${escapeAttr(phrase)}" /></span>`;
+        const phraseHtml = `<span class="param-field" title="ITU Morse phrase (max 36 ASCII; packed into Phrase 1–9)"><span class="param-name">Phrase</span><input data-i="${idx}" data-k="ditPhrase" type="text" maxlength="${DIT_DAH_PHRASE_MAX}" spellcheck="false" autocomplete="off" autocapitalize="characters" value="${escapeAttr(phrase)}" /></span>`;
         const rest = bits.map((b) => b.html).join("");
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
           <span class="extras-row">${phraseHtml}</span>
