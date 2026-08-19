@@ -1182,6 +1182,15 @@ async function applySetLayoutIncremental(
       { quietMs: LAYOUT_CLEAR_QUIET_MS },
     );
 
+    try {
+      await probeConfigCable(cfg);
+      log("  ✓ config cable alive after clear");
+    } catch (e) {
+      throw new Error(
+        `USB dead after clear (before any spawn): ${e.message || e}`,
+      );
+    }
+
     clearCachedAppStates(cfg.rx);
 
     const growing = [];
@@ -1203,6 +1212,15 @@ async function applySetLayoutIncremental(
           quietMs: pauseMs,
         },
       );
+
+      try {
+        await probeConfigCable(cfg);
+        log(`  ✓ config cable alive after spawn ${name}(ch${ch})`);
+      } catch (e) {
+        throw new Error(
+          `USB dead after SetLayout ${name}(ch${ch}) (before GetAppParams): ${e.message || e}`,
+        );
+      }
 
       const id = Number(slot.id);
       const expectAppId = Number(slot.app?.appId);
