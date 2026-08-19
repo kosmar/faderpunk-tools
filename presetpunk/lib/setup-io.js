@@ -1124,7 +1124,13 @@ async function applySetLayoutIncremental(
   let cfg = config;
   const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
   const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
-  const needsHold = n >= 8 || heavyN >= 2 || multiCh;
+  // Blank (49) is a no-op filler: Hold+spawn still wedges USB on current FW
+  // (same as Control). Skip Hold when the layout is Blank-only so we can A/B
+  // spawn without mute; real apps keep the dense Hold path.
+  const blankOnly = activeSlots.every(
+    (s) => Number(s.app?.appId) === 49 || s.app?.name === "Blank",
+  );
+  const needsHold = !blankOnly && (n >= 8 || heavyN >= 2 || multiCh);
   let held = false;
 
   try {
@@ -1138,6 +1144,10 @@ async function applySetLayoutIncremental(
     await delay(300);
   } catch {
     /* already released / older firmware */
+  }
+
+  if (blankOnly) {
+    log("  Hold skipped (Blank-only layout · spawn A/B)");
   }
 
   if (needsHold) {
