@@ -1674,7 +1674,7 @@
       "channels": [
         {
           "jackTitle": "CV / MIDI I/O",
-          "jackDescription": "Jack role depends on I/O and Signal (pitch CV, gate, or pass-through). Ping-Pong + CV→MIDI stores separate Ping/Pong note and CC targets in the packed MIDI Map.",
+          "jackDescription": "Jack role depends on I/O and Signal parameters (pitch CV, gate, or pass-through).",
           "faderTitle": "Delay",
           "faderDescription": "Delay time (up = shorter / faster repeats).",
           "faderPlusShiftTitle": "Feedback",
@@ -2455,6 +2455,82 @@
           "fnPlusShiftDescription": "Shift + long press cycles the output range (±5 V ↔ 0–10 V). The button flashes once for ±5 V and twice for 0–10 V. The range is stored as a parameter, so the configurator follows.",
           "ledTop": "Bipolar meter of the cumulative output, hued by the active process",
           "ledBottom": "Bipolar meter of the cumulative output, hued by the active process"
+        }
+      ]
+    },
+    "47": {
+      "id": 47,
+      "name": "Dit Dah",
+      "blurb": "ITU Morse phrase player with 16th-quantized note-ons",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Dit length (maps 30 ms up to four 16ths of the clock)",
+            "<strong>Alt</strong> — Pitch offset ±48 st around the base note",
+            "<strong>Third</strong> — Dah extra interval (deadzone; uses the Interval param)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short</strong> — Mute / unmute (phrase keeps its place; notes stay off while muted)",
+            "<strong>Shift + short</strong> — Arm start on the next 16th (clock Reset also arms when idle)",
+            "<strong>Long</strong> — Cancels the short action (no panic)"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Gate or pitch out",
+          "jackDescription": "Gate mode is a high gate for each dit/dah. Pitch mode is 0–10 V V/Oct of the sounding Morse note.",
+          "faderTitle": "Dit length",
+          "faderDescription": "Duration of a dit in milliseconds, from 30 ms up to four 16th-notes of the incoming clock. Dah is 3× dit.",
+          "faderPlusShiftTitle": "Pitch offset",
+          "faderPlusShiftDescription": "Bipolar transposition of the whole phrase around Base note, up to ±48 semitones.",
+          "faderPlusFnTitle": "Dah interval",
+          "faderPlusFnDescription": "Adds the Interval param onto dahs only (deadzone around centre). Dits stay on the Alt-offset pitch.",
+          "fnTitle": "Mute / re-arm",
+          "fnDescription": "Short tap mutes MIDI and CV. Shift + short arms playback on the next 16th.",
+          "ledTop": "Orange high while a tone is sounding"
+        }
+      ]
+    },
+    "48": {
+      "id": 48,
+      "name": "Maniac Bounce",
+      "blurb": "Delay with bounce pitch and velocity LFO",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Delay (up = shorter) plus coupled decay (short trails die faster)",
+            "<strong>Alt</strong> — Bounce interval bipolar ±24 st (default ~+6)",
+            "<strong>Third</strong> — Velocity LFO rate + depth (up = faster and deeper)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short</strong> — Mute / ring-out (block new input; trail plays out)",
+            "<strong>Long</strong> — Panic (clear queue + NoteOffs); skipped if Third was used this hold"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Delay I/O",
+          "jackDescription": "MIDI or CV in, MIDI or CV out per I/O mode. Dry through plus bouncing repeats.",
+          "faderTitle": "Delay / decay",
+          "faderDescription": "Repeat spacing. Fader up is shorter and decays faster; down is slower with more hops.",
+          "faderPlusShiftTitle": "Bounce interval",
+          "faderPlusShiftDescription": "Each repeat alternates +interval / −interval, ±24 semitones.",
+          "faderPlusFnTitle": "Velocity LFO",
+          "faderPlusFnDescription": "Rate and depth together on dry hits and repeats. MIDI→CV Gate uses the same LFO for pulse width.",
+          "fnTitle": "Mute / panic",
+          "fnDescription": "Short mute (ring-out). Long panic unless you were editing Third.",
+          "ledTop": "Activity / bounce interval",
+          "ledBottom": "Activity / bounce interval"
         }
       ]
     }

@@ -2846,12 +2846,7 @@
           }
         },
         {
-          "tag": "i32",
-          "value": {
-            "name": "MIDI Map",
-            "min": 0,
-            "max": 268435455
-          }
+          "tag": "None"
         }
       ]
     },
@@ -4828,6 +4823,203 @@
             "name": "CC Map",
             "min": 0,
             "max": 268435455
+          }
+        }
+      ]
+    },
+    {
+      "id": 47,
+      "slug": "dit_dah",
+      "module": "dit_dah",
+      "channels": 1,
+      "name": "Dit Dah",
+      "description": "ITU Morse phrase player with 16th-quantized note-ons",
+      "color": "Orange",
+      "icon": "SequenceSquare",
+      "params": [
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base note"
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Interval",
+            "min": 0,
+            "max": 24
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Out",
+            "variants": [
+              "Gate",
+              "Pitch"
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        },
+        {
+          "tag": "None"
+        }
+      ]
+    },
+    {
+      "id": 48,
+      "slug": "maniac_bounce",
+      "module": "maniac_bounce",
+      "channels": 1,
+      "name": "Maniac Bounce",
+      "description": "Delay with bounce pitch and velocity LFO",
+      "color": "Pink",
+      "icon": "Sine",
+      "params": [
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "I/O",
+            "variants": [
+              "MIDI->MIDI",
+              "MIDI->CV",
+              "CV->MIDI"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Max delay (ms)",
+            "min": 10,
+            "max": 8000
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Signal",
+            "variants": [
+              "Pitch",
+              "Gate",
+              "CV->CC",
+              "Gate->Note"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiIn"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI In CH"
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Out"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note"
           }
         }
       ]
