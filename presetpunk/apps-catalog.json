@@ -3600,8 +3600,8 @@
           "tag": "f32",
           "value": {
             "name": "Gate Threshold",
-            "min": 0,
-            "max": 10
+            "min": 0.0,
+            "max": 10.0
           }
         },
         {
@@ -4853,11 +4853,24 @@
           }
         },
         {
-          "tag": "i32",
+          "tag": "Enum",
           "value": {
             "name": "Interval",
-            "min": 0,
-            "max": 24
+            "variants": [
+              "Unison",
+              "m2",
+              "M2",
+              "m3",
+              "M3",
+              "P4",
+              "TT",
+              "P5",
+              "m6",
+              "M6",
+              "m7",
+              "M7",
+              "Octave"
+            ]
           }
         },
         {
@@ -4873,6 +4886,38 @@
         },
         {
           "tag": "VoltPerOct"
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
         },
         {
           "tag": "i32",
@@ -4942,14 +4987,6 @@
           "tag": "i32",
           "value": {
             "name": "Phrase 9",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 10",
             "min": -2147483648,
             "max": 2147483647
           }

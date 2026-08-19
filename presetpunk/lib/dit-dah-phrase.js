@@ -1,7 +1,7 @@
-/** Dit Dah Phrase 1–10: 10× little-endian i32, 4 ASCII bytes each, NUL-terminated (max 40). */
+/** Dit Dah Phrase 1–9: 9× little-endian i32, 4 ASCII bytes each, NUL-terminated (max 36). */
 
-export const DIT_DAH_PHRASE_PACKS = 10;
-export const DIT_DAH_PHRASE_MAX = 40;
+export const DIT_DAH_PHRASE_PACKS = 9;
+export const DIT_DAH_PHRASE_MAX = 36;
 /** Firmware `DEFAULT_PHRASE_0` — `SOS\\0` LE. */
 export const DIT_DAH_DEFAULT_PACK0 = 0x00534f53;
 
@@ -38,8 +38,9 @@ export function unpackDitDahPhrase(packs) {
   const bytes = new Uint8Array(buf);
   let s = "";
   for (let i = 0; i < bytes.length; i++) {
-    if (bytes[i] === 0) break;
-    if (bytes[i] < 128) s += String.fromCharCode(bytes[i]);
+    const b = bytes[i];
+    if (b === 0) break;
+    s += String.fromCharCode(b);
   }
   return s;
 }
