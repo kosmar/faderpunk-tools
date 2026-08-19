@@ -5074,50 +5074,6 @@
           }
         }
       ]
-    },
-    {
-      "id": 49,
-      "slug": "blank",
-      "module": "blank",
-      "channels": 1,
-      "name": "Blank",
-      "description": "No-op layout filler. No jacks MIDI or clock.",
-      "color": "Yellow",
-      "icon": "Fader",
-      "params": [
-        {
-          "tag": "Color",
-          "value": {
-            "name": "Color",
-            "variants": [
-              {
-                "tag": "Yellow"
-              },
-              {
-                "tag": "Blue"
-              },
-              {
-                "tag": "Green"
-              },
-              {
-                "tag": "Rose"
-              },
-              {
-                "tag": "Orange"
-              },
-              {
-                "tag": "Cyan"
-              },
-              {
-                "tag": "Pink"
-              },
-              {
-                "tag": "Violet"
-              }
-            ]
-          }
-        }
-      ]
     }
   ]
 }
