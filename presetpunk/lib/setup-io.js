@@ -1295,7 +1295,8 @@ async function applySetLayoutIncremental(
           { timeoutMs: 3000, attempts: 2 },
         );
         log("  ReleasePerfMute");
-        await delay(400);
+        // Pong is Core0-only; Core1 unmutes async (store may still run).
+        await delay(2000);
       } catch (e) {
         log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
       }
