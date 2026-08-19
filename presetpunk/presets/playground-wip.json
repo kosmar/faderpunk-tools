@@ -21,7 +21,8 @@
         { "app": "grooves", "fader": 13 },
         { "app": "heat_pump", "fader": 14 },
         { "app": "quantizer", "fader": 15 },
-        { "app": "control", "fader": 16 }
+        { "app": "control", "fader": 16 },
+        { "app": "blank", "fader": 10 }
       ],
       "global": {
         "clock": {

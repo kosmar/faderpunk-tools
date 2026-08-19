@@ -3600,8 +3600,8 @@
           "tag": "f32",
           "value": {
             "name": "Gate Threshold",
-            "min": 0.0,
-            "max": 10.0
+            "min": 0,
+            "max": 10
           }
         },
         {
@@ -5071,6 +5071,50 @@
           "tag": "MidiNote",
           "value": {
             "name": "MIDI Note"
+          }
+        }
+      ]
+    },
+    {
+      "id": 49,
+      "slug": "blank",
+      "module": "blank",
+      "channels": 1,
+      "name": "Blank",
+      "description": "No-op layout filler. No jacks MIDI or clock.",
+      "color": "Yellow",
+      "icon": "Fader",
+      "params": [
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Yellow"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              }
+            ]
           }
         }
       ]
