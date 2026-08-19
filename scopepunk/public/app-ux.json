@@ -2482,8 +2482,8 @@
       ],
       "channels": [
         {
-          "jackTitle": "Gate or pitch out",
-          "jackDescription": "Gate mode is a high gate for each dit/dah. Pitch mode is 0–10 V V/Oct of the sounding Morse note.",
+          "jackTitle": "Jack",
+          "jackDescription": "Gate Out / Pitch Out (0–10 V V/Oct), or Gate In (±5 V) to arm the phrase on a rising edge. MIDI notes always fire.",
           "faderTitle": "Dit length",
           "faderDescription": "Duration of a dit in milliseconds, from 30 ms up to four 16th-notes of the incoming clock. Dah is 3× dit.",
           "faderPlusShiftTitle": "Pitch offset",

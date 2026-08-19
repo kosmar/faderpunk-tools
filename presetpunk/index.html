@@ -906,9 +906,11 @@
     td .range-field .range-name {
       color: var(--muted);
     }
-    td .mix-balance input,
-    td .swing-max input {
-      width: 4.75rem; /* fits 4 digits + padding */
+    td .app-extras input[type="text"] {
+      min-width: 14rem;
+      max-width: 22rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
     }
     td .mix-balance input[type="checkbox"],
     td .app-extras input[type="checkbox"],
@@ -5299,6 +5301,50 @@
       };
     }
 
+    const DIT_DAH_PHRASE_PACKS = 10;
+    const DIT_DAH_PHRASE_MAX = 40;
+    const DIT_DAH_DEFAULT_PACK0 = 0x00534f53;
+    const DIT_DAH_PHRASE0_PI = 6;
+
+    function packDitDahPhrase(text) {
+      const bytes = new Uint8Array(DIT_DAH_PHRASE_PACKS * 4);
+      let o = 0;
+      for (const ch of String(text ?? "")) {
+        if (o >= DIT_DAH_PHRASE_MAX) break;
+        let c = ch.charCodeAt(0);
+        if (c >= 97 && c <= 122) c -= 32;
+        if (c === 0 || c > 127) continue;
+        bytes[o++] = c;
+      }
+      const view = new DataView(bytes.buffer);
+      const out = [];
+      for (let i = 0; i < DIT_DAH_PHRASE_PACKS; i++) {
+        out.push(view.getInt32(i * 4, true));
+      }
+      return out;
+    }
+
+    function unpackDitDahPhrase(packs) {
+      const nums = Array.from({ length: DIT_DAH_PHRASE_PACKS }, (_, i) => {
+        const p = packs?.[i];
+        if (typeof p === "number") return p | 0;
+        const n = Number(p?.value);
+        return Number.isFinite(n) ? n | 0 : 0;
+      });
+      const buf = new ArrayBuffer(DIT_DAH_PHRASE_PACKS * 4);
+      const view = new DataView(buf);
+      for (let i = 0; i < DIT_DAH_PHRASE_PACKS; i++) {
+        view.setInt32(i * 4, nums[i], true);
+      }
+      const bytes = new Uint8Array(buf);
+      let s = "";
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] === 0) break;
+        if (bytes[i] < 128) s += String.fromCharCode(bytes[i]);
+      }
+      return s;
+    }
+
     function echolotMidiMapPacked(row) {
       // Pack from row fields only — never re-hydrate from schema here (would
       // wipe in-flight select edits, same footgun as Grooves notes).
@@ -5984,6 +6030,8 @@
           const max = Number(param.value?.max);
           return i32(Number.isFinite(max) ? max : 127);
         }
+        if (/^Phrase 1$/i.test(pname)) return i32(DIT_DAH_DEFAULT_PACK0);
+        if (/^Phrase (?:[2-9]|10)$/i.test(pname)) return i32(0);
         const min = Number(param.value?.min) || 0;
         const max = Number(param.value?.max) || 0;
         const mid = Math.round((min + max) / 2);
@@ -6471,6 +6519,17 @@
         return out;
       }
 
+      if (row.app === "dit_dah") {
+        for (let pi = DIT_DAH_PHRASE0_PI; pi < DIT_DAH_PHRASE0_PI + DIT_DAH_PHRASE_PACKS; pi++) {
+          hide.add(pi);
+        }
+        labels.set(3, "Dah interval");
+        const jackPi = 4;
+        const vpoPi = 5;
+        if (schemaEnumIndex(row, jackPi) !== 1) hide.add(vpoPi);
+        return out;
+      }
+
       // Shared Jack / Range / CV Dest / CV Att pattern (WIP CV-jack apps).
       // Jack=Out → Range (+ V/Oct when present) for the DAC; Dest/Att unused.
       // Jack=In → Dest/Att; Range/V/Oct unused (In is ±5V).
@@ -6949,6 +7008,20 @@
           ${outRow("C", "Process C", "Range C")}
           ${outRow("D", "Process D", "Range D")}
           ${bottom}
+        </span>`;
+      }
+
+      if (s.app === "dit_dah") {
+        const packs = (s.schemaValues || []).slice(
+          DIT_DAH_PHRASE0_PI,
+          DIT_DAH_PHRASE0_PI + DIT_DAH_PHRASE_PACKS,
+        );
+        const phrase = unpackDitDahPhrase(packs);
+        const phraseHtml = `<span class="param-field" title="ITU Morse phrase (max 40 ASCII; packed into Phrase 1–10)"><span class="param-name">Phrase</span><input data-i="${idx}" data-k="ditPhrase" type="text" maxlength="${DIT_DAH_PHRASE_MAX}" spellcheck="false" autocomplete="off" value="${escapeAttr(phrase)}" /></span>`;
+        const rest = bits.map((b) => b.html).join("");
+        return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
+          <span class="extras-row">${phraseHtml}</span>
+          ${rest ? `<span class="extras-row">${rest}</span>` : ""}
         </span>`;
       }
 
@@ -8793,6 +8866,16 @@
           return;
         }
         setSchemaValue(rowRef, pi, next);
+      } else if (k === "ditPhrase") {
+        ensureSchemaValues(rowRef);
+        const packs = packDitDahPhrase(el.value);
+        for (let p = 0; p < DIT_DAH_PHRASE_PACKS; p++) {
+          setSchemaValue(rowRef, DIT_DAH_PHRASE0_PI + p, i32(packs[p]));
+        }
+        if (ev.type === "change") {
+          const folded = unpackDitDahPhrase(packs);
+          if (el.value !== folded) el.value = folded;
+        }
       } else if (k === "app") {
         rowRef.app = el.value;
         if (!APPS_WITH_MIDI_MODE.has(el.value)) delete rowRef.midiMode;
@@ -9325,7 +9408,7 @@
       // Don't rebuild the table on every keystroke — that resets caret (comment / CH / CC).
       const typing =
         ev.type === "input" &&
-        (k === "target" || k === "cc" || k === "laneCc" || k === "swingMax" || k === "mixBalance" || k === "rateModDepth" || k === "echoMaxMs" || k === "sv") &&
+        (k === "target" || k === "cc" || k === "laneCc" || k === "swingMax" || k === "mixBalance" || k === "rateModDepth" || k === "echoMaxMs" || k === "sv" || k === "ditPhrase") &&
         el.tagName === "INPUT";
       if (!typing) {
         const depChanged = beforeDeps !== depsSignature(rowRef);

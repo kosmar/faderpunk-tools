@@ -4863,10 +4863,11 @@
         {
           "tag": "Enum",
           "value": {
-            "name": "Out",
+            "name": "Jack",
             "variants": [
-              "Gate",
-              "Pitch"
+              "Gate Out",
+              "Pitch Out",
+              "Gate In"
             ]
           }
         },
@@ -4874,34 +4875,84 @@
           "tag": "VoltPerOct"
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 1",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 2",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 3",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 4",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 5",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 6",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 7",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 8",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 9",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 10",
+            "min": -2147483648,
+            "max": 2147483647
+          }
         }
       ]
     },

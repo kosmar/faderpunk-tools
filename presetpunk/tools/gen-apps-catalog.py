@@ -80,6 +80,10 @@ def parse_add_params(body: str, consts: dict[str, object] | None = None) -> list
 
 def resolve_int_expr(expr: str, consts: dict[str, object]) -> int | None:
     expr = expr.strip()
+    if expr == "i32::MIN":
+        return -2147483648
+    if expr == "i32::MAX":
+        return 2147483647
     num = expr.replace("_", "")
     if re.fullmatch(r"-?\d+", num):
         return int(num)
