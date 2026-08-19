@@ -1120,6 +1120,7 @@ async function applySetLayoutIncremental(
       .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
       .join(" → ")}`,
   );
+  log("  push engine: hold-incremental");
   let cfg = config;
   const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
   const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
