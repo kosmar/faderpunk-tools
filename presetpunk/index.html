@@ -5304,10 +5304,11 @@
       };
     }
 
-    const DIT_DAH_PHRASE_PACKS = 10;
-    const DIT_DAH_PHRASE_MAX = 40;
+    const DIT_DAH_PHRASE_PACKS = 9;
+    const DIT_DAH_PHRASE_MAX = 36;
     const DIT_DAH_DEFAULT_PACK0 = 0x00534f53;
-    const DIT_DAH_PHRASE0_PI = 6;
+    /** First Phrase i32 param index in Dit Dah CONFIG (after Color). */
+    const DIT_DAH_PHRASE0_PI = 7;
 
     function packDitDahPhrase(text) {
       const bytes = new Uint8Array(DIT_DAH_PHRASE_PACKS * 4);
