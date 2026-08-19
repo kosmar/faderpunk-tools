@@ -1095,9 +1095,10 @@ async function applySetLayout(
  *   clear old layout → quiet teardown → for each app:
  *   SetLayout(growing) → quiet pause → SetAppParams.
  *
- * Order: multi-channel first (quiet bus), then light params → heavy params.
- * HoldPerfMute must not wrap a step: firmware parks the new app under Hold,
- * so SetAppParams receives an empty AppState and subsequent retries wedge USB.
+ * Dense / multi-ch layouts (Manifold, Ripppple, then Echolot/LFO, …) wedge USB
+ * when apps run unmuted mid-push. HoldPerfMute for the whole incremental pass
+ * (same as live dense): MIDI quiet until Release after the last params.
+ * Param handlers stay up under Hold (400ms empty AppState is fine).
  */
 async function applySetLayoutIncremental(
   config,
@@ -1120,6 +1121,10 @@ async function applySetLayoutIncremental(
       .join(" → ")}`,
   );
   let cfg = config;
+  const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
+  const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
+  const needsHold = n >= 8 || heavyN >= 2 || multiCh;
+  let held = false;
 
   try {
     await sendAndReceiveExpect(
@@ -1134,103 +1139,137 @@ async function applySetLayoutIncremental(
     /* already released / older firmware */
   }
 
+  if (needsHold) {
+    try {
+      await sendAndReceiveExpect(
+        cfg,
+        { tag: "HoldPerfMute" },
+        "Pong",
+        { timeoutMs: 2000, attempts: 2 },
+      );
+      held = true;
+      log(`  HoldPerfMute (incremental · ${n} apps · ${heavyN} heavy)`);
+      await delay(300);
+    } catch {
+      log("  ⚠ HoldPerfMute unavailable — continuing without hold");
+    }
+  }
+
   // SetLayout ACK precedes Core 1 processing. Without an explicit clear, the
   // first one-app layout also tears down up to 16 old apps (120ms each), reaps
   // their tasks, persists the empty layout, and only then starts the new app.
   // A params request during that phase receives empty AppState and can wedge
   // USB. Split teardown from spawn and remain completely silent throughout.
-  cfg = await applySetLayout(
-    cfg,
-    [],
-    log,
-    LAYOUT_SETTLE_INCREMENTAL_MS,
-    deviceRef,
-    "SetLayout (clear old apps)",
-    { quietMs: LAYOUT_CLEAR_QUIET_MS },
-  );
-
-  clearCachedAppStates(cfg.rx);
-
-  const growing = [];
-  for (let i = 0; i < ordered.length; i++) {
-    const slot = ordered[i];
-    growing.push(slot);
-    const name = slot.app?.name || slot.app?.appId;
-    const ch = Number(slot.startChannel) || 0;
-    const pauseMs = incrementalSpawnQuietMs(slot, i, n);
-
+  try {
     cfg = await applySetLayout(
       cfg,
-      growing,
+      [],
       log,
       LAYOUT_SETTLE_INCREMENTAL_MS,
       deviceRef,
-      `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
-      {
-        quietMs: pauseMs,
-      },
+      "SetLayout (clear old apps)",
+      { quietMs: LAYOUT_CLEAR_QUIET_MS },
     );
 
-    const id = Number(slot.id);
-    const expectAppId = Number(slot.app?.appId);
-    // Never SetAppParams before GetAppParams shows a live param_handler —
-    // premature SetAppParams wedges the FW params path (GetVersion still OK).
-    try {
-      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+    clearCachedAppStates(cfg.rx);
+
+    const growing = [];
+    for (let i = 0; i < ordered.length; i++) {
+      const slot = ordered[i];
+      growing.push(slot);
+      const name = slot.app?.name || slot.app?.appId;
+      const ch = Number(slot.startChannel) || 0;
+      const pauseMs = incrementalSpawnQuietMs(slot, i, n);
+
+      cfg = await applySetLayout(
+        cfg,
+        growing,
+        log,
+        LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
-        underHold: false,
-        skipReadyWait: false,
-        expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
-        maxAttempts: 1,
-      });
-    } catch (firstErr) {
-      let err = firstErr;
-      const message = String(err.message || err);
-      log(`  ⚠ SetAppParams(${id}): ${message}`);
-      if (!deviceRef) throw err;
-      // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
-      log(
-        `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
+        `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+        {
+          quietMs: pauseMs,
+        },
       );
-      await delay(SET_PARAMS_SPAWN_RETRY_MS);
-      clearCachedAppState(cfg.rx, id);
+
+      const id = Number(slot.id);
+      const expectAppId = Number(slot.app?.appId);
+      // Never SetAppParams before GetAppParams shows a live param_handler —
+      // premature SetAppParams wedges the FW params path (GetVersion still OK).
       try {
-        cfg = await waitForSlotReady(cfg, id, log, 45_000, {
-          label: "after params fail",
+        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
           deviceRef,
-          underHold: false,
+          underHold: held,
+          skipReadyWait: false,
+          expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+          maxAttempts: 1,
+        });
+      } catch (firstErr) {
+        let err = firstErr;
+        const message = String(err.message || err);
+        log(`  ⚠ SetAppParams(${id}): ${message}`);
+        if (!deviceRef) throw err;
+        // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
+        log(
+          `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
+        );
+        await delay(SET_PARAMS_SPAWN_RETRY_MS);
+        clearCachedAppState(cfg.rx, id);
+        try {
+          cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+            label: "after params fail",
+            deviceRef,
+            underHold: held,
+            expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+          });
+          cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+            deviceRef,
+            underHold: held,
+            skipReadyWait: true,
+            maxAttempts: 1,
+          });
+          continue;
+        } catch (retryErr) {
+          err = retryErr;
+        }
+        log("  retry: reconnect + wait ready + SetAppParams …");
+        disconnectDevice(deviceRef.device);
+        await delay(1000);
+        deviceRef.device = await connectDevice();
+        cfg = deviceRef.device.config;
+        log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+        await delay(SET_PARAMS_SPAWN_RETRY_MS);
+        clearCachedAppState(cfg.rx, id);
+        cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+          label: "after reconnect",
+          deviceRef,
+          underHold: held,
           expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
         });
         cfg = await applySetAppParams(cfg, paramsById, [id], log, {
           deviceRef,
-          underHold: false,
+          underHold: held,
           skipReadyWait: true,
           maxAttempts: 1,
         });
-        continue;
-      } catch (retryErr) {
-        err = retryErr;
       }
-      log("  retry: reconnect + wait ready + SetAppParams …");
-      disconnectDevice(deviceRef.device);
-      await delay(1000);
-      deviceRef.device = await connectDevice();
-      cfg = deviceRef.device.config;
-      log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
-      await delay(SET_PARAMS_SPAWN_RETRY_MS);
-      clearCachedAppState(cfg.rx, id);
-      cfg = await waitForSlotReady(cfg, id, log, 45_000, {
-        label: "after reconnect",
-        deviceRef,
-        underHold: false,
-        expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
-      });
-      cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-        deviceRef,
-        underHold: false,
-        skipReadyWait: true,
-        maxAttempts: 1,
-      });
+    }
+  } finally {
+    if (held && deviceRef?.device?.config) {
+      try {
+        cfg = deviceRef.device.config;
+        await sendAndReceiveExpect(
+          cfg,
+          { tag: "ReleasePerfMute" },
+          "Pong",
+          { timeoutMs: 3000, attempts: 2 },
+        );
+        log("  ReleasePerfMute");
+        await delay(400);
+      } catch (e) {
+        log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+      }
     }
   }
 
