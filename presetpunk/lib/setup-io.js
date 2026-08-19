@@ -257,7 +257,16 @@ function isHeavySpawnSlot(slot, index, total) {
 export function incrementalSpawnQuietMs(slot, index, total) {
   const channels = Number(slot?.app?.channels) || 1;
   const heavy = isHeavySpawnSlot(slot, index, total);
-  const base = channels > 1 ? 1200 : heavy || index >= 8 ? 800 : 500;
+  // 4ch spawn after a dense prefix (Ripppple→Manifold) needs FRAM+MAX quiet
+  // before GetAppParams; 1200ms still raced layoutId=8 USB wedge.
+  const base =
+    channels > 1
+      ? index >= 6
+        ? 2500
+        : 1200
+      : heavy || index >= 8
+        ? 800
+        : 500;
   if (index === 0) return Math.max(base, LAYOUT_FIRST_SPAWN_QUIET_MS);
   return base;
 }

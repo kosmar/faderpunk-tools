@@ -428,6 +428,22 @@ test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () =
   assert.equal(incrementalSpawnQuietMs(light, 1, 9), 500);
 });
 
+test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
+  const manifold = {
+    id: 8,
+    app: { appId: 43, channels: 4, paramCount: 16, name: "Manifold" },
+    startChannel: 11,
+  };
+  const ripppple = {
+    id: 7,
+    app: { appId: 46, channels: 4, paramCount: 15, name: "Ripppple" },
+    startChannel: 7,
+  };
+  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 2500);
+  assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 2500);
+  assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
+});
+
 // ---- wire regression: SetAppParams must serialize ----------------------------
 
 test("SetAppParams with padded grooves vector serializes", () => {
