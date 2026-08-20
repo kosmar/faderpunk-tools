@@ -87,6 +87,8 @@ def resolve_int_expr(expr: str, consts: dict[str, object]) -> int | None:
     num = expr.replace("_", "")
     if re.fullmatch(r"-?\d+", num):
         return int(num)
+    if re.fullmatch(r"-?0x[0-9a-fA-F]+", num):
+        return int(num, 16)
     m = re.fullmatch(r"(\w+)\s+as\s+\w+", expr)
     if m and m.group(1) in consts and isinstance(consts[m.group(1)], int):
         return int(consts[m.group(1)])
@@ -95,8 +97,15 @@ def resolve_int_expr(expr: str, consts: dict[str, object]) -> int | None:
     return None
 
 
+def apply_str_aliases(consts: dict[str, object], aliases: list[tuple[str, str]]) -> None:
+    for dest, src_name in aliases:
+        if isinstance(consts.get(src_name), list):
+            consts[dest] = list(consts[src_name])
+
+
 def file_consts(src: str) -> dict[str, object]:
     out: dict[str, object] = {}
+    aliases: list[tuple[str, str]] = []
     for m in re.finditer(
         r"(?:pub\s+)?const\s+(\w+)\s*:\s*(?:usize|u16|u32|i32)\s*=\s*([\d_]+)\s*;",
         src,
@@ -106,16 +115,41 @@ def file_consts(src: str) -> dict[str, object]:
         r"(?:pub\s+)?const\s+(\w+)\s*:\s*&\[&str\]\s*=\s*&\[(.*?)\];", src, re.S
     ):
         out[m.group(1)] = re.findall(r'"([^"]*)"', m.group(2))
+    # `const FOO: &[&str] = libfp::BAR;` or `= BAR;`
+    for m in re.finditer(
+        r"(?:pub\s+)?const\s+(\w+)\s*:\s*&\[&str\]\s*=\s*(?:libfp::)?(\w+)\s*;",
+        src,
+    ):
+        aliases.append((m.group(1), m.group(2)))
+    apply_str_aliases(out, aliases)
+    # Keep unresolved aliases for a later pass against shared consts.
+    out["_aliases"] = [(d, s) for d, s in aliases if d not in out or not isinstance(out.get(d), list)]
     return out
 
 
 def load_shared_consts(apps_dir: pathlib.Path) -> dict[str, object]:
     out: dict[str, object] = {}
-    for path in sorted(apps_dir.glob("*.rs")):
-        if path.name == "mod.rs":
-            continue
-        out.update(file_consts(path.read_text()))
+    alias_queue: list[tuple[str, str]] = []
+    libfp_lib = apps_dir.parent.parent.parent / "libfp" / "src" / "lib.rs"
+    paths = []
+    if libfp_lib.is_file():
+        paths.append(libfp_lib)
+    paths.extend(sorted(p for p in apps_dir.glob("*.rs") if p.name != "mod.rs"))
+    for path in paths:
+        parsed = file_consts(path.read_text())
+        aliases = parsed.pop("_aliases", [])
+        out.update(parsed)
+        alias_queue.extend(aliases)
+    apply_str_aliases(out, alias_queue)
     return out
+
+
+def resolve_str_array_name(expr: str, consts: dict[str, object]) -> list | None:
+    name = expr.strip().rstrip(",")
+    if name.startswith("libfp::"):
+        name = name[len("libfp::") :]
+    val = consts.get(name)
+    return list(val) if isinstance(val, list) else None
 
 
 def strip_rs_line_comments(s: str) -> str:
@@ -177,8 +211,7 @@ def parse_param(inner: str, consts: dict[str, object] | None = None) -> dict:
             )
             variants = re.findall(r'"([^"]*)"', um2.group(1)) if um2 else []
         else:
-            name = variants_expr.strip().rstrip(",")
-            variants = consts.get(name) if isinstance(consts.get(name), list) else None
+            variants = resolve_str_array_name(variants_expr, consts)
             if variants is None:
                 return {"tag": "None", "raw": inner[:120]}
         return {"tag": "Enum", "name": um.group(1), "variants": list(variants)}
@@ -283,6 +316,8 @@ def main() -> int:
             errors.append(f"no Config::new header: {mod_name}")
             continue
         consts = {**shared, **file_consts(src)}
+        aliases = consts.pop("_aliases", [])
+        apply_str_aliases(consts, aliases)
         raw_params = parse_add_params(body, consts)
         if any(p["tag"] == "None" for p in raw_params):
             errors.append(
