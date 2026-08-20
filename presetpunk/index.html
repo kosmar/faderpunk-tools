@@ -6109,8 +6109,14 @@
       let firstNote = true;
       params.forEach((p, i) => {
         if (!p) return;
-        if (p.tag === "MidiOut" || p.tag === "Color") {
+        if (p.tag === "MidiOut") {
           claimed.add(i);
+          return;
+        }
+        // Color normally lives on the fader triangle only. Dit Dah also shows it
+        // in extras (next to Phrase) — the triangle alone was easy to miss.
+        if (p.tag === "Color") {
+          if (row.app !== "dit_dah") claimed.add(i);
           return;
         }
         // Packed Ch/CC maps are the bit-packed form of the CH / CC columns,
@@ -6714,6 +6720,9 @@
         row.kind = kindForApp(row.app, row.midiMode);
       }
       if (p.tag === "VoltPerOct" && value?.value?.tag) row.vpo = value.value.tag;
+      if (p.tag === "Color" && value?.value?.tag) {
+        row.color = coerceAppParamColor(value.value.tag);
+      }
       if (p.tag === "MidiChannel" && value?.tag === "MidiChannel") {
         const n = midiChannelValueNum(value) ?? 1;
         if (row.app === "harmonica") {
@@ -6835,6 +6844,22 @@
         return `<label class="flag-chip" title="${title}">
           <input data-i="${idx}" data-k="sv" data-pi="${pi}" type="checkbox" ${value?.value ? "checked" : ""} />${escapeHtml(name)}
         </label>`;
+      }
+      if (tag === "Color") {
+        const variants = (param.value?.variants || [])
+          .map((v) => v.tag || v)
+          .filter(Boolean);
+        const list = variants.length ? variants : APP_PARAM_COLOR_LIST;
+        const curRaw = value?.value?.tag || list[0];
+        const cur = list.includes(curRaw) ? curRaw : list[0];
+        const opts = list
+          .map((c) => {
+            const hex = LED_CSS[c] || "#888";
+            const fg = contrastOnLed(c);
+            return `<option value="${escapeAttr(c)}" ${c === cur ? "selected" : ""} style="background:${hex};color:${fg}">${escapeHtml(c)}</option>`;
+          })
+          .join("");
+        return `<span class="param-field" title="${title}"><span class="param-name">${escapeHtml(name)}</span><select data-i="${idx}" data-k="sv" data-pi="${pi}" style="--led-swatch:${LED_CSS[cur] || "#888"}">${opts}</select></span>`;
       }
       if (tag === "Range" || tag === "Curve" || tag === "Waveform" || tag === "Note" || tag === "VoltPerOct") {
         const cur = value?.value?.tag || "";
@@ -7022,9 +7047,13 @@
         );
         const phrase = unpackDitDahPhrase(packs);
         const phraseHtml = `<span class="param-field" title="ITU Morse phrase (max 36 ASCII; packed into Phrase 1–9)"><span class="param-name">Phrase</span><input data-i="${idx}" data-k="ditPhrase" type="text" maxlength="${DIT_DAH_PHRASE_MAX}" spellcheck="false" autocomplete="off" autocapitalize="characters" value="${escapeAttr(phrase)}" /></span>`;
-        const rest = bits.map((b) => b.html).join("");
+        const colorBit = bits.find((b) => b.name === "Color");
+        const rest = bits
+          .filter((b) => b.name !== "Color")
+          .map((b) => b.html)
+          .join("");
         return `<span class="app-extras stack" title="${escapeAttr("From firmware CONFIG / apps-catalog.json")}">
-          <span class="extras-row">${phraseHtml}</span>
+          <span class="extras-row">${phraseHtml}${colorBit ? colorBit.html : ""}</span>
           ${rest ? `<span class="extras-row">${rest}</span>` : ""}
         </span>`;
       }
@@ -8857,7 +8886,8 @@
           param.tag === "Waveform" ||
           param.tag === "Note" ||
           param.tag === "VoltPerOct" ||
-          param.tag === "MidiMode"
+          param.tag === "MidiMode" ||
+          param.tag === "Color"
         ) {
           next = { tag: param.tag, value: { tag: el.value } };
         } else if (param.tag === "MidiChannel") {
