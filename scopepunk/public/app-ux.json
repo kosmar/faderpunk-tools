@@ -1390,8 +1390,8 @@
         }
       ]
     },
-    "29": {
-      "id": 29,
+    "100": {
+      "id": 100,
       "name": "Heat Pump",
       "blurb": "Clock-synced sidechain ducking envelope",
       "sections": [
@@ -1423,28 +1423,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / CV In",
-          "jackDescription": "CV Out: ducking envelope. CV In: bipolar modulation per CV Dest.",
-          "faderTitle": "Release",
-          "faderDescription": "Recovery time after each duck (up = faster).",
-          "faderPlusShiftTitle": "Depth",
-          "faderPlusShiftDescription": "How far the output ducks on each pulse.",
-          "faderPlusFnTitle": "Division",
-          "faderPlusFnDescription": "Clock division (1/1 … 1/32). Also cycled with Shift + short press when Jack = CV Out.",
-          "fnTitle": "Duck / Mute",
-          "fnDescription": "Short press: manual duck. Long press: mute/bypass (holds current level).",
-          "fnPlusShiftTitle": "Division / CV dest / Invert",
-          "fnPlusShiftDescription": "Short (CV Out): cycle division. Short (CV In): cycle CV Dest. Long: invert duck direction.",
-          "ledTop": "Envelope level",
-          "ledTopPlusShift": "Depth (red)",
-          "ledBottom": "Division metronome on button"
-        }
-      ]
+      "channels": []
     },
-    "30": {
-      "id": 30,
+    "101": {
+      "id": 101,
       "name": "Grooves",
       "blurb": "Multi-genre MIDI drum grooves with feel and drummer personas",
       "sections": [
@@ -1494,28 +1476,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / CV In",
-          "jackDescription": "CV Out: drum-activity gate. CV In: modulates Density, Swing, or Reset.",
-          "faderTitle": "Density",
-          "faderDescription": "Reveals extra kick, snare, and hat hits in the pattern.",
-          "faderPlusShiftTitle": "Swing",
-          "faderPlusShiftDescription": "Swing amount (capped by Swing max % parameter).",
-          "faderPlusFnTitle": "Jack mode",
-          "faderPlusFnDescription": "CV Out only: Any (low) vs Stacked (high) activity mode.",
-          "fnTitle": "Reset / Mute",
-          "fnDescription": "Short press: reset to downbeat. Long press: mute.",
-          "fnPlusShiftTitle": "Reverse swing / Genre",
-          "fnPlusShiftDescription": "Short: reverse swing. Long: cycle genre (oldest → newest).",
-          "ledTop": "Density level; jack mode color when Button + Fader active",
-          "ledTopPlusShift": "Swing amount",
-          "ledBottom": "Pattern activity"
-        }
-      ]
+      "channels": []
     },
-    "31": {
-      "id": 31,
+    "102": {
+      "id": 102,
       "name": "Golden Gate",
       "blurb": "Fibonacci-spaced gates — ratios → φ",
       "sections": [
@@ -1552,28 +1516,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / CV In",
-          "jackDescription": "CV Out: gate/pitch per Mode. CV In: Depth/Cycle/Reset modulation (no outs).",
-          "faderTitle": "Fibonacci depth",
-          "faderDescription": "Max Fibonacci gap depth — deeper approaches φ spacing.",
-          "faderPlusShiftTitle": "Cycle length",
-          "faderPlusShiftDescription": "Phrase length N in steps.",
-          "faderPlusFnTitle": "Local speed",
-          "faderPlusFnDescription": "Overrides Speed param (16th → quarter). Center = follow Configurator.",
-          "fnTitle": "Reset / Mute",
-          "fnDescription": "Short press: reset to downbeat. Long press: mute.",
-          "fnPlusShiftTitle": "Reverse / Out mode",
-          "fnPlusShiftDescription": "Short: reverse gap direction. Long: cycle Note / CC / Pitch / Phi.",
-          "ledTop": "Depth or pitch level (mode-dependent)",
-          "ledTopPlusShift": "Cycle length",
-          "ledBottom": "Speed division color while Button + Fader held"
-        }
-      ]
+      "channels": []
     },
-    "32": {
-      "id": 32,
+    "103": {
+      "id": 103,
       "name": "Super LFO",
       "blurb": "Morphing dual-osc LFO · 2 channels",
       "sections": [
@@ -1643,8 +1589,8 @@
         }
       ]
     },
-    "33": {
-      "id": 33,
+    "104": {
+      "id": 104,
       "name": "Echolot",
       "blurb": "MIDI/CV delay with feedback and pitch shift",
       "sections": [
@@ -1671,26 +1617,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "CV / MIDI I/O",
-          "jackDescription": "Jack role depends on I/O and Signal parameters (pitch CV, gate, or pass-through).",
-          "faderTitle": "Delay",
-          "faderDescription": "Delay time (up = shorter / faster repeats).",
-          "faderPlusShiftTitle": "Feedback",
-          "faderPlusShiftDescription": "Feedback amount for delayed repeats.",
-          "faderPlusFnTitle": "Pitch interval",
-          "faderPlusFnDescription": "Semitone shift per repeat (±24 st). Interval mode shapes stacking.",
-          "fnTitle": "Mute / Panic",
-          "fnDescription": "Short press: mute with ring-out. Long press: panic (clear queue).",
-          "ledTop": "Delay level; activity pulse on repeats",
-          "ledTopPlusShift": "Feedback (green)",
-          "ledBottom": "Ping-pong side or queue depth indicator"
-        }
-      ]
+      "channels": []
     },
-    "34": {
-      "id": 34,
+    "105": {
+      "id": 105,
       "name": "Arp de Levy",
       "blurb": "Lévy-flight arp — evolve, texture, flight character",
       "sections": [
@@ -1735,28 +1665,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "Pitch CV Out / CV In",
-          "jackDescription": "Jack mode selects Pitch CV out or CV in (Evolve / Texture / Reroll). MIDI note fires in parallel unless muted.",
-          "faderTitle": "Mutation rate",
-          "faderDescription": "How strongly the note pool Lévy-walks at each phrase boundary. Bottom = frozen loop.",
-          "faderPlusShiftTitle": "Texture",
-          "faderPlusShiftDescription": "One macro for density (rests), phrase length (from 16 steps down to 4), and swing.",
-          "faderPlusFnTitle": "Lévy α",
-          "faderPlusFnDescription": "Flight character — low = local steps, high = wild jumps.",
-          "fnTitle": "Reroll / Mute",
-          "fnDescription": "Short press: new note pool, new expression depth (vel/gate jitter), restart phrase. Long press: mute.",
-          "fnPlusShiftTitle": "Reverse / Octaves",
-          "fnPlusShiftDescription": "Short: reverse playback. Long: cycle octave span 1–4.",
-          "ledTop": "Phrase position (app color)",
-          "ledTopPlusShift": "Texture amount (orange, brighter = denser/shorter)",
-          "ledBottom": "Flash on each hit"
-        }
-      ]
+      "channels": []
     },
-    "35": {
-      "id": 35,
+    "106": {
+      "id": 106,
       "name": "Chord Vamp",
       "blurb": "Chord progressions — perform, capture, auto · MIDI + CV",
       "sections": [
@@ -1799,28 +1711,10 @@
           ]
         }
       ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / CV In",
-          "jackDescription": "CV Out: current chord root pitch. CV In: Macro or Panic per CV Dest.",
-          "faderTitle": "Scrub / Tension",
-          "faderDescription": "Perform: pitch map (genre degrees × 3 octaves). Auto: Meander tension.",
-          "faderPlusShiftTitle": "Genre",
-          "faderPlusShiftDescription": "Cycle genre preset (Capture clip slot when a timed clip exists).",
-          "faderPlusFnTitle": "Feel",
-          "faderPlusFnDescription": "Laid back ↔ advanced hit length (Capture durs scale too). Rests unchanged.",
-          "fnTitle": "Chord / Play",
-          "fnDescription": "Perform: hold for chord. Auto: short = play/pause. Long (Auto): clear clip / reseed.",
-          "fnPlusShiftTitle": "Mode / Capture / Panic",
-          "fnPlusShiftDescription": "Short: toggle Perform↔Auto; Perform+Shift+short = capture. Long (Auto): panic.",
-          "ledTop": "Scrub / phrase / pitch meter",
-          "ledTopPlusShift": "Genre color (rose = capture clip)",
-          "ledBottom": "Meter pair"
-        }
-      ]
+      "channels": []
     },
-    "36": {
-      "id": 36,
+    "107": {
+      "id": 107,
       "name": "Hold Sam",
       "blurb": "Clocked sample-and-hold — Note or CC",
       "sections": [
@@ -1843,8 +1737,8 @@
       ],
       "channels": []
     },
-    "37": {
-      "id": 37,
+    "108": {
+      "id": 108,
       "name": "Harmonica",
       "blurb": "Monophonic root in → chord MIDI out",
       "sections": [
@@ -1882,8 +1776,8 @@
         }
       ]
     },
-    "38": {
-      "id": 38,
+    "109": {
+      "id": 109,
       "name": "Loop de Cay",
       "blurb": "Additive overdub loop with level decay",
       "sections": [
@@ -1923,8 +1817,8 @@
         }
       ]
     },
-    "39": {
-      "id": 39,
+    "110": {
+      "id": 110,
       "name": "Control Issues",
       "blurb": "Shape CV and send it as MIDI CC / NRPN",
       "sections": [
@@ -1947,8 +1841,8 @@
       ],
       "channels": []
     },
-    "40": {
-      "id": 40,
+    "111": {
+      "id": 111,
       "name": "Venn",
       "blurb": "Dual Euclidean layers + boolean logic; scale-aware melody via Extent",
       "sections": [
@@ -2016,8 +1910,8 @@
         }
       ]
     },
-    "41": {
-      "id": 41,
+    "112": {
+      "id": 112,
       "name": "Bassment",
       "blurb": "Multi-genre monophonic basslines with bassist Voice personas",
       "sections": [
@@ -2075,8 +1969,8 @@
       ],
       "channels": []
     },
-    "42": {
-      "id": 42,
+    "113": {
+      "id": 113,
       "name": "Contura",
       "blurb": "Melodic contour over selectable 12-TET scale sets, anchored to the device tonic",
       "sections": [
@@ -2129,8 +2023,8 @@
         }
       ]
     },
-    "43": {
-      "id": 43,
+    "114": {
+      "id": 114,
       "name": "Manifold",
       "blurb": "One CV in, three shaped outs with comparator modes",
       "sections": [
@@ -2237,122 +2131,8 @@
         }
       ]
     },
-    "44": {
-      "id": 44,
-      "name": "Giant Steps",
-      "blurb": "Clock-driven chord sequencer over Coltrane tonal center geometry",
-      "sections": [
-        {
-          "heading": "Faders",
-          "items": [
-            "<strong>Main</strong> — approach density in 7 steps: adds one approach chord at a time (V of each center, then ii of each center), growing the cycle from 3 to 9 chords on a fixed 9-slot grid",
-            "<strong>Alt</strong> (Shift) — Feel: swing and velocity dynamics, bottom = straight and flat",
-            "<strong>Third</strong> (Btn hold) — Time: picks the step division outright, 1/1 at the bottom down to 1/64t at the top, triplets interleaved"
-          ]
-        },
-        {
-          "heading": "Buttons",
-          "items": [
-            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
-            "<strong>Hold</strong> — toggle reverse direction",
-            "<strong>Shift + tap</strong> — reset cycle to step 0",
-            "<strong>Shift + hold</strong> — cycle Interval: minor 3rd, major 3rd, 4th, tritone"
-          ]
-        },
-        {
-          "heading": "Signal / LEDs",
-          "items": [
-            "Three tonal center hues rotated around the app colour — top and bottom LEDs show the current center",
-            "Button hue sways off the center hue with harmonic function: tonic on the center, its V a little away, its ii further",
-            "Button brightness rises with Density across its seven steps, including the CV In Density offset",
-            "CV Out tracks root pitch of the current step",
-            "CV In Density modulates approach depth; CV In Reset triggers cycle reset on rising edge",
-            "Button dips briefly on each chord trigger, scaled down from that density brightness",
-            "Reverse fades the button white to none; Interval flashes one colour per step"
-          ]
-        }
-      ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / In",
-          "jackDescription": "CV Out sends the root pitch of the current cycle step and parks at 0 V while muted. CV In Density modulates the approach depth; CV In Reset triggers a cycle reset on rising edge.",
-          "faderTitle": "Density",
-          "faderDescription": "Approach depth in 7 positions on a fixed 9-slot grid — three slots (ii, V, I) per tonal center. The I of each center always plays; raising the fader inserts one approach chord at a time, first the V of centers 1–3, then the ii of centers 1–3, so the cycle grows 3, 4, 5, 6, 7, 8, 9 chords. Empty slots aren’t silent: the previous chord sustains through them, so the cycle stays nine slots long at every density and sparse settings give a long held tonic.",
-          "faderPlusShiftTitle": "Feel",
-          "faderPlusShiftDescription": "Humanises the sequence: swings the off-beats and shapes velocity, accenting the tonic while approach chords lighten. Bottom is straight and flat.",
-          "faderPlusFnTitle": "Time",
-          "faderPlusFnDescription": "Selects the step division directly across all eleven values, longest first: 1/1, 1/2, 1/4, 1/4t, 1/8, 1/8t, 1/16, 1/16t, 1/32, 1/32t, 1/64t. The Division param is only the starting point — the fader overrides it live.",
-          "fnTitle": "Mute",
-          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles the reverse flag, inverting Forward/Reverse direction.",
-          "fnPlusShiftTitle": "Reset / Interval",
-          "fnPlusShiftDescription": "Shift + tap resets the cycle to step 0. Shift + hold cycles the Interval between minor 3rd, major 3rd, 4th and tritone.",
-          "ledTop": "Current tonal center hue",
-          "ledBottom": "Current tonal center hue, dimmer"
-        }
-      ]
-    },
-    "45": {
-      "id": 45,
-      "name": "Axis Matrix",
-      "blurb": "Playable Coltrane tonal center navigator - fader position, clock trigger",
-      "sections": [
-        {
-          "heading": "Faders",
-          "items": [
-            "<strong>Main</strong> — center position: three zones with snap; approach chords sound in the transition zones at boundaries",
-            "<strong>Alt</strong> (Shift) — harmonic function: bottom = root (Maj7), middle = dominant (Dom7), top = subdominant approach (m7)",
-            "<strong>Third</strong> (Btn hold) — Time: clock division from 1/1 at the bottom down to 1/64t at the top, triplets interleaved; the Division param sets the power-on starting point"
-          ]
-        },
-        {
-          "heading": "Buttons",
-          "items": [
-            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
-            "<strong>Hold</strong> — toggle drone mode (sustain indefinitely, immediate fader response)",
-            "<strong>Shift + tap</strong> — toggle latch (chord holds until tapped again)",
-            "<strong>Shift + hold</strong> — cycle Feel in four steps, from straight and flat to full swing and dynamics"
-          ]
-        },
-        {
-          "heading": "Sustain",
-          "items": [
-            "<strong>Clock-gated</strong> — each chord holds until the next one",
-            "<strong>Legato</strong> — same, and the last chord keeps ringing when the clock stops",
-            "<strong>Staccato</strong> — every note releases halfway through its own step"
-          ]
-        },
-        {
-          "heading": "Signal / LEDs",
-          "items": [
-            "Three tonal center hues rotated around the app colour — brightness dims as fader drifts from center",
-            "CV Out tracks root pitch of current position",
-            "CV In Position modulates center selection; CV In Function modulates harmonic function",
-            "Button blinks when latched, stays bright when droning, ducks on chord trigger",
-            "Feel flashes one colour per step"
-          ]
-        }
-      ],
-      "channels": [
-        {
-          "jackTitle": "CV Out / In",
-          "jackDescription": "CV Out sends the root pitch of the current matrix position and parks at 0 V while muted. CV In Position modulates the center selection; CV In Function modulates the harmonic function.",
-          "faderTitle": "Center Position",
-          "faderDescription": "Selects one of three tonal centers with snap zones. Transition zones at boundaries sound approach chords.",
-          "faderPlusShiftTitle": "Function",
-          "faderPlusShiftDescription": "Harmonic function at the current center: root (Maj7), dominant (Dom7) or subdominant approach (m7).",
-          "faderPlusFnTitle": "Time",
-          "faderPlusFnDescription": "Selects the clock division live, from 1/1 at the bottom down to 1/64t at the top, with the triplets sorted in by duration. The Division param is the power-on starting point and the fader takes over from there.",
-          "fnTitle": "Mute",
-          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles drone mode: the chord sustains indefinitely and updates on fader movement, ignoring the clock.",
-          "fnPlusShiftTitle": "Latch / Feel",
-          "fnPlusShiftDescription": "Shift + tap toggles latch: the chord sustains until tapped again regardless of fader movement. Shift + hold cycles Feel through four steps, from straight and flat up to full swing and dynamics. The Interval is set in the app params only.",
-          "ledTop": "Center hue with brightness gradient (dims away from center)",
-          "ledBottom": "Center hue, low brightness"
-        }
-      ]
-    },
-    "46": {
-      "id": 46,
+    "115": {
+      "id": 115,
       "name": "Ripppple",
       "blurb": "Root CV or LFO through three cumulative waveshapers",
       "sections": [
@@ -2458,8 +2238,8 @@
         }
       ]
     },
-    "47": {
-      "id": 47,
+    "116": {
+      "id": 116,
       "name": "Dit Dah",
       "blurb": "ITU Morse phrase player with 16th-quantized note-ons",
       "sections": [
@@ -2496,8 +2276,8 @@
         }
       ]
     },
-    "48": {
-      "id": 48,
+    "117": {
+      "id": 117,
       "name": "Maniac Bounce",
       "blurb": "Delay with bounce pitch and velocity LFO",
       "sections": [
@@ -2531,6 +2311,120 @@
           "fnDescription": "Short mute (ring-out). Long panic unless you were editing Third.",
           "ledTop": "Activity / bounce interval",
           "ledBottom": "Activity / bounce interval"
+        }
+      ]
+    },
+    "118": {
+      "id": 118,
+      "name": "Giant Steps",
+      "blurb": "Clock-driven chord sequencer over Coltrane tonal center geometry",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — approach density in 7 steps: adds one approach chord at a time (V of each center, then ii of each center), growing the cycle from 3 to 9 chords on a fixed 9-slot grid",
+            "<strong>Alt</strong> (Shift) — Feel: swing and velocity dynamics, bottom = straight and flat",
+            "<strong>Third</strong> (Btn hold) — Time: picks the step division outright, 1/1 at the bottom down to 1/64t at the top, triplets interleaved"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
+            "<strong>Hold</strong> — toggle reverse direction",
+            "<strong>Shift + tap</strong> — reset cycle to step 0",
+            "<strong>Shift + hold</strong> — cycle Interval: minor 3rd, major 3rd, 4th, tritone"
+          ]
+        },
+        {
+          "heading": "Signal / LEDs",
+          "items": [
+            "Three tonal center hues rotated around the app colour — top and bottom LEDs show the current center",
+            "Button hue sways off the center hue with harmonic function: tonic on the center, its V a little away, its ii further",
+            "Button brightness rises with Density across its seven steps, including the CV In Density offset",
+            "CV Out tracks root pitch of the current step",
+            "CV In Density modulates approach depth; CV In Reset triggers cycle reset on rising edge",
+            "Button dips briefly on each chord trigger, scaled down from that density brightness",
+            "Reverse fades the button white to none; Interval flashes one colour per step"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Out / In",
+          "jackDescription": "CV Out sends the root pitch of the current cycle step and parks at 0 V while muted. CV In Density modulates the approach depth; CV In Reset triggers a cycle reset on rising edge.",
+          "faderTitle": "Density",
+          "faderDescription": "Approach depth in 7 positions on a fixed 9-slot grid — three slots (ii, V, I) per tonal center. The I of each center always plays; raising the fader inserts one approach chord at a time, first the V of centers 1–3, then the ii of centers 1–3, so the cycle grows 3, 4, 5, 6, 7, 8, 9 chords. Empty slots aren’t silent: the previous chord sustains through them, so the cycle stays nine slots long at every density and sparse settings give a long held tonic.",
+          "faderPlusShiftTitle": "Feel",
+          "faderPlusShiftDescription": "Humanises the sequence: swings the off-beats and shapes velocity, accenting the tonic while approach chords lighten. Bottom is straight and flat.",
+          "faderPlusFnTitle": "Time",
+          "faderPlusFnDescription": "Selects the step division directly across all eleven values, longest first: 1/1, 1/2, 1/4, 1/4t, 1/8, 1/8t, 1/16, 1/16t, 1/32, 1/32t, 1/64t. The Division param is only the starting point — the fader overrides it live.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles the reverse flag, inverting Forward/Reverse direction.",
+          "fnPlusShiftTitle": "Reset / Interval",
+          "fnPlusShiftDescription": "Shift + tap resets the cycle to step 0. Shift + hold cycles the Interval between minor 3rd, major 3rd, 4th and tritone.",
+          "ledTop": "Current tonal center hue",
+          "ledBottom": "Current tonal center hue, dimmer"
+        }
+      ]
+    },
+    "119": {
+      "id": 119,
+      "name": "Axis Matrix",
+      "blurb": "Playable Coltrane tonal center navigator - fader position, clock trigger",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — center position: three zones with snap; approach chords sound in the transition zones at boundaries",
+            "<strong>Alt</strong> (Shift) — harmonic function: bottom = root (Maj7), middle = dominant (Dom7), top = subdominant approach (m7)",
+            "<strong>Third</strong> (Btn hold) — Time: clock division from 1/1 at the bottom down to 1/64t at the top, triplets interleaved; the Division param sets the power-on starting point"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short tap</strong> — mute (silences held chords, parks CV at 0 V)",
+            "<strong>Hold</strong> — toggle drone mode (sustain indefinitely, immediate fader response)",
+            "<strong>Shift + tap</strong> — toggle latch (chord holds until tapped again)",
+            "<strong>Shift + hold</strong> — cycle Feel in four steps, from straight and flat to full swing and dynamics"
+          ]
+        },
+        {
+          "heading": "Sustain",
+          "items": [
+            "<strong>Clock-gated</strong> — each chord holds until the next one",
+            "<strong>Legato</strong> — same, and the last chord keeps ringing when the clock stops",
+            "<strong>Staccato</strong> — every note releases halfway through its own step"
+          ]
+        },
+        {
+          "heading": "Signal / LEDs",
+          "items": [
+            "Three tonal center hues rotated around the app colour — brightness dims as fader drifts from center",
+            "CV Out tracks root pitch of current position",
+            "CV In Position modulates center selection; CV In Function modulates harmonic function",
+            "Button blinks when latched, stays bright when droning, ducks on chord trigger",
+            "Feel flashes one colour per step"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV Out / In",
+          "jackDescription": "CV Out sends the root pitch of the current matrix position and parks at 0 V while muted. CV In Position modulates the center selection; CV In Function modulates the harmonic function.",
+          "faderTitle": "Center Position",
+          "faderDescription": "Selects one of three tonal centers with snap zones. Transition zones at boundaries sound approach chords.",
+          "faderPlusShiftTitle": "Function",
+          "faderPlusShiftDescription": "Harmonic function at the current center: root (Maj7), dominant (Dom7) or subdominant approach (m7).",
+          "faderPlusFnTitle": "Time",
+          "faderPlusFnDescription": "Selects the clock division live, from 1/1 at the bottom down to 1/64t at the top, with the triplets sorted in by duration. The Division param is the power-on starting point and the fader takes over from there.",
+          "fnTitle": "Mute",
+          "fnDescription": "Short tap mutes and unmutes, cutting any held chord. Hold toggles drone mode: the chord sustains indefinitely and updates on fader movement, ignoring the clock.",
+          "fnPlusShiftTitle": "Latch / Feel",
+          "fnPlusShiftDescription": "Shift + tap toggles latch: the chord sustains until tapped again regardless of fader movement. Shift + hold cycles Feel through four steps, from straight and flat up to full swing and dynamics. The Interval is set in the app params only.",
+          "ledTop": "Center hue with brightness gradient (dims away from center)",
+          "ledBottom": "Center hue, low brightness"
         }
       ]
     }

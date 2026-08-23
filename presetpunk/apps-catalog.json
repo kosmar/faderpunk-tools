@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "/Users/kosmar/Projects/faderpunk/faderpunk/src/apps CONFIG (tools/gen-apps-catalog.py)",
+  "source": "/Users/kosmar/Projects/faderpunk-pg-ids/faderpunk/src/apps CONFIG (tools/gen-apps-catalog.py)",
   "apps": [
     {
       "id": 1,
@@ -2150,7 +2150,7 @@
       ]
     },
     {
-      "id": 29,
+      "id": 100,
       "slug": "house_pump",
       "module": "heat_pump",
       "channels": 1,
@@ -2255,7 +2255,7 @@
       ]
     },
     {
-      "id": 30,
+      "id": 101,
       "slug": "grooves",
       "module": "grooves",
       "channels": 1,
@@ -2398,7 +2398,7 @@
       ]
     },
     {
-      "id": 31,
+      "id": 102,
       "slug": "fibonacci_gate",
       "module": "fibonacci_gate",
       "channels": 1,
@@ -2544,7 +2544,7 @@
       ]
     },
     {
-      "id": 32,
+      "id": 103,
       "slug": "super_lfo",
       "module": "super_lfo",
       "channels": 2,
@@ -2692,7 +2692,7 @@
       ]
     },
     {
-      "id": 33,
+      "id": 104,
       "slug": "echolot",
       "module": "echolot",
       "channels": 1,
@@ -2846,17 +2846,12 @@
           }
         },
         {
-          "tag": "i32",
-          "value": {
-            "name": "MIDI Map",
-            "min": 0,
-            "max": 268435455
-          }
+          "tag": "None"
         }
       ]
     },
     {
-      "id": 34,
+      "id": 105,
       "slug": "arp_de_levy",
       "module": "arp_de_levy",
       "channels": 1,
@@ -2984,7 +2979,7 @@
       ]
     },
     {
-      "id": 35,
+      "id": 106,
       "slug": "vamp",
       "module": "vamp",
       "channels": 1,
@@ -3172,7 +3167,7 @@
       ]
     },
     {
-      "id": 36,
+      "id": 107,
       "slug": "hold_sam",
       "module": "hold_sam",
       "channels": 1,
@@ -3279,7 +3274,7 @@
       ]
     },
     {
-      "id": 37,
+      "id": 108,
       "slug": "harmonica",
       "module": "harmonica",
       "channels": 1,
@@ -3401,7 +3396,7 @@
       ]
     },
     {
-      "id": 38,
+      "id": 109,
       "slug": "loop_de_cay",
       "module": "loop_de_cay",
       "channels": 1,
@@ -3516,7 +3511,7 @@
       ]
     },
     {
-      "id": 39,
+      "id": 110,
       "slug": "control_issues",
       "module": "control_issues",
       "channels": 1,
@@ -3675,7 +3670,7 @@
       ]
     },
     {
-      "id": 40,
+      "id": 111,
       "slug": "venn",
       "module": "venn",
       "channels": 2,
@@ -3702,17 +3697,17 @@
             "name": "Interval B",
             "variants": [
               "Unison",
-              "Minor 2nd",
-              "Major 2nd",
-              "Minor 3rd",
-              "Major 3rd",
-              "Perfect 4th",
-              "Tritone",
-              "Perfect 5th",
-              "Minor 6th",
-              "Major 6th",
-              "Minor 7th",
-              "Major 7th",
+              "m2",
+              "M2",
+              "m3",
+              "M3",
+              "P4",
+              "TT",
+              "P5",
+              "m6",
+              "M6",
+              "m7",
+              "M7",
               "Octave"
             ]
           }
@@ -3805,7 +3800,7 @@
       ]
     },
     {
-      "id": 41,
+      "id": 112,
       "slug": "bassment",
       "module": "bassment",
       "channels": 1,
@@ -3953,7 +3948,7 @@
       ]
     },
     {
-      "id": 42,
+      "id": 113,
       "slug": "contura",
       "module": "contura",
       "channels": 1,
@@ -4114,7 +4109,7 @@
       ]
     },
     {
-      "id": 43,
+      "id": 114,
       "slug": "manifold",
       "module": "manifold",
       "channels": 4,
@@ -4300,7 +4295,433 @@
       ]
     },
     {
-      "id": 44,
+      "id": 115,
+      "slug": "ripppple",
+      "module": "ripppple",
+      "channels": 4,
+      "name": "Ripppple",
+      "description": "Root CV or LFO through three cumulative waveshapers",
+      "color": "Cyan",
+      "icon": "Sine",
+      "params": [
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "In Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range B",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range C",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range D",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Process B",
+            "variants": [
+              "Fold",
+              "Soft",
+              "Rect"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Process C",
+            "variants": [
+              "Fold",
+              "Soft",
+              "Rect"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Process D",
+            "variants": [
+              "Fold",
+              "Soft",
+              "Rect"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "LFO Speed",
+            "variants": [
+              "Normal",
+              "Slow",
+              "Slowest"
+            ]
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "MidiNrpn"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Ch Map",
+            "min": 0,
+            "max": 65535
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CC Map",
+            "min": 0,
+            "max": 268435455
+          }
+        }
+      ]
+    },
+    {
+      "id": 116,
+      "slug": "dit_dah",
+      "module": "dit_dah",
+      "channels": 1,
+      "name": "Dit Dah",
+      "description": "ITU Morse phrase player with 16th-quantized note-ons",
+      "color": "Orange",
+      "icon": "SequenceSquare",
+      "params": [
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base note"
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Interval",
+            "min": 0,
+            "max": 24
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack",
+            "variants": [
+              "Gate Out",
+              "Pitch Out",
+              "Gate In"
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 1",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 2",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 3",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 4",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 5",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 6",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 7",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 8",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 9",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Phrase 10",
+            "min": -2147483648,
+            "max": 2147483647
+          }
+        }
+      ]
+    },
+    {
+      "id": 117,
+      "slug": "maniac_bounce",
+      "module": "maniac_bounce",
+      "channels": 1,
+      "name": "Maniac Bounce",
+      "description": "Delay with bounce pitch and velocity LFO",
+      "color": "Pink",
+      "icon": "Sine",
+      "params": [
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "I/O",
+            "variants": [
+              "MIDI->MIDI",
+              "MIDI->CV",
+              "CV->MIDI"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "Max delay (ms)",
+            "min": 10,
+            "max": 8000
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Signal",
+            "variants": [
+              "Pitch",
+              "Gate",
+              "CV->CC",
+              "Gate->Note"
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiIn"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI In CH"
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Out"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "MIDI CC"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "MIDI Note"
+          }
+        }
+      ]
+    },
+    {
+      "id": 118,
       "slug": "giant_steps",
       "module": "giant_steps",
       "channels": 1,
@@ -4482,7 +4903,7 @@
       ]
     },
     {
-      "id": 45,
+      "id": 119,
       "slug": "axis_matrix",
       "module": "axis_matrix",
       "channels": 1,
@@ -4650,469 +5071,6 @@
               "Sheets",
               "Free"
             ]
-          }
-        }
-      ]
-    },
-    {
-      "id": 46,
-      "slug": "ripppple",
-      "module": "ripppple",
-      "channels": 4,
-      "name": "Ripppple",
-      "description": "Root CV or LFO through three cumulative waveshapers",
-      "color": "Cyan",
-      "icon": "Sine",
-      "params": [
-        {
-          "tag": "Color",
-          "value": {
-            "name": "Color",
-            "variants": [
-              {
-                "tag": "Blue"
-              },
-              {
-                "tag": "Green"
-              },
-              {
-                "tag": "Rose"
-              },
-              {
-                "tag": "Orange"
-              },
-              {
-                "tag": "Cyan"
-              },
-              {
-                "tag": "Pink"
-              },
-              {
-                "tag": "Violet"
-              },
-              {
-                "tag": "Yellow"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "In Range",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "Range B",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "Range C",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "Range D",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Process B",
-            "variants": [
-              "Fold",
-              "Soft",
-              "Rect"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Process C",
-            "variants": [
-              "Fold",
-              "Soft",
-              "Rect"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Process D",
-            "variants": [
-              "Fold",
-              "Soft",
-              "Rect"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "LFO Speed",
-            "variants": [
-              "Normal",
-              "Slow",
-              "Slowest"
-            ]
-          }
-        },
-        {
-          "tag": "MidiOut"
-        },
-        {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI Channel"
-          }
-        },
-        {
-          "tag": "MidiCc",
-          "value": {
-            "name": "MIDI CC"
-          }
-        },
-        {
-          "tag": "MidiNrpn"
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Ch Map",
-            "min": 0,
-            "max": 65535
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "CC Map",
-            "min": 0,
-            "max": 268435455
-          }
-        }
-      ]
-    },
-    {
-      "id": 47,
-      "slug": "dit_dah",
-      "module": "dit_dah",
-      "channels": 1,
-      "name": "Dit Dah",
-      "description": "ITU Morse phrase player with 16th-quantized note-ons",
-      "color": "Orange",
-      "icon": "SequenceSquare",
-      "params": [
-        {
-          "tag": "MidiOut"
-        },
-        {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI Channel"
-          }
-        },
-        {
-          "tag": "MidiNote",
-          "value": {
-            "name": "Base note"
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Interval",
-            "variants": [
-              "Unison",
-              "Minor 2nd",
-              "Major 2nd",
-              "Minor 3rd",
-              "Major 3rd",
-              "Perfect 4th",
-              "Tritone",
-              "Perfect 5th",
-              "Minor 6th",
-              "Major 6th",
-              "Minor 7th",
-              "Major 7th",
-              "Octave"
-            ]
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Jack",
-            "variants": [
-              "Gate Out",
-              "Pitch Out",
-              "Gate In"
-            ]
-          }
-        },
-        {
-          "tag": "VoltPerOct"
-        },
-        {
-          "tag": "Color",
-          "value": {
-            "name": "Color",
-            "variants": [
-              {
-                "tag": "Blue"
-              },
-              {
-                "tag": "Green"
-              },
-              {
-                "tag": "Rose"
-              },
-              {
-                "tag": "Orange"
-              },
-              {
-                "tag": "Cyan"
-              },
-              {
-                "tag": "Pink"
-              },
-              {
-                "tag": "Violet"
-              },
-              {
-                "tag": "Yellow"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 1",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 2",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 3",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 4",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 5",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 6",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 7",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 8",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Phrase 9",
-            "min": -2147483648,
-            "max": 2147483647
-          }
-        }
-      ]
-    },
-    {
-      "id": 48,
-      "slug": "maniac_bounce",
-      "module": "maniac_bounce",
-      "channels": 1,
-      "name": "Maniac Bounce",
-      "description": "Delay with bounce pitch and velocity LFO",
-      "color": "Pink",
-      "icon": "Sine",
-      "params": [
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "I/O",
-            "variants": [
-              "MIDI->MIDI",
-              "MIDI->CV",
-              "CV->MIDI"
-            ]
-          }
-        },
-        {
-          "tag": "i32",
-          "value": {
-            "name": "Max delay (ms)",
-            "min": 10,
-            "max": 8000
-          }
-        },
-        {
-          "tag": "Enum",
-          "value": {
-            "name": "Signal",
-            "variants": [
-              "Pitch",
-              "Gate",
-              "CV->CC",
-              "Gate->Note"
-            ]
-          }
-        },
-        {
-          "tag": "Range",
-          "value": {
-            "name": "Range",
-            "variants": [
-              {
-                "tag": "_0_10V"
-              },
-              {
-                "tag": "_Neg5_5V"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "Color",
-          "value": {
-            "name": "Color",
-            "variants": [
-              {
-                "tag": "Blue"
-              },
-              {
-                "tag": "Green"
-              },
-              {
-                "tag": "Rose"
-              },
-              {
-                "tag": "Orange"
-              },
-              {
-                "tag": "Cyan"
-              },
-              {
-                "tag": "Pink"
-              },
-              {
-                "tag": "Violet"
-              },
-              {
-                "tag": "Yellow"
-              }
-            ]
-          }
-        },
-        {
-          "tag": "MidiIn"
-        },
-        {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI In CH"
-          }
-        },
-        {
-          "tag": "MidiOut"
-        },
-        {
-          "tag": "MidiChannel",
-          "value": {
-            "name": "MIDI Out"
-          }
-        },
-        {
-          "tag": "MidiCc",
-          "value": {
-            "name": "MIDI CC"
-          }
-        },
-        {
-          "tag": "MidiNote",
-          "value": {
-            "name": "MIDI Note"
           }
         }
       ]
