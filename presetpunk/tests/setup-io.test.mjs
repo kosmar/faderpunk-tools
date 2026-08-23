@@ -18,6 +18,7 @@ import {
   partitionBySpawnWeight,
   spawnWeight,
   summarizeParamWire,
+  forceRestartTouch,
   verifyLayoutSlot,
 } from "../lib/setup-io.js";
 import { serialize } from "../vendor/fp-config/index.js";
@@ -223,6 +224,51 @@ test("buildSparseParams: missing device slot includes host value", () => {
   const sparse = buildSparseParams(host, []);
   assert.deepEqual(sparse[0], { tag: "MidiChannel", value: [5] });
   assert.ok(sparse.slice(1).every((v) => v === undefined));
+});
+
+test("forceRestartTouch: flips first bool", () => {
+  const host = padParams([
+    { tag: "MidiChannel", value: [14] },
+    { tag: "bool", value: true },
+    { tag: "Enum", value: 2 },
+  ]);
+  const touch = forceRestartTouch(host);
+  assert.equal(touch[0], undefined);
+  assert.deepEqual(touch[1], { tag: "bool", value: false });
+  assert.equal(touch[2], undefined);
+  const restore = buildSparseParams(
+    [
+      { tag: "MidiChannel", value: [14] },
+      { tag: "bool", value: true },
+      { tag: "Enum", value: 2 },
+    ],
+    [
+      { tag: "MidiChannel", value: [14] },
+      { tag: "bool", value: false },
+      { tag: "Enum", value: 2 },
+    ],
+  );
+  assert.deepEqual(restore[1], { tag: "bool", value: true });
+});
+
+test("forceRestartTouch: Enum when no bool", () => {
+  const host = padParams([
+    { tag: "MidiChannel", value: [16] },
+    { tag: "Enum", value: 0 },
+  ]);
+  const touch = forceRestartTouch(host);
+  assert.deepEqual(touch[1], { tag: "Enum", value: 1 });
+});
+
+test("forceRestartTouch: Color when no bool/Enum", () => {
+  const host = padParams([{ tag: "Color", value: { tag: "Yellow" } }]);
+  const touch = forceRestartTouch(host);
+  assert.deepEqual(touch[0], { tag: "Color", value: { tag: "Red" } });
+});
+
+test("forceRestartTouch: null when nothing to bump", () => {
+  const host = padParams([{ tag: "MidiChannel", value: [7] }]);
+  assert.equal(forceRestartTouch(host), null);
 });
 
 // ---- paramsWireMatch (SetAppParams verify without ACK) ----------------------

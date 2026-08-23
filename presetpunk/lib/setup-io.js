@@ -654,6 +654,46 @@ function sparseHasDefinedSlots(sparse) {
   return sparse.some((v) => v !== undefined);
 }
 
+function overlayParamWire(base, sparse) {
+  const out = padParams(base);
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
+    if (sparse[i] !== undefined) out[i] = sparse[i];
+  }
+  return out;
+}
+
+/**
+ * One-slot sparse that differs from `hostPadded` so FW `changed=true` and
+ * `param_handler` restarts `run()` (MidiOutput is frozen at first query).
+ * Caller must restore with the real host vector.
+ */
+export function forceRestartTouch(hostPadded) {
+  const sparse = Array.from({ length: APP_MAX_PARAMS }, () => undefined);
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
+    const h = hostPadded[i];
+    if (!h || h.tag !== "bool") continue;
+    const cur = !!scalarWireValue(h);
+    sparse[i] = { tag: "bool", value: !cur };
+    return sparse;
+  }
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
+    const h = hostPadded[i];
+    if (!h || h.tag !== "Enum") continue;
+    const n = Number(scalarWireValue(h));
+    const cur = Number.isFinite(n) ? n : 0;
+    sparse[i] = { tag: "Enum", value: cur === 0 ? 1 : 0 };
+    return sparse;
+  }
+  for (let i = 0; i < APP_MAX_PARAMS; i++) {
+    const h = hostPadded[i];
+    if (!h || h.tag !== "Color") continue;
+    const cur = taggedWireValue(h);
+    sparse[i] = { tag: "Color", value: { tag: cur === "Red" ? "Blue" : "Red" } };
+    return sparse;
+  }
+  return null;
+}
+
 function scalarWireValue(v) {
   if (v == null) return undefined;
   const val = v.value;
@@ -1328,9 +1368,9 @@ async function applySetLayoutIncremental(
       } catch (e) {
         log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
       }
-      // Hold-push ACKs can be spawn AppState (defaults). Early 1ch apps then
-      // keep midi_ch=1 / slot-ish channels; last 4ch (Ripppple/Manifold) stick.
-      // Live SetAppParams after Release does apply — replay every slot here.
+      // ParamStore can already match after Hold Set, but MidiOutput is frozen
+      // at query(). Identical Set is a no-op on stock 1.12.0 (`changed=false`).
+      // forceRestart: touch a slot then restore so run() re-queries after Release.
       const ids = ordered
         .map((s) => Number(s.id))
         .filter((id) => Number.isFinite(id));
@@ -1341,6 +1381,7 @@ async function applySetLayoutIncremental(
           deviceRef,
           underHold: false,
           maxAttempts: 2,
+          forceRestart: true,
         });
       }
     }
@@ -1459,6 +1500,7 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
   const deviceRef = opts.deviceRef || null;
   const underHold = !!opts.underHold;
   const skipReadyWait = !!opts.skipReadyWait;
+  const forceRestart = !!opts.forceRestart;
   const maxAttempts = Math.max(
     1,
     Number(opts.maxAttempts) || SET_PARAMS_RETRIES,
@@ -1493,13 +1535,32 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
           log(`  · host wire: ${summarizeParamWire(hostPadded)}`);
         }
         const deviceValues = (await fetchAppParamsValues(cfg, id, log)) ?? [];
-        const sparse = buildSparseParams(values, deviceValues);
+        let sparse = buildSparseParams(values, deviceValues);
         if (!sparseHasDefinedSlots(sparse)) {
-          log(`  ✓ layoutId=${id} (already matches device)`);
-          lastErr = null;
-          break;
+          if (!forceRestart) {
+            log(`  ✓ layoutId=${id} (already matches device)`);
+            lastErr = null;
+            break;
+          }
+          const touch = forceRestartTouch(hostPadded);
+          if (!touch) {
+            log(`  ✓ layoutId=${id} (already matches device, no touch slot)`);
+            lastErr = null;
+            break;
+          }
+          log(`  · force restart (touch then restore)`);
+          log(`  · touch wire: ${summarizeParamWire(touch)}`);
+          const expectedTouch = overlayParamWire(hostPadded, touch);
+          await setAppParamsWithAckOrVerify(cfg, id, touch, expectedTouch, log);
+          await delay(SET_PARAMS_GAP_MS);
+          sparse = buildSparseParams(values, expectedTouch);
+          if (!sparseHasDefinedSlots(sparse)) {
+            log(`  ✓ layoutId=${id} (touch had no restore)`);
+            lastErr = null;
+            break;
+          }
         }
-        if (attempt === 0) {
+        if (attempt === 0 || forceRestart) {
           log(`  · sparse wire: ${summarizeParamWire(sparse)}`);
         }
 
@@ -1950,6 +2011,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
             deviceRef,
             underHold: false,
             maxAttempts: 2,
+            forceRestart: true,
           });
         } catch (e) {
           throw new Error(`post-release SetAppParams: ${e.message || e}`);
