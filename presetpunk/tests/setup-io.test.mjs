@@ -439,8 +439,8 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
     app: { appId: 46, channels: 4, paramCount: 15, name: "Ripppple" },
     startChannel: 7,
   };
-  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 2500);
-  assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 2500);
+  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 8000);
+  assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 8000);
   assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
 });
 

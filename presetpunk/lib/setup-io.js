@@ -129,6 +129,19 @@ async function ensureCableAfterSpawn(config, deviceRef, log, label) {
   } catch (e) {
     log(`  ⚠ ${e.message || e}`);
   }
+  // Disconnect-while-wedged hangs connectDevice (Delta@Ripppple). Wait for the
+  // USB stack to recover, then probe again — same window that used to work
+  // after an aborted push.
+  const recoverMs = 8000;
+  log(`  wait ${recoverMs}ms for USB recover (no disconnect) …`);
+  await delay(recoverMs);
+  try {
+    await assertConfigCableAlive(cfg, log);
+    log(`  ✓ config cable alive ${where} after recover`);
+    return cfg;
+  } catch (e) {
+    log(`  ⚠ ${e.message || e}`);
+  }
   if (!deviceRef) throw new Error(`config cable quiet ${where}`);
   log(`  retry: reconnect Web MIDI ${where} …`);
   disconnectDevice(deviceRef.device);
@@ -258,12 +271,14 @@ function isHeavySpawnSlot(slot, index, total) {
 export function incrementalSpawnQuietMs(slot, index, total) {
   const channels = Number(slot?.app?.channels) || 1;
   const heavy = isHeavySpawnSlot(slot, index, total);
-  // 4ch spawn after a dense prefix (Ripppple→Manifold) needs FRAM+MAX quiet
-  // before GetAppParams; 1200ms still raced layoutId=8 USB wedge.
+  // 4ch after a dense WIP prefix (Delta: Ripppple@ch8) wedges USB for several
+  // seconds after ACK. 2500ms + GetVersion polling kept it wedged; Beta's
+  // Ripppple@ch12 behind Controls is fine at 2500ms — we still use the long
+  // quiet for any late 4ch spawn so Delta survives.
   const base =
     channels > 1
       ? index >= 6
-        ? 2500
+        ? 8000
         : 1200
       : heavy || index >= 8
         ? 800
