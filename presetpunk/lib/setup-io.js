@@ -119,17 +119,18 @@ async function delayKeepalive(config, ms, opts = {}) {
 /**
  * After long quiet waits: prove the cable, or one reconnect before slot polls.
  */
-async function ensureCableAfterSpawn(config, deviceRef, log) {
+async function ensureCableAfterSpawn(config, deviceRef, log, label) {
+  const where = label || "after spawn wait";
   let cfg = config;
   try {
     await assertConfigCableAlive(cfg, log);
-    log("  ✓ config cable alive after spawn wait");
+    log(`  ✓ config cable alive ${where}`);
     return cfg;
   } catch (e) {
     log(`  ⚠ ${e.message || e}`);
   }
-  if (!deviceRef) throw new Error("config cable quiet after spawn wait");
-  log("  retry: reconnect Web MIDI after spawn wait …");
+  if (!deviceRef) throw new Error(`config cable quiet ${where}`);
+  log(`  retry: reconnect Web MIDI ${where} …`);
   disconnectDevice(deviceRef.device);
   await delay(1200);
   deviceRef.device = await connectDevice();
@@ -1213,9 +1214,15 @@ async function applySetLayoutIncremental(
         },
       );
 
+      // 4ch spawn (Ripppple) can mute GetVersion for several seconds after ACK.
+      // A 600ms probe here aborted Delta every time; live-push already reconnects.
       try {
-        await probeConfigCable(cfg);
-        log(`  ✓ config cable alive after spawn ${name}(ch${ch})`);
+        cfg = await ensureCableAfterSpawn(
+          cfg,
+          deviceRef,
+          log,
+          `after spawn ${name}(ch${ch})`,
+        );
       } catch (e) {
         throw new Error(
           `USB dead after SetLayout ${name}(ch${ch}) (before GetAppParams): ${e.message || e}`,
