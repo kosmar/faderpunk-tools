@@ -775,9 +775,14 @@ async function setAppParamsWithAckOrVerify(cfg, layoutId, sparse, hostPadded, lo
         matchLayoutId: layoutId,
       },
     );
-    const nvals = Array.isArray(response.value[1]) ? response.value[1].length : 0;
+    const ackVals = response.value[1];
+    const nvals = Array.isArray(ackVals) ? ackVals.length : 0;
     if (nvals === 0) {
       throw new Error(`SetAppParams(${layoutId}): empty AppState`);
+    }
+    log(`  · ack wire: ${summarizeParamWire(ackVals)}`);
+    if (!paramsWireMatch(hostPadded, ackVals)) {
+      throw new Error(`SetAppParams(${layoutId}): ACK values mismatch`);
     }
     log(`  ✓ layoutId=${layoutId} (${nvals} params)`);
     return { cfg, nvals, via: "ack" };
@@ -1323,6 +1328,21 @@ async function applySetLayoutIncremental(
       } catch (e) {
         log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
       }
+      // Hold-push ACKs can be spawn AppState (defaults). Early 1ch apps then
+      // keep midi_ch=1 / slot-ish channels; last 4ch (Ripppple/Manifold) stick.
+      // Live SetAppParams after Release does apply — replay every slot here.
+      const ids = ordered
+        .map((s) => Number(s.id))
+        .filter((id) => Number.isFinite(id));
+      if (ids.length > 0) {
+        log("SetAppParams (post-release) …");
+        clearCachedAppStates(cfg.rx);
+        cfg = await applySetAppParams(cfg, paramsById, ids, log, {
+          deviceRef,
+          underHold: false,
+          maxAttempts: 2,
+        });
+      }
     }
   }
 
@@ -1854,6 +1874,11 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
       }
     }
 
+    const ids =
+      opts.paramLayoutIds == null
+        ? null
+        : opts.paramLayoutIds.map(Number).filter((n) => Number.isFinite(n));
+
     try {
       const spawnBudgetMs = held
         ? estimateHoldSpawnMs(n)
@@ -1897,14 +1922,12 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         await delayKeepalive(config, framMs, { probe: false });
       }
       config = await ensureCableAfterSpawn(config, deviceRef, log);
-      const ids =
-        opts.paramLayoutIds == null
-          ? null
-          : opts.paramLayoutIds.map(Number).filter((n) => Number.isFinite(n));
-      config = await applySetAppParams(config, paramsById, ids, log, {
-        deviceRef,
-        underHold: held,
-      });
+      if (!held) {
+        config = await applySetAppParams(config, paramsById, ids, log, {
+          deviceRef,
+          underHold: false,
+        });
+      }
     } finally {
       if (held) {
         try {
@@ -1919,6 +1942,17 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           await delay(2000);
         } catch (e) {
           log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+        }
+        try {
+          log("SetAppParams (post-release) …");
+          clearCachedAppStates(config.rx);
+          config = await applySetAppParams(config, paramsById, ids, log, {
+            deviceRef,
+            underHold: false,
+            maxAttempts: 2,
+          });
+        } catch (e) {
+          throw new Error(`post-release SetAppParams: ${e.message || e}`);
         }
       }
     }
