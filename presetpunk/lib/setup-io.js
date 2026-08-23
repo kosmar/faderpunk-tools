@@ -143,15 +143,11 @@ async function ensureCableAfterSpawn(config, deviceRef, log, label) {
     log(`  ⚠ ${e.message || e}`);
   }
   if (!deviceRef) throw new Error(`config cable quiet ${where}`);
-  log(`  retry: reconnect Web MIDI ${where} …`);
-  disconnectDevice(deviceRef.device);
-  await delay(1200);
-  deviceRef.device = await connectDevice();
-  cfg = deviceRef.device.config;
-  log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
-  await assertConfigCableAlive(cfg, log);
-  log("  ✓ config cable alive after reconnect");
-  return cfg;
+  // Reconnect while Ripppple still holds USB MIDI just hangs GetVersion
+  // (Delta: ports present, device dead). Leave the port; caller replugs.
+  throw new Error(
+    `config cable still quiet ${where} after recover — USB wedged, replug`,
+  );
 }
 
 /**
@@ -1133,7 +1129,12 @@ async function applySetLayoutIncremental(
   const ordered = [...activeSlots].sort(compareSpawnOrder);
   log(
     `Incremental SetLayout (${n} apps): ${ordered
-      .map((s) => `${s.app?.name || s.app?.appId}(ch${Number(s.startChannel) || 0})`)
+      .map((s) => {
+        const name = s.app?.name || "?";
+        const ch = Number(s.startChannel) || 0;
+        const id = s.app?.appId;
+        return `${name}(ch${ch}#${id})`;
+      })
       .join(" → ")}`,
   );
   log("  push engine: hold-incremental");
