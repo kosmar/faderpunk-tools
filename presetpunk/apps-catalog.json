@@ -2846,7 +2846,12 @@
           }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "MIDI Map",
+            "min": 0,
+            "max": 268435455
+          }
         }
       ]
     },

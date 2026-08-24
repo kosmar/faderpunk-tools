@@ -8,3 +8,7 @@ presetpunk/out/
 scopepunk/tsconfig.tsbuildinfo
 .chrome-profile/
 .DS_Store
+
+# python bytecode
+__pycache__/
+*.pyc
