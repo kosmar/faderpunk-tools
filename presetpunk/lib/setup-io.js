@@ -5,11 +5,16 @@ import {
   connectDevice,
   disconnectDevice,
   drainConfigQueue,
+  findPerfInput,
   receiveBatchMessages,
   sendAndReceive,
   sendAndReceiveExpect,
   sendMessage,
 } from "./device.js";
+import {
+  createPanicBeaconCollector,
+  formatPanicSite,
+} from "./panic-beacon.js";
 
 /** Live app swap / row edit — one (or few) slots respawn, shorter settle. */
 const LAYOUT_SETTLE_LIVE_MS = 3500;
@@ -37,6 +42,9 @@ const SET_PARAMS_ACK_RACE_MS = 10000;
 const SET_PARAMS_VERIFY_QUIET_MS = 600;
 /** Second verify attempt when device is still applying params. */
 const SET_PARAMS_VERIFY_RETRY_QUIET_MS = 2000;
+/** Beacon repeats every second — two windows are enough to catch one burst. */
+const PANIC_BEACON_LISTEN_MS = 2500;
+const PANIC_BEACON_POLL_MS = 100;
 
 export const APP_MAX_PARAMS = 17;
 
@@ -145,11 +153,65 @@ async function ensureCableAfterSpawn(config, deviceRef, log, label) {
     }
   }
   if (!deviceRef) throw new Error(`config cable quiet ${where}`);
+  await reportPanicBeacon(deviceRef, log);
   // Reconnect while Ripppple still holds USB MIDI just hangs GetVersion
   // (Delta: ports present, device dead). Leave the port; caller replugs.
   throw new Error(
     `config cable still quiet ${where} after recover — USB wedged, replug`,
   );
+}
+
+async function loadPanicFiles() {
+  try {
+    const response = await fetch(new URL("../panic-files.json", import.meta.url));
+    const json = await response.json();
+    return json?.files ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Last resort when the config cable is gone: the firmware re-sends its panic
+ * site as CC on the performance port once per second, so a short listen tells
+ * us where it died instead of guessing.
+ */
+async function reportPanicBeacon(deviceRef, log) {
+  try {
+    const access = deviceRef?.device?.access;
+    const configInput = deviceRef?.device?.config?.input;
+    if (!access || !configInput) return;
+    const input = findPerfInput(access, configInput);
+    if (!input) return;
+
+    const collector = createPanicBeaconCollector();
+    const previous = input.onmidimessage;
+    try {
+      // A port whose device vanished can leave open() pending forever; this is
+      // diagnostics running in front of an error, so it must not stall it.
+      await Promise.race([input.open(), delay(PANIC_BEACON_LISTEN_MS)]);
+      input.onmidimessage = (event) => collector.feed(event.data);
+      log(`  listening for panic beacon on ${input.name ?? input.id} …`);
+      const deadline = Date.now() + PANIC_BEACON_LISTEN_MS;
+      while (Date.now() < deadline && collector.result() === null) {
+        await delay(PANIC_BEACON_POLL_MS);
+      }
+    } finally {
+      input.onmidimessage = previous ?? null;
+    }
+
+    const site = collector.result();
+    if (!site) {
+      log(
+        "  · no panic beacon — the device died without reaching the panic handler (or USB is fully gone)",
+      );
+      return;
+    }
+    const files = await loadPanicFiles();
+    log(`  ⚠ firmware panic at ${formatPanicSite(site, files)}`);
+  } catch {
+    /* diagnostics only */
+  }
 }
 
 /**

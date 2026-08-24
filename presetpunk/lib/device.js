@@ -128,6 +128,17 @@ export function faderpunkPortsListed(access) {
   );
 }
 
+/** Faderpunk input that is not the config port — where the perf MIDI (and the panic beacon) arrives. */
+export function findPerfInput(access, configInput) {
+  if (!access) return null;
+  for (const port of portCandidates(access.inputs.values())) {
+    if (port === configInput) continue;
+    if (configInput?.id != null && port.id === configInput.id) continue;
+    return port;
+  }
+  return null;
+}
+
 /** Connect to Faderpunk config SysEx port (Web MIDI). */
 export async function connectDevice() {
   if (!navigator.requestMIDIAccess) {
