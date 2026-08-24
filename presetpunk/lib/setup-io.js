@@ -131,16 +131,18 @@ async function ensureCableAfterSpawn(config, deviceRef, log, label) {
   }
   // Disconnect-while-wedged hangs connectDevice (Delta@Ripppple). Wait for the
   // USB stack to recover, then probe again — same window that used to work
-  // after an aborted push.
-  const recoverMs = 8000;
-  log(`  wait ${recoverMs}ms for USB recover (no disconnect) …`);
-  await delay(recoverMs);
-  try {
-    await assertConfigCableAlive(cfg, log);
-    log(`  ✓ config cable alive ${where} after recover`);
-    return cfg;
-  } catch (e) {
-    log(`  ⚠ ${e.message || e}`);
+  // after an aborted push. A late spawn in a dense layout can stay silent well
+  // past 8s, so escalate before declaring the device dead.
+  for (const recoverMs of [8000, 12000]) {
+    log(`  wait ${recoverMs}ms for USB recover (no disconnect) …`);
+    await delay(recoverMs);
+    try {
+      await assertConfigCableAlive(cfg, log);
+      log(`  ✓ config cable alive ${where} after recover`);
+      return cfg;
+    } catch (e) {
+      log(`  ⚠ ${e.message || e}`);
+    }
   }
   if (!deviceRef) throw new Error(`config cable quiet ${where}`);
   // Reconnect while Ripppple still holds USB MIDI just hangs GetVersion
@@ -259,6 +261,12 @@ function isHeavySpawnSlot(slot, index, total) {
   return index >= Math.max(6, total - 5);
 }
 
+/** Extra quiet per already-running app once a layout gets dense. */
+const DENSE_SPAWN_RAMP_FROM_INDEX = 4;
+const DENSE_SPAWN_RAMP_STEP_MS = 300;
+/** Ceiling for any single spawn pause — the late-4ch worst case. */
+const SPAWN_QUIET_CAP_MS = 8000;
+
 /**
  * Quiet pause after each incremental SetLayout before SetAppParams.
  * Index 0 (post-clear) needs a longer floor — 800ms left heavy 1ch apps
@@ -280,7 +288,14 @@ export function incrementalSpawnQuietMs(slot, index, total) {
         ? 800
         : 500;
   if (index === 0) return Math.max(base, LAYOUT_FIRST_SPAWN_QUIET_MS);
-  return base;
+  // Every app already running keeps its handlers up while the next one spawns,
+  // so spawn latency grows with the layout. A flat 800ms left Echolot as the
+  // 11th app with no air and killed the config cable before GetAppParams.
+  const ramp =
+    index >= DENSE_SPAWN_RAMP_FROM_INDEX
+      ? (index - DENSE_SPAWN_RAMP_FROM_INDEX + 1) * DENSE_SPAWN_RAMP_STEP_MS
+      : 0;
+  return Math.min(SPAWN_QUIET_CAP_MS, base + ramp);
 }
 
 /** Place apps at final startChannel (holes OK). Falls back to packed order. */
@@ -1194,6 +1209,7 @@ async function applySetLayoutIncremental(
   );
   const needsHold = !blankOnly && (n >= 8 || heavyN >= 2 || multiCh);
   let held = false;
+  let aborted = false;
 
   try {
     await sendAndReceiveExpect(
@@ -1352,8 +1368,25 @@ async function applySetLayoutIncremental(
         });
       }
     }
+  } catch (e) {
+    aborted = true;
+    throw e;
   } finally {
-    if (held && deviceRef?.device?.config) {
+    if (held && aborted) {
+      // The cable is gone — a full post-release params pass would only stack
+      // per-slot timeouts and reconnects for minutes. One short unmute try.
+      try {
+        await sendAndReceiveExpect(
+          deviceRef?.device?.config ?? cfg,
+          { tag: "ReleasePerfMute" },
+          "Pong",
+          { timeoutMs: 1500, attempts: 1 },
+        );
+        log("  ReleasePerfMute (after abort)");
+      } catch {
+        log("  ⚠ push aborted with Hold still set — replug USB, then Push again");
+      }
+    } else if (held && deviceRef?.device?.config) {
       try {
         cfg = deviceRef.device.config;
         await sendAndReceiveExpect(

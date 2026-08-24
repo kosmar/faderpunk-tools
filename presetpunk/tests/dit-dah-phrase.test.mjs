@@ -4,6 +4,7 @@ import {
   packDitDahPhrase,
   unpackDitDahPhrase,
   DIT_DAH_DEFAULT_PACK0,
+  DIT_DAH_PHRASE_MAX,
   DIT_DAH_PHRASE_PACKS,
 } from "../lib/dit-dah-phrase.js";
 
@@ -23,10 +24,11 @@ test("spaces survive (word gap)", () => {
   assert.equal(unpackDitDahPhrase(packDitDahPhrase("CQ CQ")), "CQ CQ");
 });
 
-test("truncates at 40 chars", () => {
+test("truncates at the 9-pack byte budget", () => {
   const long = "A".repeat(50);
   const packs = packDitDahPhrase(long);
-  assert.equal(unpackDitDahPhrase(packs).length, 40);
+  assert.equal(DIT_DAH_PHRASE_MAX, DIT_DAH_PHRASE_PACKS * 4);
+  assert.equal(unpackDitDahPhrase(packs).length, DIT_DAH_PHRASE_MAX);
 });
 
 test("round-trip via schema-shaped i32 values", () => {

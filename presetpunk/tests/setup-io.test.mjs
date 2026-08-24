@@ -490,6 +490,25 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
   assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
 });
 
+test("incrementalSpawnQuietMs: dense layouts ramp the quiet per running app", () => {
+  const echolot = {
+    id: 10,
+    app: { appId: ECHOLOT, channels: 1, paramCount: 16, name: "Echolot" },
+    startChannel: 14,
+  };
+  // Early spawns keep the old floors …
+  assert.equal(incrementalSpawnQuietMs(echolot, 3, 12), 800);
+  // … late ones get air: 800ms wedged the config cable as the 11th app.
+  assert.equal(incrementalSpawnQuietMs(echolot, 4, 12), 1100);
+  assert.equal(incrementalSpawnQuietMs(echolot, 10, 12), 2900);
+  const light = {
+    id: 11,
+    app: { appId: BERNOULLI, channels: 1, paramCount: 6 },
+    startChannel: 15,
+  };
+  assert.equal(incrementalSpawnQuietMs(light, 11, 12), 3200);
+});
+
 // ---- wire regression: SetAppParams must serialize ----------------------------
 
 test("SetAppParams with padded grooves vector serializes", () => {
