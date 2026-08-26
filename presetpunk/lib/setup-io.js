@@ -308,12 +308,31 @@ function estimateAtomicSpawnMs(appCount) {
 }
 
 /**
+ * Apps that wedge USB when spawned mid-hold-incremental if params were already
+ * applied to earlier slots. Spawn last; wire layout still uses startChannel.
+ * Playground: push-playground.mjs “Vamp last”. IDs vary by firmware catalog
+ * (35 playground, 106 current GetAllApps).
+ */
+export const SPAWN_DEFER_APP_IDS = new Set([35, 106]);
+
+function shouldDeferSpawn(slot) {
+  if (!slot?.app) return false;
+  const id = Number(slot.app.appId);
+  if (SPAWN_DEFER_APP_IDS.has(id)) return true;
+  return slot.app.name === "Chord Vamp";
+}
+
+/**
  * Incremental Full Push order:
  * physical channel order so every intermediate layout grows left-to-right.
  * Starting with a sparse multi-channel app at ch11 reproduced a USB wedge;
  * the same apps at ch0 followed by contiguous Controls are stable.
+ * Deferred apps (Chord Vamp) spawn after every other slot regardless of channel.
  */
 export function compareSpawnOrder(a, b) {
+  const da = shouldDeferSpawn(a) ? 1 : 0;
+  const db = shouldDeferSpawn(b) ? 1 : 0;
+  if (da !== db) return da - db;
   return compareChannelOrder(a, b);
 }
 
@@ -1232,8 +1251,9 @@ async function applySetLayout(
  *
  * Dense / multi-ch layouts (Manifold, Ripppple, then Echolot/LFO, …) wedge USB
  * when apps run unmuted mid-push. HoldPerfMute for the whole incremental pass
- * (same as live dense): MIDI quiet until Release after the last params.
- * Param handlers stay up under Hold (400ms empty AppState is fine).
+ * (same as live dense): MIDI quiet until Release after the last spawn.
+ * SetAppParams is deferred until Release (spawn-only under Hold) — per-slot
+ * params mid-push stacked SysEx on top of the next spawn and wedged Chord Vamp.
  */
 async function applySetLayoutIncremental(
   config,
@@ -1334,6 +1354,10 @@ async function applySetLayoutIncremental(
 
     clearCachedAppStates(cfg.rx);
 
+    if (held) {
+      log("  params deferred until Release (hold-incremental spawn-only)");
+    }
+
     const growing = [];
     for (let i = 0; i < ordered.length; i++) {
       const slot = ordered[i];
@@ -1371,64 +1395,66 @@ async function applySetLayoutIncremental(
 
       const id = Number(slot.id);
       const expectAppId = Number(slot.app?.appId);
-      // Never SetAppParams before GetAppParams shows a live param_handler —
-      // premature SetAppParams wedges the FW params path (GetVersion still OK).
-      try {
-        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-          deviceRef,
-          underHold: held,
-          skipReadyWait: false,
-          expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
-          maxAttempts: 1,
-        });
-      } catch (firstErr) {
-        let err = firstErr;
-        const message = String(err.message || err);
-        log(`  ⚠ SetAppParams(${id}): ${message}`);
-        if (!deviceRef) throw err;
-        // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
-        log(
-          `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
-        );
-        await delay(SET_PARAMS_SPAWN_RETRY_MS);
-        clearCachedAppState(cfg.rx, id);
+      if (!held) {
+        // Never SetAppParams before GetAppParams shows a live param_handler —
+        // premature SetAppParams wedges the FW params path (GetVersion still OK).
         try {
-          cfg = await waitForSlotReady(cfg, id, log, 45_000, {
-            label: "after params fail",
+          cfg = await applySetAppParams(cfg, paramsById, [id], log, {
             deviceRef,
-            underHold: held,
+            underHold: false,
+            skipReadyWait: false,
+            expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+            maxAttempts: 1,
+          });
+        } catch (firstErr) {
+          let err = firstErr;
+          const message = String(err.message || err);
+          log(`  ⚠ SetAppParams(${id}): ${message}`);
+          if (!deviceRef) throw err;
+          // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
+          log(
+            `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
+          );
+          await delay(SET_PARAMS_SPAWN_RETRY_MS);
+          clearCachedAppState(cfg.rx, id);
+          try {
+            cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+              label: "after params fail",
+              deviceRef,
+              underHold: false,
+              expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
+            });
+            cfg = await applySetAppParams(cfg, paramsById, [id], log, {
+              deviceRef,
+              underHold: false,
+              skipReadyWait: true,
+              maxAttempts: 1,
+            });
+            continue;
+          } catch (retryErr) {
+            err = retryErr;
+          }
+          log("  retry: reconnect + wait ready + SetAppParams …");
+          disconnectDevice(deviceRef.device);
+          await delay(1000);
+          deviceRef.device = await connectDevice();
+          cfg = deviceRef.device.config;
+          log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
+          await delay(SET_PARAMS_SPAWN_RETRY_MS);
+          clearCachedAppState(cfg.rx, id);
+          cfg = await waitForSlotReady(cfg, id, log, 45_000, {
+            label: "after reconnect",
+            deviceRef,
+            underHold: false,
             expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
           });
           cfg = await applySetAppParams(cfg, paramsById, [id], log, {
             deviceRef,
-            underHold: held,
+            underHold: false,
             skipReadyWait: true,
             maxAttempts: 1,
           });
-          continue;
-        } catch (retryErr) {
-          err = retryErr;
         }
-        log("  retry: reconnect + wait ready + SetAppParams …");
-        disconnectDevice(deviceRef.device);
-        await delay(1000);
-        deviceRef.device = await connectDevice();
-        cfg = deviceRef.device.config;
-        log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
-        await delay(SET_PARAMS_SPAWN_RETRY_MS);
-        clearCachedAppState(cfg.rx, id);
-        cfg = await waitForSlotReady(cfg, id, log, 45_000, {
-          label: "after reconnect",
-          deviceRef,
-          underHold: held,
-          expectAppId: Number.isFinite(expectAppId) ? expectAppId : undefined,
-        });
-        cfg = await applySetAppParams(cfg, paramsById, [id], log, {
-          deviceRef,
-          underHold: held,
-          skipReadyWait: true,
-          maxAttempts: 1,
-        });
       }
     }
   } catch (e) {
@@ -1452,6 +1478,11 @@ async function applySetLayoutIncremental(
     } else if (held && deviceRef?.device?.config) {
       try {
         cfg = deviceRef.device.config;
+        const framMs = estimatePostGateFramMs(ordered.length);
+        if (framMs > 0) {
+          log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
+          await delayKeepalive(cfg, framMs, { probe: false });
+        }
         await sendAndReceiveExpect(
           cfg,
           { tag: "ReleasePerfMute" },

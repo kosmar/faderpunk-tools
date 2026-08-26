@@ -425,8 +425,22 @@ test("compareSpawnOrder: physical channel order avoids sparse prefixes", () => {
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.equal(ordered[0].app.appId, GROOVES);
-  assert.equal(ordered[1].app.appId, VAMP);
-  assert.equal(ordered[2].app.appId, SUPER_LFO);
+  assert.equal(ordered[1].app.appId, SUPER_LFO);
+  assert.equal(ordered[2].app.appId, VAMP);
+});
+
+test("compareSpawnOrder: Chord Vamp spawns after every other app (Zeta)", () => {
+  const slots = [
+    { id: 11, app: { appId: 106, channels: 1, paramCount: 16, name: "Chord Vamp" }, startChannel: 13 },
+    { id: 12, app: { appId: 100, channels: 1, paramCount: 8, name: "Heat Pump" }, startChannel: 14 },
+    { id: 13, app: { appId: 107, channels: 1, paramCount: 11, name: "Hold Sam" }, startChannel: 15 },
+    { id: 0, app: { appId: GROOVES, channels: 1, paramCount: 16, name: "Grooves" }, startChannel: 0 },
+  ];
+  const ordered = [...slots].sort(compareSpawnOrder);
+  assert.deepEqual(
+    ordered.map((s) => s.app.name),
+    ["Grooves", "Heat Pump", "Hold Sam", "Chord Vamp"],
+  );
 });
 
 test("compareSpawnOrder: param count does not override channel order", () => {
@@ -438,7 +452,7 @@ test("compareSpawnOrder: param count does not override channel order", () => {
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.appId),
-    [VAMP, ECHOLOT, GROOVES],
+    [ECHOLOT, GROOVES, VAMP],
   );
 });
 
@@ -520,9 +534,8 @@ test("incrementalSpawnQuietMs: late heavy 1ch gets the multi-ch quiet floor", ()
     app: { appId: ECHOLOT, channels: 1, paramCount: 16, name: "Echolot" },
     startChannel: 14,
   };
-  // Zeta 14-app hold-incremental: Chord Vamp as 12/14 at 3200ms wedged USB
-  // after spawn (before GetAppParams). Same floor as late 4ch / Super LFO.
-  assert.equal(incrementalSpawnQuietMs(vamp, 11, 14), 8000);
+  // Zeta 14-app hold-incremental: Chord Vamp as 14/14 at 8000ms (deferred last).
+  assert.equal(incrementalSpawnQuietMs(vamp, 13, 14), 8000);
   assert.equal(incrementalSpawnQuietMs(echolot, 10, 12), 8000);
   // Early heavy 1ch stays on the short floor (plus first-spawn override).
   assert.equal(incrementalSpawnQuietMs(vamp, 1, 14), 800);
