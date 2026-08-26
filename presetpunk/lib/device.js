@@ -1,5 +1,9 @@
 import { deserialize, serialize } from "@atov/fp-config";
 import { buildConfigFrame, parseConfigFrame, SYSEX_EOX, SYSEX_START } from "./sysex.js";
+import {
+  createPanicBeaconCollector,
+  formatPanicSite,
+} from "./panic-beacon.js";
 
 const RECEIVE_TIMEOUT_MS = 2000;
 // The device can answer slowly while app tasks are spawning or immediately
@@ -8,6 +12,49 @@ const PROBE_TIMEOUT_MS = 1200;
 /** After a wedged Full Push, GetVersion often needs a few retries. */
 const CONNECT_PROBE_ROUNDS = 3;
 const CONNECT_PROBE_GAP_MS = 700;
+const PANIC_BEACON_LISTEN_MS = 2500;
+const PANIC_BEACON_POLL_MS = 100;
+
+/** Thrown when Faderpunk ports are listed but GetVersion never answers. */
+export const USB_WEDGE_ERROR =
+  "Faderpunk MIDI ports present but GetVersion failed (device busy or USB wedged). Wait / replug; close other tabs using the device.";
+
+export function isUsbWedgeError(err) {
+  const msg = String(err?.message ?? err ?? "");
+  return msg.includes(USB_WEDGE_ERROR);
+}
+
+async function loadPanicFiles() {
+  try {
+    const response = await fetch(new URL("../panic-files.json", import.meta.url));
+    const json = await response.json();
+    return json?.files ?? {};
+  } catch {
+    return {};
+  }
+}
+
+async function listenForPanicBeacon(access, configInput) {
+  const input = findPerfInput(access, configInput);
+  if (!input) return null;
+
+  const collector = createPanicBeaconCollector();
+  const previous = input.onmidimessage;
+  try {
+    await Promise.race([
+      input.open(),
+      new Promise((r) => setTimeout(r, PANIC_BEACON_LISTEN_MS)),
+    ]);
+    input.onmidimessage = (event) => collector.feed(event.data);
+    const deadline = Date.now() + PANIC_BEACON_LISTEN_MS;
+    while (Date.now() < deadline && collector.result() === null) {
+      await new Promise((r) => setTimeout(r, PANIC_BEACON_POLL_MS));
+    }
+  } finally {
+    input.onmidimessage = previous ?? null;
+  }
+  return collector.result();
+}
 
 function attachConfigInput(input) {
   const rx = {
@@ -150,12 +197,16 @@ export async function connectDevice() {
 
   let config = null;
   const sawPorts = inputs.length > 0 && outputs.length > 0;
+  const topInput = inputs[0] ?? null;
+  const topOutput = outputs[0] ?? null;
   for (let round = 0; round < CONNECT_PROBE_ROUNDS && !config; round++) {
     if (round > 0) {
       await new Promise((r) => setTimeout(r, CONNECT_PROBE_GAP_MS * round));
     }
-    for (const output of outputs) {
-      for (const input of inputs) {
+    const roundInputs = round === 0 ? inputs : topInput ? [topInput] : [];
+    const roundOutputs = round === 0 ? outputs : topOutput ? [topOutput] : [];
+    for (const output of roundOutputs) {
+      for (const input of roundInputs) {
         const version = await probePair(input, output);
         if (version === null) continue;
         const rx = attachConfigInput(input);
@@ -169,11 +220,21 @@ export async function connectDevice() {
   }
 
   if (!config) {
-    throw new Error(
-      sawPorts
-        ? "Faderpunk MIDI ports present but GetVersion failed (device busy or USB wedged). Wait / replug; close other tabs using the device."
-        : "No Faderpunk config MIDI port found. Plug in USB, allow MIDI/SysEx, close other tabs using the device.",
-    );
+    if (!sawPorts) {
+      throw new Error(
+        "No Faderpunk config MIDI port found. Plug in USB, allow MIDI/SysEx, close other tabs using the device.",
+      );
+    }
+    let message = USB_WEDGE_ERROR;
+    const site = await listenForPanicBeacon(access, topInput);
+    if (site) {
+      const files = await loadPanicFiles();
+      const siteText = formatPanicSite(site, files);
+      if (siteText) {
+        message = `${USB_WEDGE_ERROR} — firmware panic at ${siteText}`;
+      }
+    }
+    throw new Error(message);
   }
 
   const inNames = inputs.map((i) => i.name ?? i.id).join(", ");

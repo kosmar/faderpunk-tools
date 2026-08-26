@@ -9697,6 +9697,8 @@
     let liveStatusHold = null;
     /** Web MIDI lists Faderpunk in+out (not a live SysEx session). */
     let devicePortsPresent = false;
+    /** Live queue frozen after USB wedge / GetVersion failure until replug. */
+    let liveUsbWedged = false;
     let midiAccessWatch = null;
     /** One reconcile prompt per connected stretch (reset on disconnect). */
     let connectReconcileAskedWhilePresent = false;
@@ -9711,6 +9713,7 @@
     }
 
     function pauseLiveForNoDevice() {
+      liveUsbWedged = false;
       if (liveDebounceTimer) {
         clearTimeout(liveDebounceTimer);
         liveDebounceTimer = null;
@@ -9772,7 +9775,29 @@
         connectReconcileAskedWhilePresent = false;
       }
       syncLiveDeviceGate();
-      if (!was && next) void maybeOfferConnectReconcile();
+      if (!was && next) {
+        liveUsbWedged = false;
+        void maybeOfferConnectReconcile();
+      }
+    }
+
+    function freezeLiveAfterWedge(err) {
+      if (!window.FpMidi?.isUsbWedgeError?.(err)) return false;
+      liveUsbWedged = true;
+      if (liveDebounceTimer) {
+        clearTimeout(liveDebounceTimer);
+        liveDebounceTimer = null;
+      }
+      if (liveStructureTimer) {
+        clearTimeout(liveStructureTimer);
+        liveStructureTimer = null;
+      }
+      if (liveGlobalTimer) {
+        clearTimeout(liveGlobalTimer);
+        liveGlobalTimer = null;
+      }
+      liveNote("warn", t("push.liveUsbWedged"), { expand: true });
+      return true;
     }
 
     /**
@@ -10341,6 +10366,10 @@
      */
     function scheduleLiveGlobalPush(section, { immediate = false, force = false } = {}) {
       if (!devicePortsPresent || !section) return;
+      if (liveUsbWedged) {
+        liveNote("warn", t("push.liveUsbWedged"), { expand: true });
+        return;
+      }
       if (!force && !livePushEnabled()) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
@@ -10395,10 +10424,12 @@
         clearDeviceDirtyGlobal(sections);
         finishGlobalMeteorSpin(sections, { ok: true });
       } catch (e) {
+        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
         finishGlobalMeteorSpin(sections, { ok: false });
       } finally {
         livePushInFlight = false;
+        if (liveUsbWedged) return;
         if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
         else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
         else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);
@@ -10436,6 +10467,10 @@
     function scheduleLiveStructurePush(opts = {}) {
       const force = !!opts.force;
       const immediate = !!opts.immediate;
+      if (liveUsbWedged) {
+        liveNote("warn", t("push.liveUsbWedged"), { expand: true });
+        return;
+      }
       if (!devicePortsPresent) {
         if (!force) markLiveLayoutDirty();
         return;
@@ -10524,11 +10559,13 @@
         liveNote("ok", t("push.liveStructureOk"));
         finishRowMeteorSpin(spinRows, { ok: true });
       } catch (e) {
+        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
         liveLayoutSynced = false;
         finishRowMeteorSpin(spinRows, { ok: false });
       } finally {
         livePushInFlight = false;
+        if (liveUsbWedged) return;
         if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
         else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
         else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);
@@ -10537,6 +10574,10 @@
 
     function scheduleLiveParamPush(rowIndex, { immediate = false, force = false } = {}) {
       if (!devicePortsPresent) return;
+      if (liveUsbWedged) {
+        liveNote("warn", t("push.liveUsbWedged"), { expand: true });
+        return;
+      }
       if (!force && !livePushEnabled()) return;
       if (pushLive) {
         liveNote("warn", t("push.liveBusyFull"), { expand: true });
@@ -10639,6 +10680,7 @@
             clearDeviceDirtyForRows(rowsFor);
             finishRowMeteorSpin(rowsFor, { ok: true });
           } catch (e) {
+            freezeLiveAfterWedge(e);
             liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
               expand: true,
             });
@@ -10648,6 +10690,7 @@
           }
         }
       } catch (e) {
+        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
           expand: true,
         });
@@ -10655,6 +10698,7 @@
         liveLayoutSynced = false;
       } finally {
         livePushInFlight = false;
+        if (liveUsbWedged) return;
         if (liveStructureOpts) scheduleLiveStructurePush(liveStructureOpts);
         else if (livePendingRows.size) scheduleLiveParamPush([...livePendingRows][0]);
         else if (liveGlobalSections.size) scheduleLiveGlobalPush([...liveGlobalSections][0]);

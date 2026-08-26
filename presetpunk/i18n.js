@@ -285,6 +285,8 @@
       "push.liveOff": "Live sync off",
       "push.liveNoDevice":
         "Live sync needs a connected Faderpunk (Web MIDI in this tab).",
+      "push.liveUsbWedged":
+        "Live paused — USB wedged or device busy. Replug USB, then push again.",
       "dirty.unpushed":
         "Changed while offline / Live off — not on the Punk yet",
       "connect.title": "Faderpunk connected",
@@ -771,6 +773,8 @@
       "push.liveOff": "Live Sync aus",
       "push.liveNoDevice":
         "Live Sync braucht einen verbundenen Faderpunk (Web MIDI in diesem Tab).",
+      "push.liveUsbWedged":
+        "Live pausiert — USB hängt oder Gerät busy. USB neu stecken, dann erneut pushen.",
       "dirty.unpushed":
         "Geändert offline / bei Live aus — noch nicht auf dem Punk",
       "connect.title": "Faderpunk verbunden",
@@ -1173,6 +1177,8 @@
       "push.liveOff": "Sync live off",
       "push.liveNoDevice":
         "Sync live nécessite un Faderpunk connecté (Web MIDI dans cet onglet).",
+      "push.liveUsbWedged":
+        "Live en pause — USB bloqué ou appareil occupé. Rebrancher l’USB, puis renvoyer.",
       "dirty.unpushed":
         "Modifié hors ligne / sans Live — pas encore sur le Punk",
       "connect.title": "Faderpunk connecté",
