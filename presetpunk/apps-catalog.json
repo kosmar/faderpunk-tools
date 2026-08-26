@@ -4517,7 +4517,10 @@
             "variants": [
               "Gate Out",
               "Pitch Out",
-              "Gate In"
+              "Gate In",
+              "Dit length",
+              "Pitch offset",
+              "Dah interval"
             ]
           }
         },

@@ -2263,7 +2263,7 @@
       "channels": [
         {
           "jackTitle": "Jack",
-          "jackDescription": "Gate Out / Pitch Out (0–10 V V/Oct), or Gate In (±5 V) to arm the phrase on a rising edge. MIDI notes always fire.",
+          "jackDescription": "Gate Out / Pitch Out (0–10 V V/Oct), Gate In (±5 V rising edge arms), or CV in (±5 V) for Dit length, Pitch offset, or Dah interval — bipolar add on top of the saved fader at playback only. MIDI notes always fire.",
           "faderTitle": "Dit length",
           "faderDescription": "Duration of a dit in milliseconds, from 30 ms up to four 16th-notes of the incoming clock. Dah is 3× dit.",
           "faderPlusShiftTitle": "Pitch offset",
