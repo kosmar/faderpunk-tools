@@ -12,6 +12,7 @@ import {
   compareSpawnOrder,
   ensureWireGlobalConfig,
   incrementalSpawnQuietMs,
+  needsHoldForLayout,
   normalizeValueForWire,
   padParams,
   paramsWireMatch,
@@ -469,6 +470,22 @@ test("compareSpawnOrder: wire layout still places vamp at its startChannel", () 
   assert.equal(lay[0][2], undefined);
   assert.deepEqual(lay[0][3], [VAMP, 1, 3]);
   assert.deepEqual(lay[0][5], [ECHOLOT, 1, 5]);
+});
+
+test("needsHoldForLayout: Zeta-scale presets use hold-dense", () => {
+  const zetaSlots = Array.from({ length: 14 }, (_, i) => ({
+    id: i,
+    app: { appId: 100 + i, channels: 1, paramCount: 10, name: `App${i}` },
+    startChannel: i,
+  }));
+  assert.equal(needsHoldForLayout(zetaSlots), true);
+  assert.equal(needsHoldForLayout(zetaSlots.slice(0, 5)), false);
+  assert.equal(
+    needsHoldForLayout([
+      { id: 0, app: { appId: 49, name: "Blank" }, startChannel: 0 },
+    ]),
+    false,
+  );
 });
 
 test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () => {

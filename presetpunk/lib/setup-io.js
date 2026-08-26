@@ -1245,15 +1245,67 @@ async function applySetLayout(
 }
 
 /**
- * Full Push — Configurator AddApp loop, not one giant Recall:
- *   clear old layout → quiet teardown → for each app:
- *   SetLayout(growing) → quiet pause → SetAppParams.
- *
- * Dense / multi-ch layouts (Manifold, Ripppple, then Echolot/LFO, …) wedge USB
- * when apps run unmuted mid-push. HoldPerfMute for the whole incremental pass
- * (same as live dense): MIDI quiet until Release after the last spawn.
- * SetAppParams is deferred until Release (spawn-only under Hold) — per-slot
- * params mid-push stacked SysEx on top of the next spawn and wedged Chord Vamp.
+ * One atomic SetLayout under Hold + spawn stagger + post-gate FRAM quiet.
+ * Shared by live dense push and Full Push recall when needsHold.
+ */
+async function applyDenseHoldLayoutSpawn(
+  cfg,
+  appLayout,
+  log,
+  deviceRef,
+  n,
+  label,
+) {
+  const spawnBudgetMs = estimateHoldSpawnMs(n);
+  const framMs = estimatePostGateFramMs(n);
+  const layoutStartedAt = Date.now();
+  const active = appLayout.filter((s) => s.app).length;
+  cfg = await applySetLayout(
+    cfg,
+    appLayout,
+    log,
+    LAYOUT_SETTLE_LIVE_MS,
+    deviceRef,
+    label ?? `SetLayout (${active} apps)`,
+    { headStartMs: 2000, pollBudgetMs: 6000 },
+  );
+  const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
+  if (staggerLeft > 0) {
+    log(
+      `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+    );
+    await delayKeepalive(cfg, staggerLeft, {
+      probe: true,
+      label: "spawn stagger",
+      onLog: log,
+    });
+  }
+  if (framMs > 0) {
+    log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
+    await delayKeepalive(cfg, framMs, { probe: false });
+  }
+  return ensureCableAfterSpawn(cfg, deviceRef, log, "after dense spawn");
+}
+
+/** Whether a layout needs HoldPerfMute (live dense + Full Push dense path). */
+export function needsHoldForLayout(appLayout) {
+  const activeSlots = (appLayout || []).filter((s) => s?.app);
+  const n = activeSlots.length;
+  if (n === 0) return false;
+  const blankOnly = activeSlots.every(
+    (s) => Number(s.app?.appId) === 49 || s.app?.name === "Blank",
+  );
+  if (blankOnly) return false;
+  const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
+  const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
+  return n >= 8 || heavyN >= 2 || multiCh;
+}
+
+/**
+ * Full Push — light layouts: Configurator AddApp loop (clear → grow → params).
+ * Dense layouts (needsHold): one atomic SetLayout under Hold — same as live
+ * dense (stagger + FRAM) — incremental per-app spawn wedges USB late in the
+ * layout (Hold Sam / Chord Vamp on Zeta 14).
  */
 async function applySetLayoutIncremental(
   config,
@@ -1280,17 +1332,12 @@ async function applySetLayoutIncremental(
       })
       .join(" → ")}`,
   );
-  log("  push engine: hold-incremental");
   let cfg = config;
   const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
-  const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
-  // Blank (49) is a no-op filler: Hold+spawn still wedges USB on current FW
-  // (same as Control). Skip Hold when the layout is Blank-only so we can A/B
-  // spawn without mute; real apps keep the dense Hold path.
   const blankOnly = activeSlots.every(
     (s) => Number(s.app?.appId) === 49 || s.app?.name === "Blank",
   );
-  const needsHold = !blankOnly && (n >= 8 || heavyN >= 2 || multiCh);
+  const needsHold = needsHoldForLayout(appLayout);
   let held = false;
   let aborted = false;
 
@@ -1320,18 +1367,14 @@ async function applySetLayoutIncremental(
         { timeoutMs: 2000, attempts: 2 },
       );
       held = true;
-      log(`  HoldPerfMute (incremental · ${n} apps · ${heavyN} heavy)`);
+      log(`  HoldPerfMute (${n} apps · ${heavyN} heavy)`);
       await delay(300);
     } catch {
       log("  ⚠ HoldPerfMute unavailable — continuing without hold");
     }
   }
 
-  // SetLayout ACK precedes Core 1 processing. Without an explicit clear, the
-  // first one-app layout also tears down up to 16 old apps (120ms each), reaps
-  // their tasks, persists the empty layout, and only then starts the new app.
-  // A params request during that phase receives empty AppState and can wedge
-  // USB. Split teardown from spawn and remain completely silent throughout.
+  // SetLayout ACK precedes Core 1 processing.
   try {
     cfg = await applySetLayout(
       cfg,
@@ -1355,49 +1398,52 @@ async function applySetLayoutIncremental(
     clearCachedAppStates(cfg.rx);
 
     if (held) {
-      log("  params deferred until Release (hold-incremental spawn-only)");
-    }
-
-    const growing = [];
-    for (let i = 0; i < ordered.length; i++) {
-      const slot = ordered[i];
-      growing.push(slot);
-      const name = slot.app?.name || slot.app?.appId;
-      const ch = Number(slot.startChannel) || 0;
-      const pauseMs = incrementalSpawnQuietMs(slot, i, n);
-
-      cfg = await applySetLayout(
+      log("  push engine: hold-dense (atomic SetLayout)");
+      cfg = await applyDenseHoldLayoutSpawn(
         cfg,
-        growing,
+        appLayout,
         log,
-        LAYOUT_SETTLE_INCREMENTAL_MS,
         deviceRef,
-        `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
-        {
-          quietMs: pauseMs,
-        },
+        n,
+        `SetLayout (${n} apps)`,
       );
+    } else {
+      log("  push engine: incremental");
+      const growing = [];
+      for (let i = 0; i < ordered.length; i++) {
+        const slot = ordered[i];
+        growing.push(slot);
+        const name = slot.app?.name || slot.app?.appId;
+        const ch = Number(slot.startChannel) || 0;
+        const pauseMs = incrementalSpawnQuietMs(slot, i, n);
 
-      // 4ch spawn (Ripppple) can mute GetVersion for several seconds after ACK.
-      // A 600ms probe here aborted Delta every time; live-push already reconnects.
-      try {
-        cfg = await ensureCableAfterSpawn(
+        cfg = await applySetLayout(
           cfg,
-          deviceRef,
+          growing,
           log,
-          `after spawn ${name}(ch${ch})`,
+          LAYOUT_SETTLE_INCREMENTAL_MS,
+          deviceRef,
+          `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+          {
+            quietMs: pauseMs,
+          },
         );
-      } catch (e) {
-        throw new Error(
-          `USB dead after SetLayout ${name}(ch${ch}) (before GetAppParams): ${e.message || e}`,
-        );
-      }
 
-      const id = Number(slot.id);
-      const expectAppId = Number(slot.app?.appId);
-      if (!held) {
-        // Never SetAppParams before GetAppParams shows a live param_handler —
-        // premature SetAppParams wedges the FW params path (GetVersion still OK).
+        try {
+          cfg = await ensureCableAfterSpawn(
+            cfg,
+            deviceRef,
+            log,
+            `after spawn ${name}(ch${ch})`,
+          );
+        } catch (e) {
+          throw new Error(
+            `USB dead after SetLayout ${name}(ch${ch}) (before GetAppParams): ${e.message || e}`,
+          );
+        }
+
+        const id = Number(slot.id);
+        const expectAppId = Number(slot.app?.appId);
         try {
           cfg = await applySetAppParams(cfg, paramsById, [id], log, {
             deviceRef,
@@ -1411,7 +1457,6 @@ async function applySetLayoutIncremental(
           const message = String(err.message || err);
           log(`  ⚠ SetAppParams(${id}): ${message}`);
           if (!deviceRef) throw err;
-          // Re-arm via ready wait (GetAppParams), not another blind SetAppParams.
           log(
             `  retry: quiet ${SET_PARAMS_SPAWN_RETRY_MS}ms + wait ready + SetAppParams …`,
           );
@@ -1478,11 +1523,6 @@ async function applySetLayoutIncremental(
     } else if (held && deviceRef?.device?.config) {
       try {
         cfg = deviceRef.device.config;
-        const framMs = estimatePostGateFramMs(ordered.length);
-        if (framMs > 0) {
-          log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
-          await delayKeepalive(cfg, framMs, { probe: false });
-        }
         await sendAndReceiveExpect(
           cfg,
           { tag: "ReleasePerfMute" },
@@ -2042,8 +2082,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     const { appLayout, paramsById } = buildAppLayout(setup, allApps, log);
     const n = appLayout.filter((s) => s.app).length;
     const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
-    // Dense or multi-heavy layouts wedge USB without hold.
-    const needsHold = n >= 8 || heavyN >= 2;
+    const needsHold = needsHoldForLayout(appLayout);
 
     config = deviceRef.device.config;
     if (needsHold) {
@@ -2068,49 +2107,43 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         : opts.paramLayoutIds.map(Number).filter((n) => Number.isFinite(n));
 
     try {
-      const spawnBudgetMs = held
-        ? estimateHoldSpawnMs(n)
-        : n >= 8
-          ? estimateAtomicSpawnMs(n)
-          : 0;
-      const framMs = held
-        ? estimatePostGateFramMs(n)
-        : n >= 8
-          ? Math.max(2000, n * 400)
-          : 0;
-      const layoutStartedAt = Date.now();
-      config = await applySetLayout(
-        config,
-        appLayout,
-        log,
-        settleMs,
-        deviceRef,
-        undefined,
-        needsHold
-          ? {
-              headStartMs: 2000,
-              pollBudgetMs: 6000,
-            }
-          : undefined,
-      );
-      device = deviceRef.device;
-      const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
-      if (staggerLeft > 0) {
-        log(
-          `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+      if (held) {
+        config = await applyDenseHoldLayoutSpawn(
+          config,
+          appLayout,
+          log,
+          deviceRef,
+          n,
         );
-        await delayKeepalive(config, staggerLeft, {
-          probe: true,
-          label: "spawn stagger",
-          onLog: log,
-        });
-      }
-      if (framMs > 0) {
-        log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
-        await delayKeepalive(config, framMs, { probe: false });
-      }
-      config = await ensureCableAfterSpawn(config, deviceRef, log);
-      if (!held) {
+      } else {
+        const spawnBudgetMs =
+          n >= 8 ? estimateAtomicSpawnMs(n) : 0;
+        const framMs = n >= 8 ? Math.max(2000, n * 400) : 0;
+        const layoutStartedAt = Date.now();
+        config = await applySetLayout(
+          config,
+          appLayout,
+          log,
+          settleMs,
+          deviceRef,
+        );
+        device = deviceRef.device;
+        const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
+        if (staggerLeft > 0) {
+          log(
+            `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+          );
+          await delayKeepalive(config, staggerLeft, {
+            probe: true,
+            label: "spawn stagger",
+            onLog: log,
+          });
+        }
+        if (framMs > 0) {
+          log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
+          await delayKeepalive(config, framMs, { probe: false });
+        }
+        config = await ensureCableAfterSpawn(config, deviceRef, log);
         config = await applySetAppParams(config, paramsById, ids, log, {
           deviceRef,
           underHold: false,
