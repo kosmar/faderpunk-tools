@@ -137,23 +137,76 @@ function sendFrame(output, msg) {
   output.send(Array.from(buildConfigFrame(serialize("ConfigMsgIn", msg))));
 }
 
-async function probePair(input, output) {
-  const rx = attachConfigInput(input);
-  try {
-    await input.open();
-    await output.open();
-    sendFrame(output, { tag: "GetVersion" });
-    const msg = await receiveFromRx(rx, PROBE_TIMEOUT_MS);
-    if (msg.tag === "Version") {
-      const { major, minor, patch } = msg.value;
-      return `${major}.${minor}.${patch}`;
+function configProbeOutputs(outputs) {
+  const namedConfig = outputs.filter((port) => /config/i.test(port.name ?? ""));
+  if (namedConfig.length) return namedConfig;
+  const fallback = outputs.filter((port) => /config|2/i.test(port.name ?? ""));
+  if (fallback.length) return fallback;
+  return outputs;
+}
+
+function abortRxWaiters(handlers) {
+  for (const { rx } of handlers) {
+    if (rx.waiter) {
+      clearTimeout(rx.waiter.timer);
+      rx.waiter = null;
     }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    input.onmidimessage = null;
   }
+}
+
+function detachInputHandlers(handlers, keepInput = null) {
+  for (const { input, rx } of handlers) {
+    if (keepInput && input === keepInput) continue;
+    input.onmidimessage = null;
+    if (rx.waiter) {
+      clearTimeout(rx.waiter.timer);
+      rx.waiter = null;
+    }
+  }
+}
+
+/** Wait for first Version on any attached input (GetVersion already sent on TX). */
+function waitForVersionOnAny(handlers, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      abortRxWaiters(handlers);
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    let pending = handlers.length;
+
+    for (const { input, rx } of handlers) {
+      receiveFromRx(rx, timeoutMs)
+        .then((msg) => {
+          if (msg?.tag === "Version") {
+            const { major, minor, patch } = msg.value;
+            clearTimeout(timer);
+            finish({
+              input,
+              rx,
+              version: `${major}.${minor}.${patch}`,
+            });
+          } else {
+            pending -= 1;
+            if (pending === 0) {
+              clearTimeout(timer);
+              finish(null);
+            }
+          }
+        })
+        .catch(() => {
+          pending -= 1;
+          if (pending === 0) {
+            clearTimeout(timer);
+            finish(null);
+          }
+        });
+    }
+  });
 }
 
 function portCandidates(ports) {
@@ -195,54 +248,69 @@ export async function connectDevice() {
   const inputs = portCandidates(access.inputs.values());
   const outputs = portCandidates(access.outputs.values());
 
-  let config = null;
   const sawPorts = inputs.length > 0 && outputs.length > 0;
-  const topInput = inputs[0] ?? null;
-  const topOutput = outputs[0] ?? null;
-  for (let round = 0; round < CONNECT_PROBE_ROUNDS && !config; round++) {
-    if (round > 0) {
-      await new Promise((r) => setTimeout(r, CONNECT_PROBE_GAP_MS * round));
-    }
-    const roundInputs = round === 0 ? inputs : topInput ? [topInput] : [];
-    const roundOutputs = round === 0 ? outputs : topOutput ? [topOutput] : [];
-    for (const output of roundOutputs) {
-      for (const input of roundInputs) {
-        const version = await probePair(input, output);
-        if (version === null) continue;
-        const rx = attachConfigInput(input);
-        await input.open();
-        await output.open();
-        config = { input, output, version, rx };
-        break;
+  const inNames = inputs.map((i) => i.name ?? i.id).join(", ");
+  const outNames = outputs.map((o) => o.name ?? o.id).join(", ");
+  const connectionSummary = `in[${inNames}] · out[${outNames}]`;
+
+  const probeOutputs = configProbeOutputs(outputs);
+  const probeOutput = probeOutputs[0] ?? null;
+
+  const inputHandlers = [];
+  for (const input of inputs) {
+    const rx = attachConfigInput(input);
+    await input.open();
+    inputHandlers.push({ input, rx });
+  }
+
+  let config = null;
+  if (probeOutput && inputHandlers.length) {
+    for (let round = 0; round < CONNECT_PROBE_ROUNDS && !config; round++) {
+      if (round > 0) {
+        await new Promise((r) => setTimeout(r, CONNECT_PROBE_GAP_MS * round));
       }
-      if (config) break;
+      await probeOutput.open();
+      // Waiters must be armed before TX — Version can arrive on a different
+      // input than the Config-named one (fp-cli: RX Faderpunk / TX Config).
+      const waitPromise = waitForVersionOnAny(inputHandlers, PROBE_TIMEOUT_MS);
+      sendFrame(probeOutput, { tag: "GetVersion" });
+      const result = await waitPromise;
+      if (result) {
+        config = {
+          input: result.input,
+          output: probeOutput,
+          version: result.version,
+          rx: result.rx,
+        };
+      }
     }
   }
 
   if (!config) {
+    detachInputHandlers(inputHandlers);
     if (!sawPorts) {
       throw new Error(
         "No Faderpunk config MIDI port found. Plug in USB, allow MIDI/SysEx, close other tabs using the device.",
       );
     }
-    let message = USB_WEDGE_ERROR;
-    const site = await listenForPanicBeacon(access, topInput);
+    let message = `${USB_WEDGE_ERROR} (connection: ${connectionSummary})`;
+    const site = await listenForPanicBeacon(access, inputs[0] ?? null);
     if (site) {
       const files = await loadPanicFiles();
       const siteText = formatPanicSite(site, files);
       if (siteText) {
-        message = `${USB_WEDGE_ERROR} — firmware panic at ${siteText}`;
+        message = `${USB_WEDGE_ERROR} (connection: ${connectionSummary}) — firmware panic at ${siteText}`;
       }
     }
     throw new Error(message);
   }
 
-  const inNames = inputs.map((i) => i.name ?? i.id).join(", ");
-  const outNames = outputs.map((o) => o.name ?? o.id).join(", ");
+  detachInputHandlers(inputHandlers, config.input);
+
   return {
     access,
     config,
-    portSummary: `in[${inNames}] · out[${outNames}]`,
+    portSummary: connectionSummary,
   };
 }
 

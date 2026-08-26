@@ -9699,6 +9699,8 @@
     let devicePortsPresent = false;
     /** Live queue frozen after USB wedge / GetVersion failure until replug. */
     let liveUsbWedged = false;
+    /** Timestamp when Faderpunk ports went absent (replug debounce). */
+    let portsGoneAt = 0;
     let midiAccessWatch = null;
     /** One reconcile prompt per connected stretch (reset on disconnect). */
     let connectReconcileAskedWhilePresent = false;
@@ -9713,7 +9715,6 @@
     }
 
     function pauseLiveForNoDevice() {
-      liveUsbWedged = false;
       if (liveDebounceTimer) {
         clearTimeout(liveDebounceTimer);
         liveDebounceTimer = null;
@@ -9771,12 +9772,15 @@
       }
       devicePortsPresent = next;
       if (was && !next) {
+        portsGoneAt = Date.now();
         pauseLiveForNoDevice();
         connectReconcileAskedWhilePresent = false;
       }
       syncLiveDeviceGate();
       if (!was && next) {
-        liveUsbWedged = false;
+        if (portsGoneAt && Date.now() - portsGoneAt >= 1500) {
+          liveUsbWedged = false;
+        }
         void maybeOfferConnectReconcile();
       }
     }
@@ -9941,7 +9945,7 @@
       for (const i of paramRows) {
         scheduleLiveParamPush(i, { force: true });
       }
-      if (paramRows.length) {
+      if (paramRows.length && !plan.structureRows.length) {
         scheduleLiveParamPush(paramRows[0], { immediate: true, force: true });
       }
       for (const s of plan.sections) {
@@ -10586,11 +10590,14 @@
       }
       // Param-only live push is allowed even when layout is dirty — SetAppParams
       // targets layoutId. Wrong/missing slots fail per-row; structure still needs Push.
+      const alreadyQueued = livePendingRows.has(rowIndex);
       livePendingRows.add(rowIndex);
       markRowMeteorPending([rowIndex]);
       // Busy (MIDI in flight or structure debounce): keep queued, run in finally.
       if (livePushInFlight || liveStructureTimer || liveStructureOpts) {
-        liveNote("busy", t("push.liveQueuedRow", { row: rowIndex + 1 }));
+        if (!alreadyQueued) {
+          liveNote("busy", t("push.liveQueuedRow", { row: rowIndex + 1 }));
+        }
         return;
       }
       if (liveDebounceTimer) clearTimeout(liveDebounceTimer);
