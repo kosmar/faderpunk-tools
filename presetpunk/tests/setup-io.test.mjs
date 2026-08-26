@@ -498,15 +498,34 @@ test("incrementalSpawnQuietMs: dense layouts ramp the quiet per running app", ()
   };
   // Early spawns keep the old floors …
   assert.equal(incrementalSpawnQuietMs(echolot, 3, 12), 800);
-  // … late ones get air: 800ms wedged the config cable as the 11th app.
+  // … mid-pack still ramps (index 4 < 6, before the late-packed 8000ms floor).
   assert.equal(incrementalSpawnQuietMs(echolot, 4, 12), 1100);
-  assert.equal(incrementalSpawnQuietMs(echolot, 10, 12), 2900);
   const light = {
     id: 11,
     app: { appId: BERNOULLI, channels: 1, paramCount: 6 },
     startChannel: 15,
   };
+  // Light 1ch still ramps instead of jumping to the heavy late floor.
   assert.equal(incrementalSpawnQuietMs(light, 11, 12), 3200);
+});
+
+test("incrementalSpawnQuietMs: late heavy 1ch gets the multi-ch quiet floor", () => {
+  const vamp = {
+    id: 11,
+    app: { appId: VAMP, channels: 1, paramCount: 16, name: "Chord Vamp" },
+    startChannel: 13,
+  };
+  const echolot = {
+    id: 10,
+    app: { appId: ECHOLOT, channels: 1, paramCount: 16, name: "Echolot" },
+    startChannel: 14,
+  };
+  // Zeta 14-app hold-incremental: Chord Vamp as 12/14 at 3200ms wedged USB
+  // after spawn (before GetAppParams). Same floor as late 4ch / Super LFO.
+  assert.equal(incrementalSpawnQuietMs(vamp, 11, 14), 8000);
+  assert.equal(incrementalSpawnQuietMs(echolot, 10, 12), 8000);
+  // Early heavy 1ch stays on the short floor (plus first-spawn override).
+  assert.equal(incrementalSpawnQuietMs(vamp, 1, 14), 800);
 });
 
 // ---- wire regression: SetAppParams must serialize ----------------------------

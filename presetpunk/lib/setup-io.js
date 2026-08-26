@@ -337,15 +337,16 @@ const SPAWN_QUIET_CAP_MS = 8000;
 export function incrementalSpawnQuietMs(slot, index, total) {
   const channels = Number(slot?.app?.channels) || 1;
   const heavy = isHeavySpawnSlot(slot, index, total);
-  // 4ch after a dense WIP prefix (Delta: Ripppple@ch8) wedges USB for several
-  // seconds after ACK. 2500ms + GetVersion polling kept it wedged; Beta's
-  // Ripppple@ch12 behind Controls is fine at 2500ms — we still use the long
-  // quiet for any late 4ch spawn so Delta survives.
-  const base =
-    channels > 1
-      ? index >= 6
-        ? 8000
-        : 1200
+  const weightHeavy = spawnWeight(slot) >= HEAVY_SPAWN_WEIGHT;
+  // Late packed spawn under Hold: 11 running handlers + a heavy 1ch (Chord Vamp
+  // as 12/14 at 3200ms) killed the config cable before GetAppParams — same
+  // class as late 4ch (Ripppple). Ramp is not enough once the spawn itself
+  // stalls USB; use the multi-ch 8000ms floor.
+  const latePacked = index >= 6 && (channels > 1 || weightHeavy);
+  const base = latePacked
+    ? 8000
+    : channels > 1
+      ? 1200
       : heavy || index >= 8
         ? 800
         : 500;
