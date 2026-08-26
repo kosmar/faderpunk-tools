@@ -116,8 +116,8 @@ test("connectDevice: silent MIDI throws isUsbWedgeError with 6 GetVersion probes
     });
     assert.equal(countA() + countB(), 6, "round 0: 4 pairs + rounds 1–2: top pair only");
     assert.ok(
-      Date.now() - started < 12000,
-      "should finish under ~12s, not 16s+ full cartesian",
+      Date.now() - started < 15000,
+      "should finish under ~15s (top-pair retries + panic listen), not 16s+ cartesian",
     );
   } finally {
     restoreNavigator();

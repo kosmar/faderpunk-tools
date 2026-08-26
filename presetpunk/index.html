@@ -10424,8 +10424,8 @@
         clearDeviceDirtyGlobal(sections);
         finishGlobalMeteorSpin(sections, { ok: true });
       } catch (e) {
-        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
+        freezeLiveAfterWedge(e);
         finishGlobalMeteorSpin(sections, { ok: false });
       } finally {
         livePushInFlight = false;
@@ -10559,8 +10559,8 @@
         liveNote("ok", t("push.liveStructureOk"));
         finishRowMeteorSpin(spinRows, { ok: true });
       } catch (e) {
-        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
+        freezeLiveAfterWedge(e);
         liveLayoutSynced = false;
         finishRowMeteorSpin(spinRows, { ok: false });
       } finally {
@@ -10680,20 +10680,20 @@
             clearDeviceDirtyForRows(rowsFor);
             finishRowMeteorSpin(rowsFor, { ok: true });
           } catch (e) {
-            freezeLiveAfterWedge(e);
             liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
               expand: true,
             });
+            freezeLiveAfterWedge(e);
             liveLayoutSynced = false;
             finishRowMeteorSpin(rowsFor, { ok: false });
             break;
           }
         }
       } catch (e) {
-        freezeLiveAfterWedge(e);
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
           expand: true,
         });
+        freezeLiveAfterWedge(e);
         finishRowMeteorSpin(ids, { ok: false });
         liveLayoutSynced = false;
       } finally {
