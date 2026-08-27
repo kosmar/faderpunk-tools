@@ -4515,9 +4515,9 @@
           "value": {
             "name": "Jack",
             "variants": [
-              "Gate Out",
-              "Pitch Out",
-              "Gate In",
+              "CV Out Gate",
+              "CV Out Pitch",
+              "CV In Gate",
               "CV In Dit length",
               "CV In Pitch offset",
               "CV In Dah interval"
