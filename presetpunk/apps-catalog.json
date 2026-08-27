@@ -4518,9 +4518,9 @@
               "Gate Out",
               "Pitch Out",
               "Gate In",
-              "Dit length",
-              "Pitch offset",
-              "Dah interval"
+              "CV In Dit length",
+              "CV In Pitch offset",
+              "CV In Dah interval"
             ]
           }
         },
