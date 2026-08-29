@@ -4,7 +4,7 @@
       "index": 1,
       "letter": 0,
       "name": "Playground WIP",
-      "desc": "Newest WIP apps left→right + Quantizer (2ch) + Controls. Firmware defaults for params.",
+      "desc": "WIP left\u2192right; Super LFO 2ch; Ripppple 4ch; Grooves on 15. No overlap.",
       "port": "usb",
       "rows": [
         {
@@ -24,19 +24,19 @@
           "fader": 4
         },
         {
-          "app": "hold_sam",
+          "app": "vamp",
           "fader": 5
         },
         {
-          "app": "vamp",
+          "app": "arp_de_levy",
           "fader": 6
         },
         {
-          "app": "arp_de_levy",
+          "app": "bassment",
           "fader": 7
         },
         {
-          "app": "echolot",
+          "app": "fibonacci_gate",
           "fader": 8
         },
         {
@@ -44,28 +44,12 @@
           "fader": 9
         },
         {
-          "app": "bassment",
+          "app": "ripppple",
           "fader": 11
         },
         {
-          "app": "fibonacci_gate",
-          "fader": 12
-        },
-        {
-          "app": "grooves",
-          "fader": 13
-        },
-        {
-          "app": "heat_pump",
-          "fader": 14
-        },
-        {
-          "app": "quantizer",
+          "app": "semmy",
           "fader": 15
-        },
-        {
-          "app": "control",
-          "fader": 16
         }
       ],
       "global": {
