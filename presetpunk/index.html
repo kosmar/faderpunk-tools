@@ -940,6 +940,47 @@
       cursor: pointer; color: var(--text); white-space: normal; line-height: 1.25;
       max-width: 100%; min-width: 0;
     }
+    /* Colored enum chips (native <option> backgrounds are ignored on macOS). */
+    .enum-swatch-group {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 3px;
+      align-items: center;
+      vertical-align: middle;
+    }
+    .enum-swatch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0.15rem 0.4rem;
+      border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      line-height: 1.2;
+      cursor: pointer;
+      opacity: 0.72;
+      user-select: none;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .enum-swatch:has(input:checked),
+    .enum-swatch.is-active {
+      opacity: 1;
+      outline: 2px solid #fff;
+      outline-offset: 1px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+    }
+    .enum-swatch input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      margin: 0;
+      pointer-events: none;
+    }
     .flag-chip-group,
     .port-out-group {
       display: inline-grid;
@@ -6884,22 +6925,30 @@
         const curRaw = Number(value?.value) || 0;
         const cur = indices.includes(curRaw) ? curRaw : indices[0] || 0;
         const colorMap = deps?.enumColors?.get(pi);
+        if (colorMap && colorMap.size) {
+          const group = `enum-${idx}-${pi}`;
+          const chips = indices
+            .map((i) => {
+              const override = deps?.enumLabels?.get(pi)?.get(i);
+              const lab = genreOptionLabel(override ?? variants[i] ?? String(i));
+              const hex = colorMap.get(i) || "#888888";
+              const fg = contrastOnHex(hex);
+              const on = cur === i;
+              return `<label class="enum-swatch${on ? " is-active" : ""}" style="background:${escapeAttr(hex)};color:${escapeAttr(fg)}" title="${escapeAttr(lab)}">
+                <input type="radio" name="${escapeAttr(group)}" data-i="${idx}" data-k="sv" data-pi="${pi}" value="${i}" ${on ? "checked" : ""} />${escapeHtml(lab)}
+              </label>`;
+            })
+            .join("");
+          return `<span class="enum-swatch-group" title="${title}" role="radiogroup" aria-label="${title}">${chips}</span>`;
+        }
         const opts = indices
           .map((i) => {
             const override = deps?.enumLabels?.get(pi)?.get(i);
             const lab = genreOptionLabel(override ?? variants[i] ?? String(i));
-            const hex = colorMap?.get(i);
-            const style = hex
-              ? ` style="background:${escapeAttr(hex)};color:${escapeAttr(contrastOnHex(hex))}"`
-              : "";
-            return `<option value="${i}" ${cur === i ? "selected" : ""}${style}>${escapeHtml(lab)}</option>`;
+            return `<option value="${i}" ${cur === i ? "selected" : ""}>${escapeHtml(lab)}</option>`;
           })
           .join("");
-        const curHex = colorMap?.get(cur);
-        const swatch = curHex
-          ? ` style="--led-swatch:${escapeAttr(curHex)}"`
-          : "";
-        return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${title}"${swatch}>${opts}</select>`;
+        return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${title}">${opts}</select>`;
       }
       if (tag === "i32" || tag === "f32") {
         const min = Number(param.value?.min);
