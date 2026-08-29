@@ -2442,14 +2442,14 @@
           "items": [
             "<strong>Main</strong> — Cutoff (ch0) and Q (ch1), always",
             "<strong>Alt</strong> (Shift) — Offset (ch0) and Attenuverter (ch1) while CV is active; LFO Speed (ch0) and Att (ch1) while the internal LFO runs",
-            "<strong>Third</strong> (Btn0 hold) — Morph on ch0 while the internal LFO runs"
+            "<strong>Third</strong> — Morph on ch0 while the internal LFO runs (Btn0 hold); Dry/Wet on ch1 (Btn1 hold; 0 = dry source, full = filtered)"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
             "<strong>Ch0 short</strong> — mute/unmute output",
-            "<strong>Ch0 long</strong> — cycle filter mode LP → HP → BP → Notch on release; fader scrub while held cancels",
+            "<strong>Ch0 long</strong> — cycle filter mode LP → HP → BP → Notch on long-press register (mode color held until release); fader scrub while held cancels",
             "<strong>Ch0 Shift + short</strong> — while the internal LFO runs: toggle free-running or clock-synced (button flashes when sync engages)"
           ]
         },
@@ -2460,7 +2460,7 @@
             "Chamberlin state-variable filter at 1 kHz; cutoff roughly 0.1–200 Hz",
             "With nothing moving on the input for about 1.2 s, an internal morphing LFO feeds the filter instead",
             "CV active: ch0 button shows the filter mode hue; ch1 meters the output",
-            "LFO active: ch0 button and top LED use morph_color; mode flashes briefly after a long press",
+            "LFO active: ch0 button and top LED use morph_color; long-press shows mode color until release, then eases back to morph",
             "Mute dims the ch0 button off; output parks at 0 V (unipolar) or mid-scale (bipolar)",
             "<em>LFO Speed</em> shifts the whole internal rate range to Slow or Slowest",
             "CV Out is always active when not muted; jacks stay CV-only",
@@ -2480,7 +2480,7 @@
           "faderPlusFnTitle": "Morph",
           "faderPlusFnDescription": "While the internal LFO runs, Btn0 hold + fader scrubs morph.",
           "fnTitle": "Mute / Mode",
-          "fnDescription": "Short tap mutes the output. Long press cycles LP → HP → BP → Notch on release.",
+          "fnDescription": "Short tap mutes the output. Long press cycles LP → HP → BP → Notch (mode color until release).",
           "fnPlusShiftTitle": "LFO Clock Sync",
           "fnPlusShiftDescription": "While the internal LFO runs, toggles free-running vs clock-synced. The button flashes when sync engages.",
           "ledTop": "Morph hue while the internal LFO runs; red offset level while Shift is held",
@@ -2488,13 +2488,15 @@
         },
         {
           "jackTitle": "CV Out",
-          "jackDescription": "Filtered CV output after attenuverter and offset.",
-          "faderTitle": "Q / Att",
-          "faderDescription": "Main: filter resonance (stable, no self-oscillation). Alt: output attenuverter.",
+          "jackDescription": "Dry/wet mix of the filter source and filtered CV, after attenuverter and offset.",
+          "faderTitle": "Q / Att / Dry·Wet",
+          "faderDescription": "Main: filter resonance (stable, no self-oscillation). Alt: output attenuverter. Third (Btn1 hold): dry/wet (0 = pre-filter source, full = filtered).",
           "faderPlusShiftTitle": "Attenuverter",
-          "faderPlusShiftDescription": "Scales the filtered signal before the jack.",
-          "ledTop": "Output level in the app colour, or red att level while Shift is held",
-          "ledBottom": "Output level in the app colour, or red att level while Shift is held"
+          "faderPlusShiftDescription": "Scales the mixed signal before the jack.",
+          "faderPlusFnTitle": "Dry/Wet",
+          "faderPlusFnDescription": "Btn1 hold + fader: blend dry source into filtered output.",
+          "ledTop": "Output level, red att while Shift, or cyan dry/wet while Btn1 is held",
+          "ledBottom": "Output level, or red att while Shift is held"
         }
       ]
     }

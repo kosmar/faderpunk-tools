@@ -3839,12 +3839,79 @@
 
     function contrastOnLed(tag) {
       const hex = LED_CSS[tag] || "#888888";
-      const h = hex.replace("#", "");
+      return contrastOnHex(hex);
+    }
+
+    function contrastOnHex(hex) {
+      const h = String(hex || "#888888").replace("#", "");
+      if (h.length < 6) return "#ffffff";
       const r = parseInt(h.slice(0, 2), 16);
       const g = parseInt(h.slice(2, 4), 16);
       const b = parseInt(h.slice(4, 6), 16);
       const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return lum > 0.58 ? "#111111" : "#ffffff";
+    }
+
+    /** Match faderpunk `led_fx::hsv_to_rgb` (full sat). */
+    function fpHsvToCss(hue) {
+      let h = ((Number(hue) % 360) + 360) % 360;
+      const sector = Math.floor(h / 60);
+      const ramp = Math.round(((h % 60) * 255) / 59);
+      let r;
+      let g;
+      let b;
+      switch (sector) {
+        case 0:
+          r = 255;
+          g = ramp;
+          b = 0;
+          break;
+        case 1:
+          r = 255 - ramp;
+          g = 255;
+          b = 0;
+          break;
+        case 2:
+          r = 0;
+          g = 255;
+          b = ramp;
+          break;
+        case 3:
+          r = 0;
+          g = 255 - ramp;
+          b = 255;
+          break;
+        case 4:
+          r = ramp;
+          g = 0;
+          b = 255;
+          break;
+        default:
+          r = 255;
+          g = 0;
+          b = 255 - ramp;
+          break;
+      }
+      return `#${[r, g, b].map((x) => x.toString(16).padStart(2, "0")).join("")}`;
+    }
+
+    /** Match faderpunk `led_fx::color_hue` from an app Color tag. */
+    function fpCssHue(colorTag) {
+      const hex = (LED_CSS[colorTag] || "#00ffba").replace("#", "");
+      if (hex.length < 6) return 165;
+      const r = parseInt(hex.slice(0, 2), 16);
+      const g = parseInt(hex.slice(2, 4), 16);
+      const b = parseInt(hex.slice(4, 6), 16);
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      if (max === 0 || max - min < 8) return 0;
+      const d = max - min;
+      let h;
+      if (max === r) h = ((g - b) * 60) / d;
+      else if (max === g) h = 120 + ((b - r) * 60) / d;
+      else h = 240 + ((r - g) * 60) / d;
+      if (h < 0) h += 360;
+      return Math.round(h) % 360;
     }
 
     function appIconName(app) {
@@ -6446,7 +6513,7 @@
       const labels = new Map();
       const enumAllow = new Map();
       const enumLabels = new Map();
-      /** @type {{ hide: Set<number>, labels: Map<number,string>, enumAllow: Map<number, number[]>, enumLabels: Map<number, Map<number,string>>, echolotChSlots?: number[], echolotCcMode?: 'none'|'note'|'cc'|'both', ggMidiMode?: 'note'|'cc' }} */
+      /** @type {{ hide: Set<number>, labels: Map<number,string>, enumAllow: Map<number, number[]>, enumLabels: Map<number, Map<number,string>>, enumColors?: Map<number, Map<number,string>>, echolotChSlots?: number[], echolotCcMode?: 'none'|'note'|'cc'|'both', ggMidiMode?: 'note'|'cc' }} */
       const out = { hide, labels, enumAllow, enumLabels, echolotChSlots: null, echolotCcMode: null, ggMidiMode: null };
 
       if (row.app === "echolot") {
@@ -6619,6 +6686,15 @@
         }
         for (let i = 0; i <= 8; i++) if (!show.has(i)) hide.add(i);
         return out;
+      }
+
+      if (row.app === "semmy") {
+        // Filter Mode (param 2): LP/HP/BP/Notch — same hue offsets as firmware Semmy.
+        const base = fpCssHue(resolveFaderLedColor(row, 0));
+        const modeColors = new Map(
+          [0, 60, 120, 180].map((off, i) => [i, fpHsvToCss((base + off) % 360)]),
+        );
+        out.enumColors = new Map([[2, modeColors]]);
       }
 
       if (APPS_WITH_MIDI_MODE.has(row.app)) {
@@ -6807,14 +6883,23 @@
         const indices = allow && allow.length ? allow : variants.map((_, i) => i);
         const curRaw = Number(value?.value) || 0;
         const cur = indices.includes(curRaw) ? curRaw : indices[0] || 0;
+        const colorMap = deps?.enumColors?.get(pi);
         const opts = indices
           .map((i) => {
             const override = deps?.enumLabels?.get(pi)?.get(i);
             const lab = genreOptionLabel(override ?? variants[i] ?? String(i));
-            return `<option value="${i}" ${cur === i ? "selected" : ""}>${escapeHtml(lab)}</option>`;
+            const hex = colorMap?.get(i);
+            const style = hex
+              ? ` style="background:${escapeAttr(hex)};color:${escapeAttr(contrastOnHex(hex))}"`
+              : "";
+            return `<option value="${i}" ${cur === i ? "selected" : ""}${style}>${escapeHtml(lab)}</option>`;
           })
           .join("");
-        return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${title}">${opts}</select>`;
+        const curHex = colorMap?.get(cur);
+        const swatch = curHex
+          ? ` style="--led-swatch:${escapeAttr(curHex)}"`
+          : "";
+        return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${title}"${swatch}>${opts}</select>`;
       }
       if (tag === "i32" || tag === "f32") {
         const min = Number(param.value?.min);
