@@ -2462,7 +2462,10 @@
             "CV active: ch0 button shows the filter mode hue; ch1 meters the output",
             "LFO active: ch0 button and top LED use morph_color; mode flashes briefly after a long press",
             "Mute dims the ch0 button off; output parks at 0 V (unipolar) or mid-scale (bipolar)",
-            "<em>LFO Speed</em> shifts the whole internal rate range to Slow or Slowest"
+            "<em>LFO Speed</em> shifts the whole internal rate range to Slow or Slowest",
+            "CV Out is always active when not muted; jacks stay CV-only",
+            "MIDI Out ports mirror the same post-filter signal in parallel (mute silences MIDI too)",
+            "<em>MIDI Mode</em> CC — gated CC from filtered output; Note — two-octave pitch span from <em>Base Note</em>"
           ]
         }
       ],

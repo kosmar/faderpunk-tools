@@ -5156,6 +5156,30 @@
               "Slowest"
             ]
           }
+        },
+        {
+          "tag": "MidiMode"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "CC number"
+          }
+        },
+        {
+          "tag": "MidiOut"
         }
       ]
     }
