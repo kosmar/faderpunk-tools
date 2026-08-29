@@ -6810,7 +6810,7 @@
         const opts = indices
           .map((i) => {
             const override = deps?.enumLabels?.get(pi)?.get(i);
-            const lab = override ?? variants[i] ?? String(i);
+            const lab = genreOptionLabel(override ?? variants[i] ?? String(i));
             return `<option value="${i}" ${cur === i ? "selected" : ""}>${escapeHtml(lab)}</option>`;
           })
           .join("");
@@ -7269,7 +7269,7 @@
           ${names
             .map(
               (lab, i) =>
-                `<option value="${i}" ${cur === i ? "selected" : ""}>${lab}</option>`,
+                `<option value="${i}" ${cur === i ? "selected" : ""}>${escapeHtml(genreOptionLabel(lab))}</option>`,
             )
             .join("")}
         </select>`);

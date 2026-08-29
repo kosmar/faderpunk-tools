@@ -350,6 +350,15 @@
         "MIDI In: which input ports this app listens on (separate from MIDI Out above)",
       "param.lfoSpeed": "LFO Speed",
       "param.groove": "Groove / genre",
+      "genre.color.dub": "Red-Orange",
+      "genre.color.disco": "Orange",
+      "genre.color.house": "Yellow",
+      "genre.color.techno": "Lime",
+      "genre.color.tripHop": "Green",
+      "genre.color.hipHop": "Spring Green",
+      "genre.color.jungle": "Cyan",
+      "genre.color.ukGarage": "Sky Blue",
+      "genre.color.dubstep": "Blue",
       "param.swingHint": "Max swing as % of a 16th when fader is full",
       "param.cvRange": "CV Range",
       "param.mixMode": "Mix Mode",
@@ -702,6 +711,15 @@
         "MIDI In: welche Eingänge diese App abhört (unabhängig vom MIDI Out oben)",
       "param.lfoSpeed": "LFO Speed",
       "param.groove": "Groove / genre",
+      "genre.color.dub": "Rot-Orange",
+      "genre.color.disco": "Orange",
+      "genre.color.house": "Gelb",
+      "genre.color.techno": "Lime",
+      "genre.color.tripHop": "Grün",
+      "genre.color.hipHop": "Frühlingsgrün",
+      "genre.color.jungle": "Cyan",
+      "genre.color.ukGarage": "Himmelblau",
+      "genre.color.dubstep": "Blau",
       "param.swingHint":
         "Max. Swing als % einer 16tel bei voll ausgeschlagenem Fader",
       "param.cvRange": "CV Range",
@@ -1106,6 +1124,15 @@
         "MIDI In : ports d\u2019entrée écoutés par cette app (indépendant du MIDI Out ci-dessus)",
       "param.lfoSpeed": "LFO Speed",
       "param.groove": "Groove / genre",
+      "genre.color.dub": "Rouge-orangé",
+      "genre.color.disco": "Orange",
+      "genre.color.house": "Jaune",
+      "genre.color.techno": "Lime",
+      "genre.color.tripHop": "Vert",
+      "genre.color.hipHop": "Vert printemps",
+      "genre.color.jungle": "Cyan",
+      "genre.color.ukGarage": "Bleu ciel",
+      "genre.color.dubstep": "Bleu",
       "param.swingHint":
         "Swing max en % d’une 16e quand le fader est à fond",
       "param.cvRange": "CV Range",
@@ -1300,4 +1327,27 @@
   global.setLang = setLang;
   global.getLang = getLang;
   global.FP_LANG_KEY = LANG_KEY;
+
+  /** Shared morph-axis genres (Grooves / Chord Vamp / Bassment). LED hues 0–240°. */
+  const GENRE_COLOR_KEYS = {
+    Dub: "genre.color.dub",
+    Disco: "genre.color.disco",
+    House: "genre.color.house",
+    Techno: "genre.color.techno",
+    "Trip-Hop": "genre.color.tripHop",
+    "Hip-Hop": "genre.color.hipHop",
+    Jungle: "genre.color.jungle",
+    "UK Garage": "genre.color.ukGarage",
+    Dubstep: "genre.color.dubstep",
+  };
+
+  function genreOptionLabel(variant) {
+    const v = String(variant ?? "");
+    const key = GENRE_COLOR_KEYS[v];
+    if (!key) return v;
+    return `${v} — ${t(key)}`;
+  }
+
+  global.GENRE_COLOR_KEYS = GENRE_COLOR_KEYS;
+  global.genreOptionLabel = genreOptionLabel;
 })(typeof window !== "undefined" ? window : globalThis);
