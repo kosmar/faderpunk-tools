@@ -302,16 +302,18 @@ export const SPAWN_DEFER_APP_IDS = new Set([35, 106]);
 function spawnSortTier(slot) {
   if (!slot?.app) return 0;
   const id = Number(slot.app.appId);
-  if (SPAWN_DEFER_APP_IDS.has(id) || slot.app.name === "Chord Vamp") return 3;
+  if (SPAWN_DEFER_APP_IDS.has(id) || slot.app.name === "Chord Vamp") return 4;
   const channels = Math.max(1, Number(slot.app.channels) || 1);
   if (channels >= 2 && channels < 4) return 1;
   if (channels >= 4) return 2;
-  return 0;
+  const startChannel = Number(slot.startChannel);
+  if (channels === 1 && startChannel < 4) return 0;
+  return 3;
 }
 
 /**
  * Incremental Full Push order:
- * all 1ch (Grooves…Umbra, Turing, Controls) → 2–3ch (Semmy) → ≥4ch (Ripppple) → Chord Vamp.
+ * early 1ch (ch0–3) → 2–3ch (Semmy) → ≥4ch (Ripppple) → remaining 1ch → Chord Vamp.
  * Within each tier, physical channel order avoids sparse prefixes.
  */
 export function compareSpawnOrder(a, b) {
@@ -1361,30 +1363,6 @@ async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
     const channels = Number(slot.app?.channels) || 1;
-
-    // Second multi-ch under continuous Hold wedges USB; Release+re-Hold resets
-    // before Ripppple/Semmy#2.
-    const priorMultiCh = growing
-      .slice(0, -1)
-      .some((s) => Number(s.app?.channels) > 1);
-    if (channels > 1 && priorMultiCh) {
-      log(`  Hold refresh before second multi-ch (${name}) …`);
-      const released = await releasePerfMute(cfg, log, " (before 2nd multi)");
-      if (!released) {
-        throw new Error("ReleasePerfMute failed before second multi-ch spawn");
-      }
-      await delay(2000);
-      try {
-        await probeConfigCable(cfg);
-      } catch (e) {
-        log(`  ⚠ cable probe after Release (2nd multi): ${e.message || e}`);
-      }
-      const reheld = await holdPerfMute(cfg, log, " (before 2nd multi)");
-      if (!reheld) {
-        throw new Error("HoldPerfMute failed before second multi-ch spawn");
-      }
-      await delay(300);
-    }
 
     let pauseMs = incrementalSpawnQuietMs(
       slot,

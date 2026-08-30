@@ -573,7 +573,7 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
   assert.equal(incrementalSpawnQuietMs(ripppple, 10, 12, [semmy]), 12000);
 });
 
-test("compareSpawnOrder: 2–3ch spawns after low 1ch, before ≥4ch (Semmy)", () => {
+test("compareSpawnOrder: 2–3ch spawns after early 1ch, before ≥4ch (Semmy)", () => {
   const slots = [
     {
       id: 10,
@@ -609,7 +609,42 @@ test("compareSpawnOrder: 2–3ch spawns after low 1ch, before ≥4ch (Semmy)", (
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.name),
-    ["Grooves", "Turing", "Control", "Control", "Semmy", "Ripppple"],
+    ["Grooves", "Semmy", "Ripppple", "Turing", "Control", "Control"],
+  );
+});
+
+test("compareSpawnOrder: Zeta tier order (early 1ch → multis → late 1ch)", () => {
+  const slots = [
+    { id: 5, app: { appId: 115, channels: 4, name: "Ripppple" }, startChannel: 6 },
+    { id: 9, app: { appId: 122, channels: 1, name: "Turing" }, startChannel: 13 },
+    { id: 11, app: { appId: 2, channels: 1, name: "Control" }, startChannel: 15 },
+    { id: 4, app: { appId: 120, channels: 2, name: "Semmy" }, startChannel: 4 },
+    { id: 7, app: { appId: 113, channels: 1, name: "Contura" }, startChannel: 11 },
+    { id: 0, app: { appId: 101, channels: 1, name: "Grooves" }, startChannel: 0 },
+    { id: 6, app: { appId: 117, channels: 1, name: "Loop" }, startChannel: 10 },
+    { id: 1, app: { appId: 112, channels: 1, name: "Bassment" }, startChannel: 1 },
+    { id: 8, app: { appId: 121, channels: 1, name: "Umbra" }, startChannel: 12 },
+    { id: 2, app: { appId: 114, channels: 1, name: "Dit Dah" }, startChannel: 2 },
+    { id: 10, app: { appId: 1, channels: 1, name: "Control" }, startChannel: 14 },
+    { id: 3, app: { appId: 116, channels: 1, name: "Maniac" }, startChannel: 3 },
+  ];
+  const ordered = [...slots].sort(compareSpawnOrder);
+  assert.deepEqual(
+    ordered.map((s) => s.app.name),
+    [
+      "Grooves",
+      "Bassment",
+      "Dit Dah",
+      "Maniac",
+      "Semmy",
+      "Ripppple",
+      "Loop",
+      "Contura",
+      "Umbra",
+      "Turing",
+      "Control",
+      "Control",
+    ],
   );
 });
 
