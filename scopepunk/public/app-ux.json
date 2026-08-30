@@ -1999,7 +1999,8 @@
             "Per-set melodic feel (contour / leap / sustain / ornament) — expressivity is not a fader",
             "Ornaments = short grace, turn or repeat from feel + phrase position — not genre clichés; off when Division is too fine",
             "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
-            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset · CV In Phrase — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input"
+            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset · CV In Phrase — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input",
+            "<strong>Umbra</strong> (121) — bass shadow companion: shared scale sets, same latch shell, independent phrases and BassFeel"
           ]
         }
       ],
@@ -2248,16 +2249,16 @@
           "items": [
             "<strong>Main</strong> — Dit length (maps 30 ms up to four 16ths of the clock)",
             "<strong>Alt</strong> — Pitch offset ±48 st around the base note",
-            "<strong>Third</strong> — Dah extra interval (deadzone; uses the Interval param). Main/Alt/Third mappings flip at playback when inverted"
+            "<strong>Third</strong> — Extra interval (deadzone; Interval param). On dahs normally; on dits when inverted"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short</strong> — Mute / unmute (phrase keeps its place; Button LED off when muted, orange when live+normal, white when live+inverted)",
+            "<strong>Short</strong> — Mute / unmute (phrase keeps its place; Button LED off when muted, orange when live)",
             "<strong>Shift + short</strong> — Toggle texture: random MIDI velocity and swing on odd 16ths (Bottom LED white when on)",
             "<strong>Long</strong> — Arm / retrigger on the next 16th (clock Reset also arms when idle)",
-            "<strong>Shift + long</strong> — Toggle invert: swap dit↔dah lengths and flip Main/Alt/Third fader mappings at playback"
+            "<strong>Shift + long</strong> — Toggle invert: swap the Third extra interval from dahs onto dits (rhythm stays). Button fades white↔off"
           ]
         }
       ],
@@ -2270,11 +2271,11 @@
           "faderPlusShiftTitle": "Pitch offset",
           "faderPlusShiftDescription": "Bipolar transposition of the whole phrase around Base note, up to ±48 semitones.",
           "faderPlusFnTitle": "Dah interval",
-          "faderPlusFnDescription": "Adds the Interval param onto dahs only (deadzone around centre). Dits stay on the Alt-offset pitch.",
+          "faderPlusFnDescription": "Adds the Interval param onto dahs only (deadzone around centre). Invert swaps that extra onto dits; rhythm stays ITU.",
           "fnTitle": "Mute / long = re-arm",
           "fnDescription": "Short tap mutes MIDI and CV. Long press arms playback on the next 16th.",
           "fnPlusShiftTitle": "Texture / invert",
-          "fnPlusShiftDescription": "Shift+short toggles texture (random MIDI velocity + odd-16th swing). Shift+long inverts dit↔dah and flips speed/pitch at playback.",
+          "fnPlusShiftDescription": "Shift+short toggles texture (random MIDI velocity + odd-16th swing). Shift+long swaps dit/dah pitch assignment; the button fades white↔off.",
           "ledTop": "Orange high while a tone is sounding",
           "ledBottom": "White when texture is on; off when texture is off"
         }
@@ -2497,6 +2498,62 @@
           "faderPlusFnDescription": "Btn1 hold + fader: blend dry source into filtered output.",
           "ledTop": "Output level, red att while Shift, or cyan dry/wet while Btn1 is held",
           "ledBottom": "Output level, or red att while Shift is held"
+        }
+      ]
+    },
+    "121": {
+      "id": 121,
+      "name": "Umbra",
+      "blurb": "Bass shadow companion to Contura — root/5th/approach lines over shared 12-TET scale sets, anchored to the device tonic",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — interval wander (distance-from-root budget: tight root/5th ↔ wider bass motion)",
+            "<strong>Alt</strong> (Shift) — phrase length only (3–28 steps; independent from Contura)",
+            "<strong>Third</strong> (Btn hold) — hybrid density (sparse rests ↔ continuous; mid+ adds ghost approaches)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Short</strong> — mute / unmute",
+            "<strong>Shift+Short</strong> — octave span 1→2",
+            "<strong>Long</strong> — next scale set",
+            "<strong>Shift+Long</strong> — previous scale set"
+          ]
+        },
+        {
+          "heading": "Scale sets / LEDs",
+          "items": [
+            "Same flat list of named 12-TET sets as Contura (Ionian…Folk) — conventional interval-pattern labels, not cultural claims",
+            "Follow device tonic (default on); Follow device scale uses the global Key mask instead of the selected set",
+            "Per-set BassFeel (root bias / approach weight / ghost density / octave-punch) — no voice personas",
+            "Bass ornaments = diatonic approaches, ghost neighbours and octave-punch from BassFeel + phrase position — not Contura’s contour ornaments",
+            "Base Note default ~36 (C2); pitch hard-folds within Base±1 octave",
+            "Button hue cycles by scale index · Top = gate · Bottom = pitch height · Division via config (default 1/8)",
+            "Jack = CV Out (pitch) · CV In Density · CV In Interval · CV In Reset · CV In Phrase — one enum, since a CV In destination and CV Out were never live at once; CV Att scales input",
+            "<strong>Contura</strong> (113) — melodic contour companion above; phrases stay independent, sync only via Follow device tonic/scale"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "Pitch CV / CV In",
+          "jackDescription": "CV Out: quantized bass pitch (1V/oct / range). CV In: modulates Density, Interval or Phrase, or Reset (gate) — Dest + Att in Configurator. Gate is MIDI note on/off.",
+          "faderTitle": "Interval",
+          "faderDescription": "Wander budget from the root — bottom stays on root/5th, mid opens diatonic approaches, top allows wider distance-from-root motion within the octave span",
+          "faderPlusShiftTitle": "Phrase length",
+          "faderPlusShiftDescription": "How many steps before the bass line resets (3–28); independent from Contura’s phrase clock",
+          "faderPlusFnTitle": "Density",
+          "faderPlusFnDescription": "Hybrid note rate — sparse rests ↔ continuous; mid and up add ghost approach notes between main hits",
+          "fnTitle": "Mute",
+          "fnDescription": "Short press mutes/unmutes. Long press steps to the next scale set.",
+          "fnPlusShiftTitle": "Octaves / scale",
+          "fnPlusShiftDescription": "Shift+Short = octave span 1→2 · Shift+Long = previous scale set",
+          "ledTop": "Gate / note-on cue (app color)",
+          "ledTopPlusShift": "Octave-span color blink after Shift+Short",
+          "ledBottom": "Pitch height within the current span"
         }
       ]
     }

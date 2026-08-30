@@ -1,4 +1,8 @@
-/** First firmware whose GlobalConfig matches current postcard bindings. */
+/** First firmware whose GlobalConfig matches current postcard bindings.
+ *  Bump `MIN_FIRMWARE` + `MIN_FIRMWARE_LABEL` (and i18n `fw.header` / `fw.tooOld*`)
+ *  whenever that wire shape grows — see faderpunk-firmware-bootsel skill
+ *  (Presetpunk + GitHub Pages → firmware floor).
+ */
 export const MIN_FIRMWARE = { major: 1, minor: 12, patch: 0 };
 export const MIN_FIRMWARE_LABEL = "1.12.0-beta.0";
 /** `/releases/latest` skips prereleases and currently lands on 1.11.0. */

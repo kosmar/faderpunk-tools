@@ -2846,7 +2846,12 @@
           }
         },
         {
-          "tag": "None"
+          "tag": "i32",
+          "value": {
+            "name": "MIDI Map",
+            "min": 0,
+            "max": 268435455
+          }
         }
       ]
     },
@@ -5180,6 +5185,167 @@
         },
         {
           "tag": "MidiOut"
+        }
+      ]
+    },
+    {
+      "id": 121,
+      "slug": "umbra",
+      "module": "umbra",
+      "channels": 1,
+      "name": "Umbra",
+      "description": "Bass shadow companion to Contura - root, fifth, and approach lines over shared scale sets",
+      "color": "Violet",
+      "icon": "Note",
+      "params": [
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Yellow"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Orange"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_0_5V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Scale set",
+            "variants": [
+              "Ionian",
+              "Dorian",
+              "Phrygian",
+              "Mixolydian",
+              "Aeolian",
+              "Pent Maj",
+              "Pent Min",
+              "Blues Min",
+              "In Sen",
+              "Yo",
+              "Hirajoshi",
+              "Bhairav",
+              "Kafi",
+              "Bhupali",
+              "Hijaz",
+              "Bayati",
+              "Rast",
+              "Gamelan",
+              "Hungarian",
+              "Folk"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Division",
+            "variants": [
+              "4/1",
+              "2/1",
+              "1/1",
+              "1/2",
+              "1/4",
+              "1/4T",
+              "1/8",
+              "1/8T",
+              "1/16",
+              "1/16T",
+              "1/32",
+              "1/32T",
+              "1/64T"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack",
+            "variants": [
+              "CV Out",
+              "CV In Density",
+              "CV In Interval",
+              "CV In Reset",
+              "CV In Phrase"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CV Att",
+            "min": 0,
+            "max": 400
+          }
         }
       ]
     }
