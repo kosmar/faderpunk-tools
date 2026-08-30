@@ -1272,6 +1272,8 @@ async function applyDenseHoldLayoutSpawn(
   const framMs = estimatePostGateFramMs(n);
   const layoutStartedAt = Date.now();
   const active = appLayout.filter((s) => s.app).length;
+  // Quiet only — GetVersion polls + reconnect during Hold+spawn wedge USB
+  // (clear path already uses quietMs; ensureCableAfterSpawn checks later).
   cfg = await applySetLayout(
     cfg,
     appLayout,
@@ -1279,15 +1281,15 @@ async function applyDenseHoldLayoutSpawn(
     LAYOUT_SETTLE_LIVE_MS,
     deviceRef,
     label ?? `SetLayout (${active} apps)`,
-    { headStartMs: 2000, pollBudgetMs: 6000 },
+    { quietMs: spawnBudgetMs },
   );
   const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
   if (staggerLeft > 0) {
     log(
-      `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+      `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, no SysEx) …`,
     );
     await delayKeepalive(cfg, staggerLeft, {
-      probe: true,
+      probe: false,
       label: "spawn stagger",
       onLog: log,
     });
