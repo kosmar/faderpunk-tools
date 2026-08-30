@@ -565,8 +565,8 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
     app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
     startChannel: 0,
   };
-  // latePacked 8000 + ramp (cap 12s for 4ch)
-  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 9200);
+  // latePacked 8000 + dense ramp (cap 12s for 4ch)
+  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 9500);
   assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 9200);
   assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
   // Dense prior + 4ch → full 12s floor (Zeta Ripppple after Semmy)
