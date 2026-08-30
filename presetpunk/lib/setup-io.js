@@ -304,14 +304,14 @@ function spawnSortTier(slot) {
   const id = Number(slot.app.appId);
   if (SPAWN_DEFER_APP_IDS.has(id) || slot.app.name === "Chord Vamp") return 3;
   const channels = Math.max(1, Number(slot.app.channels) || 1);
-  if (channels >= 4) return 1;
-  if (channels >= 2) return 2;
+  if (channels >= 2 && channels < 4) return 1;
+  if (channels >= 4) return 2;
   return 0;
 }
 
 /**
  * Incremental Full Push order:
- * all 1ch (Grooves…Umbra, Turing, Controls) → ≥4ch (Ripppple) → 2–3ch (Semmy) → Chord Vamp.
+ * all 1ch (Grooves…Umbra, Turing, Controls) → 2–3ch (Semmy) → ≥4ch (Ripppple) → Chord Vamp.
  * Within each tier, physical channel order avoids sparse prefixes.
  */
 export function compareSpawnOrder(a, b) {
@@ -370,7 +370,7 @@ export function incrementalSpawnQuietMs(slot, index, total, alreadyRunning = [])
   if (index > 0 && priorMulti) {
     base = Math.max(base, 4000);
   }
-  // Ripppple@8 under Hold: Semmy after a 4ch app needs the dense floor even when
+  // Ripppple@8 under Hold: 4ch after Semmy still needs the dense floor even when
   // index is not latePacked the same way as a trailing heavy 1ch.
   if (index > 0 && prior4ch) {
     base = Math.max(base, SPAWN_QUIET_CAP_MS);

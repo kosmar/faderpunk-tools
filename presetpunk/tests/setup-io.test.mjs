@@ -573,7 +573,7 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
   assert.equal(incrementalSpawnQuietMs(ripppple, 10, 12, [semmy]), 12000);
 });
 
-test("compareSpawnOrder: ≥4ch spawns after low 1ch, before multi-ch (Ripppple)", () => {
+test("compareSpawnOrder: 2–3ch spawns after low 1ch, before ≥4ch (Semmy)", () => {
   const slots = [
     {
       id: 10,
@@ -598,13 +598,18 @@ test("compareSpawnOrder: ≥4ch spawns after low 1ch, before multi-ch (Ripppple)
     {
       id: 9,
       app: { appId: 1, channels: 1, paramCount: 11, name: "Control" },
+      startChannel: 10,
+    },
+    {
+      id: 12,
+      app: { appId: 2, channels: 1, paramCount: 11, name: "Control" },
       startChannel: 11,
     },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.name),
-    ["Grooves", "Turing", "Control", "Ripppple", "Semmy"],
+    ["Grooves", "Turing", "Control", "Control", "Semmy", "Ripppple"],
   );
 });
 
@@ -645,7 +650,7 @@ test("incrementalSpawnQuietMs: late heavy 1ch gets the multi-ch quiet floor", ()
   assert.equal(incrementalSpawnQuietMs(vamp, 1, 14), 800);
 });
 
-test("incrementalSpawnQuietMs: growing after prior 4ch uses dense floor (Zeta Ripppple→Semmy)", () => {
+test("incrementalSpawnQuietMs: growing after prior multi-ch uses 4ch floor (Zeta Semmy→Ripppple)", () => {
   const ripppple = {
     id: 10,
     app: { appId: 115, channels: 4, paramCount: 12, name: "Ripppple" },
@@ -656,8 +661,8 @@ test("incrementalSpawnQuietMs: growing after prior 4ch uses dense floor (Zeta Ri
     app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
     startChannel: 12,
   };
-  // index 3 is before latePacked — without prior4ch floor Semmy would stay at 1200ms.
-  assert.equal(incrementalSpawnQuietMs(semmy, 3, 12, [ripppple]), 8000);
+  // index 3 is before latePacked — without 4ch floor Ripppple would stay at 4000ms.
+  assert.equal(incrementalSpawnQuietMs(ripppple, 3, 12, [semmy]), 12000);
 });
 
 test("incrementalSpawnQuietMs: growing after multi-ch uses a long floor (Beta Semmy→Control)", () => {
