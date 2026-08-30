@@ -11,6 +11,16 @@
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
       "lang.label": "Language",
+      "fw.header": "firmware ≥ 1.12.0-beta.0",
+      "fw.headerTitle":
+        "MIDI SysEx since 1.11; GlobalConfig shape since 1.12.0-beta.0. 1.11.0 is not enough.",
+      "fw.releasesLink": "Releases",
+      "fw.tooOldTitle": "Firmware too old",
+      "fw.tooOldBody":
+        "This Faderpunk reports {have}. Presetpunk needs firmware ≥ {need}.\n\n1.11.0 is not enough (GlobalConfig grew). Flash 1.12.0-beta or newer — GitHub’s “latest” stable is still 1.11.0.",
+      "fw.getLatest": "Open releases",
+      "fw.tooOldHtml":
+        "This Faderpunk reports <strong>{have}</strong>. Presetpunk needs firmware ≥ {need}.<br><br>1.11.0 is not enough (GlobalConfig grew). Flash 1.12.0-beta or newer from <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Releases</a> — GitHub’s “latest” stable is still 1.11.0.",
 
       "push.fabTitle": "Push the active preset to the Faderpunk",
       "push.fabNoDevice":
@@ -408,6 +418,16 @@
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
       "lang.label": "Sprache",
+      "fw.header": "Firmware ≥ 1.12.0-beta.0",
+      "fw.headerTitle":
+        "MIDI-SysEx seit 1.11; GlobalConfig-Form seit 1.12.0-beta.0. 1.11.0 reicht nicht.",
+      "fw.releasesLink": "Releases",
+      "fw.tooOldTitle": "Firmware zu alt",
+      "fw.tooOldBody":
+        "Dieses Faderpunk meldet {have}. Presetpunk braucht Firmware ≥ {need}.\n\n1.11.0 reicht nicht (GlobalConfig hat sich geändert). 1.12.0-beta oder neuer flashen — GitHubs „Latest“-Stable ist noch 1.11.0.",
+      "fw.getLatest": "Releases öffnen",
+      "fw.tooOldHtml":
+        "Dieses Faderpunk meldet <strong>{have}</strong>. Presetpunk braucht Firmware ≥ {need}.<br><br>1.11.0 reicht nicht (GlobalConfig hat sich geändert). 1.12.0-beta oder neuer flashen: <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Releases</a> — GitHubs „Latest“-Stable ist noch 1.11.0.",
 
       "push.fabTitle": "Aktives Preset zum Faderpunk: Push",
       "push.fabNoDevice":
@@ -821,6 +841,16 @@
       "doc.title": "Presetpunk",
       "app.h1": "Presetpunk",
       "lang.label": "Langue",
+      "fw.header": "firmware ≥ 1.12.0-beta.0",
+      "fw.headerTitle":
+        "SysEx MIDI depuis 1.11 ; forme GlobalConfig depuis 1.12.0-beta.0. 1.11.0 ne suffit pas.",
+      "fw.releasesLink": "Releases",
+      "fw.tooOldTitle": "Firmware trop ancien",
+      "fw.tooOldBody":
+        "Ce Faderpunk annonce {have}. Presetpunk exige le firmware ≥ {need}.\n\n1.11.0 ne suffit pas (GlobalConfig a changé). Flasher 1.12.0-beta ou plus récent — le « latest » stable GitHub est encore 1.11.0.",
+      "fw.getLatest": "Ouvrir les releases",
+      "fw.tooOldHtml":
+        "Ce Faderpunk annonce <strong>{have}</strong>. Presetpunk exige le firmware ≥ {need}.<br><br>1.11.0 ne suffit pas (GlobalConfig a changé). Flasher 1.12.0-beta ou plus récent : <a href=\"{url}\" target=\"_blank\" rel=\"noopener noreferrer\">GitHub Releases</a> — le « latest » stable GitHub est encore 1.11.0.",
 
       "push.fabTitle": "Push le preset actif vers le Faderpunk",
       "push.fabNoDevice":

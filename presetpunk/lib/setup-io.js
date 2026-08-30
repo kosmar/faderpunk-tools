@@ -15,6 +15,18 @@ import {
   createPanicBeaconCollector,
   formatPanicSite,
 } from "./panic-beacon.js";
+import { assertFirmwareSupported } from "./fw-compat.js";
+
+async function connectSupportedDevice() {
+  const device = await connectDevice();
+  try {
+    assertFirmwareSupported(device.config.version);
+  } catch (err) {
+    disconnectDevice(device);
+    throw err;
+  }
+  return device;
+}
 
 /** Live app swap / row edit — one (or few) slots respawn, shorter settle. */
 const LAYOUT_SETTLE_LIVE_MS = 3500;
@@ -1144,7 +1156,7 @@ async function waitForSlotReady(
         disconnectDevice(deviceRef.device);
         await delay(1000);
         try {
-          deviceRef.device = await connectDevice();
+          deviceRef.device = await connectSupportedDevice();
           cfg = deviceRef.device.config;
           log(
             `  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`,
@@ -1235,7 +1247,7 @@ async function applySetLayout(
   log("  retry: reconnect Web MIDI …");
   disconnectDevice(deviceRef.device);
   await delay(800);
-  deviceRef.device = await connectDevice();
+  deviceRef.device = await connectSupportedDevice();
   log(
     `  reconnected · fw ${deviceRef.device.config.version} · ${deviceRef.device.portSummary}`,
   );
@@ -1482,7 +1494,7 @@ async function applySetLayoutIncremental(
           log("  retry: reconnect + wait ready + SetAppParams …");
           disconnectDevice(deviceRef.device);
           await delay(1000);
-          deviceRef.device = await connectDevice();
+          deviceRef.device = await connectSupportedDevice();
           cfg = deviceRef.device.config;
           log(`  reconnected · fw ${cfg.version} · ${deviceRef.device.portSummary}`);
           await delay(SET_PARAMS_SPAWN_RETRY_MS);
@@ -1620,7 +1632,7 @@ async function waitForAllSlotsReady(
       disconnectDevice(deviceRef.device);
       await delay(800);
       try {
-        deviceRef.device = await connectDevice();
+        deviceRef.device = await connectSupportedDevice();
         cfg = deviceRef.device.config;
         log(
           `  reconnected · fw ${deviceRef.device.config.version} · ${deviceRef.device.portSummary}`,
@@ -1860,7 +1872,7 @@ export async function pullSetupFromDevice(opts = {}) {
   let device;
   try {
     log("Connecting via Web MIDI …");
-    device = await connectDevice();
+    device = await connectSupportedDevice();
     log(`Connected · fw ${device.config.version} · ${device.portSummary}`);
     const { config } = device;
 
@@ -1983,7 +1995,7 @@ export async function pushSetupToDevice(setup, opts = {}) {
   let device;
   try {
     log("Connecting via Web MIDI …");
-    device = await connectDevice();
+    device = await connectSupportedDevice();
     log(`Connected · fw ${device.config.version} · ${device.portSummary}`);
     const deviceRef = { device };
 
@@ -2032,7 +2044,7 @@ export async function pushGlobalConfigToDevice(globalConfig, opts = {}) {
   let device;
   try {
     log("Connecting via Web MIDI …");
-    device = await connectDevice();
+    device = await connectSupportedDevice();
     log(`Connected · fw ${device.config.version} · ${device.portSummary}`);
     log("SetGlobalConfig …");
     await sendMessage(device.config, {
@@ -2075,7 +2087,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
   let config;
   try {
     log("Connecting via Web MIDI …");
-    device = await connectDevice();
+    device = await connectSupportedDevice();
     log(`Connected · fw ${device.config.version} · ${device.portSummary}`);
     const deviceRef = { device };
     const allApps = await getAllApps(deviceRef.device.config, log);
@@ -2229,7 +2241,7 @@ export async function pushAppParamsToDevice(layoutId, values, opts = {}) {
   const hostPadded = padParams(values);
   let device;
   try {
-    device = await connectDevice();
+    device = await connectSupportedDevice();
     const { config } = device;
     drainConfigQueue(config.rx);
     if (opts.expectAppId != null) {

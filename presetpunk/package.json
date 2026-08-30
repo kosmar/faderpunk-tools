@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check midi-sync.mjs && node --check i18n.js && node --check lib/sysex.js && node --check lib/device.js && node --check lib/setup-io.js && node --check lib/fp-midi.js",
+    "check": "node --check server.mjs && node --check midi-sync.mjs && node --check i18n.js && node --check lib/sysex.js && node --check lib/device.js && node --check lib/fw-compat.js && node --check lib/setup-io.js && node --check lib/fp-midi.js",
     "pretest": "mkdir -p node_modules/@atov && ln -sfn ../../vendor/fp-config node_modules/@atov/fp-config",
     "test": "node --test tests/"
   }

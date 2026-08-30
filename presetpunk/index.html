@@ -352,6 +352,13 @@
       font-weight: 450;
       margin-right: 0.35em;
     }
+    .compat-note .fw-need {
+      margin-right: 0.45em;
+    }
+    .compat-note .fw-sep {
+      opacity: 0.45;
+      margin: 0 0.2em;
+    }
     .compat-note a {
       color: var(--fp-yellow);
       text-decoration: underline;
@@ -2248,6 +2255,11 @@
     }
     .modal h2 { margin: 0 0 10px; font-size: 16px; font-weight: 450; }
     .modal p { margin: 0 0 14px; white-space: pre-wrap; color: var(--text); line-height: 1.5; }
+    .modal p a {
+      color: var(--fp-yellow);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     .modal-actions button { min-width: 88px; }
     .led-muted { color: var(--muted); font-size: 11px; }
@@ -2294,6 +2306,10 @@
         <h1 data-i18n="app.h1">Presetpunk</h1>
         <p class="compat-note">
           <span class="app-ver" title="">v0.1.0</span>
+          <span class="fw-sep" aria-hidden="true">·</span>
+          <span class="fw-need" data-i18n="fw.header" data-i18n-title="fw.headerTitle" title="MIDI SysEx since 1.11; GlobalConfig shape since 1.12.0-beta.0. 1.11.0 is not enough.">firmware ≥ 1.12.0-beta.0</span>
+          <span class="fw-sep" aria-hidden="true">·</span>
+          <a class="fw-releases" href="https://github.com/ATOVproject/faderpunk/releases" target="_blank" rel="noopener noreferrer" data-i18n="fw.releasesLink">Releases</a>
         </p>
       </div>
     </div>
@@ -2766,7 +2782,7 @@
     }
 
     /** In-page dialog — native confirm/alert often auto-dismiss in Cursor/embedded browsers */
-    function uiConfirm(message, { title = t("modal.confirm"), ok = t("modal.continue"), cancel = t("modal.stop") } = {}) {
+    function uiConfirm(message, { title = t("modal.confirm"), ok = t("modal.continue"), cancel = t("modal.stop"), html = false } = {}) {
       return new Promise((resolve) => {
         const root = document.getElementById("modal");
         const btnOk = document.getElementById("modalOk");
@@ -2774,7 +2790,9 @@
         const btnAlt = document.getElementById("modalAlt");
         const btnAlt2 = document.getElementById("modalAlt2");
         document.getElementById("modalTitle").textContent = title;
-        document.getElementById("modalBody").textContent = message;
+        const body = document.getElementById("modalBody");
+        if (html) body.innerHTML = message;
+        else body.textContent = message;
         btnOk.textContent = ok;
         btnCancel.textContent = cancel;
         btnCancel.hidden = false;
@@ -2856,7 +2874,7 @@
       });
     }
 
-    function uiAlert(message, { title = t("modal.title"), ok = t("modal.ok") } = {}) {
+    function uiAlert(message, { title = t("modal.title"), ok = t("modal.ok"), html = false } = {}) {
       return new Promise((resolve) => {
         const root = document.getElementById("modal");
         const btnOk = document.getElementById("modalOk");
@@ -2864,7 +2882,9 @@
         const btnAlt = document.getElementById("modalAlt");
         const btnAlt2 = document.getElementById("modalAlt2");
         document.getElementById("modalTitle").textContent = title;
-        document.getElementById("modalBody").textContent = message;
+        const body = document.getElementById("modalBody");
+        if (html) body.innerHTML = message;
+        else body.textContent = message;
         btnOk.textContent = ok;
         btnCancel.hidden = true;
         if (btnAlt) btnAlt.hidden = true;
@@ -2883,6 +2903,23 @@
         };
         btnOk.focus();
       });
+    }
+
+    async function alertFirmwareTooOld(err) {
+      const midi = window.FpMidi;
+      const have = err?.have || "?";
+      const need = err?.need || midi?.MIN_FIRMWARE_LABEL || "1.12.0-beta.0";
+      const url =
+        err?.url ||
+        midi?.FIRMWARE_RELEASES_URL ||
+        "https://github.com/ATOVproject/faderpunk/releases";
+      const go = await uiConfirm(t("fw.tooOldHtml", { have, need, url }), {
+        title: t("fw.tooOldTitle"),
+        ok: t("fw.getLatest"),
+        cancel: t("modal.ok"),
+        html: true,
+      });
+      if (go) window.open(url, "_blank", "noopener,noreferrer");
     }
 
     /**
@@ -9833,6 +9870,8 @@
     let devicePortsPresent = false;
     /** Live queue frozen after USB wedge / GetVersion failure until replug. */
     let liveUsbWedged = false;
+    /** Firmware-too-old dialog once per connected stretch. */
+    let firmwareTooOldAlerted = false;
     /** Timestamp when Faderpunk ports went absent (replug debounce). */
     let portsGoneAt = 0;
     let midiAccessWatch = null;
@@ -9909,6 +9948,7 @@
         portsGoneAt = Date.now();
         pauseLiveForNoDevice();
         connectReconcileAskedWhilePresent = false;
+        firmwareTooOldAlerted = false;
       }
       syncLiveDeviceGate();
       if (!was && next) {
@@ -9935,6 +9975,14 @@
         liveGlobalTimer = null;
       }
       liveNote("warn", t("push.liveUsbWedged"), { expand: true });
+      return true;
+    }
+
+    async function handleFirmwareTooOld(err) {
+      if (!window.FpMidi?.isFirmwareTooOldError?.(err)) return false;
+      if (firmwareTooOldAlerted) return true;
+      firmwareTooOldAlerted = true;
+      await alertFirmwareTooOld(err);
       return true;
     }
 
@@ -10563,6 +10611,7 @@
         finishGlobalMeteorSpin(sections, { ok: true });
       } catch (e) {
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
+        await handleFirmwareTooOld(e);
         freezeLiveAfterWedge(e);
         finishGlobalMeteorSpin(sections, { ok: false });
       } finally {
@@ -10698,6 +10747,7 @@
         finishRowMeteorSpin(spinRows, { ok: true });
       } catch (e) {
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), { expand: true });
+        await handleFirmwareTooOld(e);
         freezeLiveAfterWedge(e);
         liveLayoutSynced = false;
         finishRowMeteorSpin(spinRows, { ok: false });
@@ -10824,6 +10874,7 @@
             liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
               expand: true,
             });
+            await handleFirmwareTooOld(e);
             freezeLiveAfterWedge(e);
             liveLayoutSynced = false;
             finishRowMeteorSpin(rowsFor, { ok: false });
@@ -10834,6 +10885,7 @@
         liveNote("warn", t("push.liveErr", { msg: e.message || e }), {
           expand: true,
         });
+        await handleFirmwareTooOld(e);
         freezeLiveAfterWedge(e);
         finishRowMeteorSpin(ids, { ok: false });
         liveLayoutSynced = false;
@@ -10993,6 +11045,7 @@
         return true;
       } catch (e) {
         setStatus("warn", String(e.message || e));
+        if (await handleFirmwareTooOld(e)) return false;
         await uiAlert(
           t("push.failTips", { msg: e.message || e }),
           { title: t("push.failTitle") },
@@ -11148,6 +11201,7 @@
         setPushMeta(t("pull.metaErr", { sec }));
         appendPushLog(`✗ ${e.message || e}`);
         setStatus("warn", String(e.message || e));
+        if (await handleFirmwareTooOld(e)) return false;
         if (failAlert) {
           await uiAlert(
             t("pull.failTips", { msg: e.message || e }),
