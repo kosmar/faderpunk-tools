@@ -2159,6 +2159,8 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
 
     config = deviceRef.device.config;
     if (needsHold) {
+      await releasePerfMute(config, log, " (unstick)");
+      await delay(300);
       try {
         await sendAndReceiveExpect(
           config,
@@ -2183,12 +2185,34 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     try {
       if (held) {
         const ordered = [...appLayout.filter((s) => s.app)].sort(compareSpawnOrder);
+        config = await applySetLayout(
+          config,
+          [],
+          log,
+          LAYOUT_SETTLE_INCREMENTAL_MS,
+          deviceRef,
+          "SetLayout (clear old apps)",
+          { quietMs: LAYOUT_CLEAR_QUIET_MS },
+        );
+
+        try {
+          await probeConfigCable(config);
+          log("  ✓ config cable alive after clear");
+        } catch (e) {
+          throw new Error(
+            `USB dead after clear (before any spawn): ${e.message || e}`,
+          );
+        }
+
+        clearCachedAppStates(config.rx);
+
         config = await applyHoldIncrementalSpawn(
           config,
           ordered,
           log,
           deviceRef,
         );
+        device = deviceRef.device;
       } else {
         const spawnBudgetMs =
           n >= 8 ? estimateAtomicSpawnMs(n) : 0;
