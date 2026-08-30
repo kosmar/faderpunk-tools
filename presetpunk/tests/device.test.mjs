@@ -8,6 +8,7 @@ import {
   isUsbWedgeError,
   receiveBatchMessages,
   sendAndReceiveExpect,
+  waitForOptionalTag,
   USB_WEDGE_ERROR,
 } from "../lib/device.js";
 import { buildConfigFrame } from "../lib/sysex.js";
@@ -510,4 +511,77 @@ test("receiveBatchMessages keeps partial batch when FW aborts without BatchMsgEn
     disconnectDevice(device);
     restoreNavigator();
   }
+});
+
+function mockRxConfig() {
+  const rx = { queue: [], waiter: null, appStates: new Map() };
+  const output = countingOutput();
+  return { config: { rx, output }, output, rx };
+}
+
+test("sendAndReceiveExpect: resendOnTimeout false does not resend", async () => {
+  const { config, output, rx } = mockRxConfig();
+  setTimeout(() => {
+    if (rx.waiter) {
+      clearTimeout(rx.waiter.timer);
+      rx.waiter.resolve({ tag: "Pong" });
+      rx.waiter = null;
+    } else {
+      rx.queue.push({ tag: "Pong" });
+    }
+  }, 300);
+
+  const result = await sendAndReceiveExpect(
+    config,
+    { tag: "ReleasePerfMute" },
+    "Pong",
+    { timeoutMs: 100, attempts: 1, deadlineMs: 2000, resendOnTimeout: false },
+  );
+  assert.equal(result.tag, "Pong");
+  assert.equal(output.getSendCount(), 1);
+});
+
+test("sendAndReceiveExpect: default resends on slice timeout", async () => {
+  const { config, output, rx } = mockRxConfig();
+  let sends = 0;
+  const baseSend = output.send.bind(output);
+  output.send = (...args) => {
+    sends += 1;
+    baseSend(...args);
+    if (sends === 2) {
+      setTimeout(() => {
+        if (rx.waiter) {
+          clearTimeout(rx.waiter.timer);
+          rx.waiter.resolve({ tag: "Pong" });
+          rx.waiter = null;
+        }
+      }, 50);
+    }
+  };
+
+  const result = await sendAndReceiveExpect(
+    config,
+    { tag: "ReleasePerfMute" },
+    "Pong",
+    { timeoutMs: 100, attempts: 2, deadlineMs: 2000 },
+  );
+  assert.equal(result.tag, "Pong");
+  assert.ok(output.getSendCount() >= 2);
+});
+
+test("waitForOptionalTag: returns matching tag and skips strays", async () => {
+  const { config } = mockRxConfig();
+  config.rx.queue.push({ tag: "Layout" }, { tag: "Pong" });
+  const logs = [];
+  const msg = await waitForOptionalTag(config, "Pong", 1000, {
+    onLog: (line) => logs.push(line),
+  });
+  assert.equal(msg.tag, "Pong");
+  assert.ok(logs.some((line) => line.includes("Layout")));
+});
+
+test("waitForOptionalTag: returns null on timeout", async () => {
+  const { config } = mockRxConfig();
+  const msg = await waitForOptionalTag(config, "Pong", 100);
+  assert.equal(msg, null);
 });

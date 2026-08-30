@@ -10,6 +10,7 @@ import {
   sendAndReceive,
   sendAndReceiveExpect,
   sendMessage,
+  waitForOptionalTag,
 } from "./device.js";
 import {
   createPanicBeaconCollector,
@@ -335,6 +336,13 @@ const DENSE_SPAWN_RAMP_STEP_MS = 300;
 const SPAWN_QUIET_CAP_MS = 8000;
 /** 4ch into an already-dense layout (Ripppple after Semmy) needs more air. */
 const SPAWN_QUIET_4CH_MS = 12000;
+/**
+ * After Release before ≥4ch: parked apps unmute + jack-init together.
+ * 800ms left Zeta with a live Version probe then dead GetAppParams.
+ */
+const UNMUTE_BEFORE_4CH_MS = 7000;
+/** Extra air after early Release + 4ch spawn before post-release SetAppParams. */
+const POST_4CH_PARAMS_SETTLE_MS = 4000;
 
 /**
  * Quiet pause after each incremental SetLayout before SetAppParams.
@@ -1001,6 +1009,37 @@ async function probeConfigCable(config) {
 }
 
 /**
+ * ReleasePerfMute without resend-on-timeout (avoids stacking Core1 RELEASE_SPAWN).
+ * Accepts a late Pong if the device answered after the slice deadline.
+ */
+async function releasePerfMute(cfg, log, label = "") {
+  try {
+    await sendAndReceiveExpect(
+      cfg,
+      { tag: "ReleasePerfMute" },
+      "Pong",
+      {
+        timeoutMs: 4000,
+        attempts: 1,
+        deadlineMs: 10000,
+        resendOnTimeout: false,
+        onLog: log,
+      },
+    );
+    log(`  ReleasePerfMute${label}`);
+    return true;
+  } catch (e) {
+    const late = await waitForOptionalTag(cfg, "Pong", 2500, { onLog: log });
+    if (late) {
+      log(`  ReleasePerfMute${label} (late ACK)`);
+      return true;
+    }
+    log(`  ⚠ ReleasePerfMute${label}: ${e.message || e}`);
+    return false;
+  }
+}
+
+/**
  * GetVersion works during LAYOUT_USB_MIDI_MUTE; SetAppParams does not (empty
  * AppState). Poll GetAppParams until the slot actually has a param_handler.
  *
@@ -1133,10 +1172,11 @@ async function waitForSlotReady(
             `layoutId=${id} not ready; ${lastDetail}. Close Scopepunk / Configurator, then retry.`,
           );
         }
-        // One quiet probe is often mid-spawn noise — back off before reconnect.
+        // One quiet probe is often mid-spawn / post-unmute noise — back off
+        // longer without Hold (GetAppParams 3s path can wedge USB if we spam).
         if (quietStreak < 2) {
           log(`  ⚠ cable quiet (layoutId=${id}) — backoff …`);
-          await delay(800);
+          await delay(underHold ? 800 : 2500);
           continue;
         }
         reconnects += 1;
@@ -1294,18 +1334,27 @@ async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef, holdState
     const channels = Number(slot.app?.channels) || 1;
 
     if (holdState?.held && channels >= 4) {
-      try {
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "ReleasePerfMute" },
-          "Pong",
-          { timeoutMs: 3000, attempts: 2 },
-        );
+      const ok = await releasePerfMute(
+        cfg,
+        log,
+        ` before ${channels}ch spawn (${name})`,
+      );
+      if (ok) {
         holdState.held = false;
-        log(`  ReleasePerfMute before ${channels}ch spawn (${name})`);
-        await delay(800);
-      } catch (e) {
-        log(`  ⚠ ReleasePerfMute before 4ch: ${e.message || e}`);
+        // Thundering herd: ~N apps leave wait_while_perf_muted at once.
+        log(`  quiet settle ${UNMUTE_BEFORE_4CH_MS}ms after unmute (before 4ch) …`);
+        await delay(UNMUTE_BEFORE_4CH_MS);
+        try {
+          await probeConfigCable(cfg);
+          log("  ✓ config cable alive after unmute settle");
+        } catch (e) {
+          log(`  ⚠ cable after unmute settle: ${e.message || e}`);
+          await delay(2000);
+        }
+      } else {
+        throw new Error(
+          `ReleasePerfMute failed before ${channels}ch spawn (${name}) — Hold still set. Replug USB, then Push again.`,
+        );
       }
     }
 
@@ -1565,21 +1614,53 @@ async function applySetLayoutIncremental(
         log("  ⚠ push aborted with Hold still set — replug USB, then Push again");
       }
     } else if (postReleaseParams && deviceRef?.device?.config) {
-      try {
-        cfg = deviceRef.device.config;
-        if (held) {
-          await sendAndReceiveExpect(
-            cfg,
-            { tag: "ReleasePerfMute" },
-            "Pong",
-            { timeoutMs: 3000, attempts: 2 },
-          );
-          log("  ReleasePerfMute");
-          // Pong is Core0-only; Core1 unmutes async (store may still run).
+      cfg = deviceRef.device.config;
+      let skipPostReleaseParams = false;
+      if (held) {
+        let released = await releasePerfMute(cfg, log);
+        if (released) {
           await delay(2000);
+        } else {
+          await delay(2000);
+          try {
+            await probeConfigCable(cfg);
+          } catch (e) {
+            log(`  ⚠ cable probe after Release fail: ${e.message || e}`);
+          }
+          released = await releasePerfMute(cfg, log, " (retry)");
+          if (!released) {
+            log(
+              "  ⚠ Hold may still be set — skipping SetAppParams (replug USB, then Push again)",
+            );
+            skipPostReleaseParams = true;
+          } else {
+            await delay(2000);
+          }
         }
-      } catch (e) {
-        log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
+      } else {
+        // Hold already dropped before ≥4ch — jack init may still be settling.
+        log(
+          `  quiet settle ${POST_4CH_PARAMS_SETTLE_MS}ms before post-release params …`,
+        );
+        await delay(POST_4CH_PARAMS_SETTLE_MS);
+        try {
+          cfg = await ensureCableAfterSpawn(
+            cfg,
+            deviceRef,
+            log,
+            "before post-release params",
+          );
+        } catch (e) {
+          log(`  ⚠ cable before params: ${e.message || e}`);
+          await delay(3000);
+          try {
+            await probeConfigCable(cfg);
+          } catch (e2) {
+            log(
+              `  ⚠ still quiet before SetAppParams: ${e2.message || e2} — trying anyway`,
+            );
+          }
+        }
       }
       // ParamStore can already match after Hold Set, but MidiOutput is frozen
       // at query(). Identical Set is a no-op on stock 1.12.0 (`changed=false`).
@@ -1587,7 +1668,7 @@ async function applySetLayoutIncremental(
       const ids = ordered
         .map((s) => Number(s.id))
         .filter((id) => Number.isFinite(id));
-      if (ids.length > 0) {
+      if (!skipPostReleaseParams && ids.length > 0) {
         log("SetAppParams (post-release) …");
         clearCachedAppStates(cfg.rx);
         cfg = await applySetAppParams(cfg, paramsById, ids, log, {
@@ -2213,32 +2294,42 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
       }
     } finally {
       if (postReleaseParams) {
-        try {
-          if (held) {
-            await sendAndReceiveExpect(
-              config,
-              { tag: "ReleasePerfMute" },
-              "Pong",
-              { timeoutMs: 5000, attempts: 2 },
-            );
-            log("  ReleasePerfMute");
-            // Pong is Core0-only; Core1 unmutes async (store may still run).
+        let skipPostReleaseParams = false;
+        if (held) {
+          let released = await releasePerfMute(config, log);
+          if (released) {
             await delay(2000);
+          } else {
+            await delay(2000);
+            try {
+              await probeConfigCable(config);
+            } catch (e) {
+              log(`  ⚠ cable probe after Release fail: ${e.message || e}`);
+            }
+            released = await releasePerfMute(config, log, " (retry)");
+            if (!released) {
+              log(
+                "  ⚠ Hold may still be set — skipping SetAppParams (replug USB, then Push again)",
+              );
+              skipPostReleaseParams = true;
+            } else {
+              await delay(2000);
+            }
           }
-        } catch (e) {
-          log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
         }
-        try {
-          log("SetAppParams (post-release) …");
-          clearCachedAppStates(config.rx);
-          config = await applySetAppParams(config, paramsById, ids, log, {
-            deviceRef,
-            underHold: false,
-            maxAttempts: 2,
-            forceRestart: true,
-          });
-        } catch (e) {
-          throw new Error(`post-release SetAppParams: ${e.message || e}`);
+        if (!skipPostReleaseParams) {
+          try {
+            log("SetAppParams (post-release) …");
+            clearCachedAppStates(config.rx);
+            config = await applySetAppParams(config, paramsById, ids, log, {
+              deviceRef,
+              underHold: false,
+              maxAttempts: 2,
+              forceRestart: true,
+            });
+          } catch (e) {
+            throw new Error(`post-release SetAppParams: ${e.message || e}`);
+          }
         }
       }
     }

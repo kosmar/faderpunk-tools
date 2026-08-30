@@ -372,6 +372,7 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
   const log = opts.onLog || (() => {});
   const attempts = opts.attempts ?? 8;
   const timeoutMs = opts.timeoutMs ?? RECEIVE_TIMEOUT_MS;
+  const resendOnTimeout = opts.resendOnTimeout !== false;
   const matchLayoutId =
     opts.matchLayoutId == null ? null : Number(opts.matchLayoutId);
   drainConfigQueue(config.rx);
@@ -390,8 +391,10 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
     } catch (e) {
       const timedOut = /timed out/i.test(String(e.message || e));
       if (timedOut && Date.now() < deadline) {
-        drainConfigQueue(config.rx);
-        sendFrame(config.output, msg);
+        if (resendOnTimeout) {
+          drainConfigQueue(config.rx);
+          sendFrame(config.output, msg);
+        }
         continue;
       }
       if (lastTag) {
@@ -420,6 +423,25 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
   throw new Error(
     `Expected ${expectedTag}, got ${lastTag ?? "timeout"} — close Diagnostics/Configurator on the config MIDI cable`,
   );
+}
+
+/** Passive wait for a tag (no TX). Skips other tags via onLog. Returns msg or null. */
+export async function waitForOptionalTag(config, expectedTag, timeoutMs, opts = {}) {
+  const log = opts.onLog || (() => {});
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const remaining = Math.max(200, deadline - Date.now());
+    let response;
+    try {
+      response = await receiveFromRx(config.rx, remaining);
+    } catch (e) {
+      if (/timed out/i.test(String(e.message || e))) continue;
+      throw e;
+    }
+    if (response.tag === expectedTag) return response;
+    log(`  ↷ skip stray ${response.tag} (want ${expectedTag})`);
+  }
+  return null;
 }
 
 export async function sendMessage(config, msg) {
