@@ -502,7 +502,7 @@ test("needsHoldForLayout: Semmy@ch0 + Controls skips hold-dense (Beta)", () => {
     })),
   ];
   assert.equal(needsHoldForLayout(beta), false);
-  // Two heavies → still hold-dense (Zeta / Hold Sam class).
+  // Two heavies → still hold (Zeta / Hold Sam class).
   const withExtraHeavy = [
     ...beta,
     {
@@ -513,6 +513,23 @@ test("needsHoldForLayout: Semmy@ch0 + Controls skips hold-dense (Beta)", () => {
   ];
   // 16 apps with Grooves (w≥3) + Semmy → heavyN≥2
   assert.equal(needsHoldForLayout(withExtraHeavy), true);
+});
+
+test("needsHoldForLayout: Zeta-scale multi-heavy still needs Hold", () => {
+  const zeta = [
+    { id: 0, app: { appId: 101, channels: 1, paramCount: 16, name: "Grooves" }, startChannel: 0 },
+    { id: 1, app: { appId: 112, channels: 1, paramCount: 14, name: "Bassment" }, startChannel: 1 },
+    { id: 2, app: { appId: 113, channels: 1, paramCount: 12, name: "Contura" }, startChannel: 5 },
+    { id: 3, app: { appId: 121, channels: 1, paramCount: 12, name: "Umbra" }, startChannel: 6 },
+    { id: 4, app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" }, startChannel: 7 },
+    { id: 5, app: { appId: 115, channels: 4, paramCount: 12, name: "Ripppple" }, startChannel: 10 },
+    ...Array.from({ length: 6 }, (_, i) => ({
+      id: 10 + i,
+      app: { appId: 1, channels: 1, paramCount: 8, name: "Control" },
+      startChannel: i < 4 ? i + 2 : i + 8,
+    })),
+  ];
+  assert.equal(needsHoldForLayout(zeta), true);
 });
 
 test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () => {

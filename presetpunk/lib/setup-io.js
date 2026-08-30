@@ -277,34 +277,6 @@ export function partitionBySpawnWeight(appLayout, heavyMin = HEAVY_SPAWN_WEIGHT)
 }
 
 /**
- * Mirror faderpunk `layout.rs` Hold-paced spawn budget (stagger + breath + gate).
- * Does NOT cover post-gate FRAM — see estimatePostGateFramMs.
- */
-function estimateHoldSpawnMs(appCount) {
-  const n = Math.max(0, Number(appCount) || 0);
-  if (n === 0) return 0;
-  let ms = 400; // pre-gate close
-  for (let running = 1; running <= n; running++) {
-    if (running >= 8) ms += 1600;
-    else if (running >= 6) ms += 1100;
-    else ms += 700;
-    if (running >= 3 && running % 3 === 0) ms += 2000;
-  }
-  // gate open + short post (FRAM is separate — mass load after gate)
-  return ms + 200 + 600 + 400;
-}
-
-/**
- * After Hold start-gate opens, every app runs ParamStore/ManagedStorage::load
- * together. That FRAM burst wedges USB if we GetAppParams into it.
- */
-function estimatePostGateFramMs(appCount) {
-  const n = Math.max(0, Number(appCount) || 0);
-  if (n === 0) return 0;
-  return Math.max(6000, n * 700 + 3000);
-}
-
-/**
  * Non-hold atomic spawn is faster but still outruns a short GetVersion settle.
  */
 function estimateAtomicSpawnMs(appCount) {
@@ -1268,54 +1240,8 @@ async function applySetLayout(
 }
 
 /**
- * One atomic SetLayout under Hold + spawn stagger + post-gate FRAM quiet.
- * Shared by live dense push and Full Push recall when needsHold.
- */
-async function applyDenseHoldLayoutSpawn(
-  cfg,
-  appLayout,
-  log,
-  deviceRef,
-  n,
-  label,
-) {
-  const spawnBudgetMs = estimateHoldSpawnMs(n);
-  const framMs = estimatePostGateFramMs(n);
-  const layoutStartedAt = Date.now();
-  const active = appLayout.filter((s) => s.app).length;
-  // Quiet only — GetVersion polls + reconnect during Hold+spawn wedge USB
-  // (clear path already uses quietMs; ensureCableAfterSpawn checks later).
-  cfg = await applySetLayout(
-    cfg,
-    appLayout,
-    log,
-    LAYOUT_SETTLE_LIVE_MS,
-    deviceRef,
-    label ?? `SetLayout (${active} apps)`,
-    { quietMs: spawnBudgetMs },
-  );
-  const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
-  if (staggerLeft > 0) {
-    log(
-      `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, no SysEx) …`,
-    );
-    await delayKeepalive(cfg, staggerLeft, {
-      probe: false,
-      label: "spawn stagger",
-      onLog: log,
-    });
-  }
-  if (framMs > 0) {
-    log(`  wait post-gate FRAM ${framMs}ms (no SysEx) …`);
-    await delayKeepalive(cfg, framMs, { probe: false });
-  }
-  return ensureCableAfterSpawn(cfg, deviceRef, log, "after dense spawn");
-}
-
-/**
  * One multi-ch app at ch0 + only light 1ch neighbours (e.g. Semmy + Controls).
- * Incremental left-to-right is stable; atomic Hold+FRAM wedges USB (Beta).
- * Layouts with ≥2 heavies (Hold Sam / Vamp / Zeta) still use hold-dense.
+ * Incremental left-to-right is stable without Hold; multi-heavy layouts still Hold.
  */
 function layoutSkipsHoldDenseSpawn(appLayout) {
   const active = (appLayout || []).filter((s) => s?.app);
@@ -1344,10 +1270,53 @@ export function needsHoldForLayout(appLayout) {
 }
 
 /**
+ * Grow layout one app at a time under Hold. No SetAppParams here — caller
+ * Releases then applies params (MidiOutput frozen until unmute).
+ * Atomic multi-app SetLayout under Hold wedged Zeta (12 apps / 5 heavy);
+ * Beta-style incremental spawn survived.
+ */
+async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
+  const n = ordered.length;
+  log(`  push engine: hold-incremental (spawn only · ${n} apps)`);
+  const growing = [];
+  for (let i = 0; i < ordered.length; i++) {
+    const slot = ordered[i];
+    growing.push(slot);
+    const name = slot.app?.name || slot.app?.appId;
+    const ch = Number(slot.startChannel) || 0;
+    let pauseMs = incrementalSpawnQuietMs(
+      slot,
+      i,
+      n,
+      growing.slice(0, -1),
+    );
+    // Hold parks jack/MIDI init; still give each step a floor above the
+    // non-Hold light-Control quiet (Zeta died on atomic after long “quiet”).
+    pauseMs = Math.min(SPAWN_QUIET_CAP_MS, Math.max(pauseMs, 2500));
+    cfg = await applySetLayout(
+      cfg,
+      growing,
+      log,
+      LAYOUT_SETTLE_INCREMENTAL_MS,
+      deviceRef,
+      `SetLayout (${i + 1}/${n}) ${name}(ch${ch})`,
+      { quietMs: pauseMs },
+    );
+    cfg = await ensureCableAfterSpawn(
+      cfg,
+      deviceRef,
+      log,
+      `after spawn ${name}(ch${ch})`,
+    );
+  }
+  return cfg;
+}
+
+/**
  * Full Push — light layouts: Configurator AddApp loop (clear → grow → params).
- * Dense layouts (needsHold): one atomic SetLayout under Hold — same as live
- * dense (stagger + FRAM) — incremental per-app spawn wedges USB late in the
- * layout (Hold Sam / Chord Vamp on Zeta 14).
+ * Dense layouts (needsHold): Hold + incremental spawn (no mid-Hold params),
+ * then Release + SetAppParams. Atomic Hold SetLayout wedged Zeta; mid-Hold
+ * params wedged Hold Sam — spawn-only under Hold is the middle path.
  */
 async function applySetLayoutIncremental(
   config,
@@ -1440,15 +1409,7 @@ async function applySetLayoutIncremental(
     clearCachedAppStates(cfg.rx);
 
     if (held) {
-      log("  push engine: hold-dense (atomic SetLayout)");
-      cfg = await applyDenseHoldLayoutSpawn(
-        cfg,
-        appLayout,
-        log,
-        deviceRef,
-        n,
-        `SetLayout (${n} apps)`,
-      );
+      cfg = await applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef);
     } else {
       log("  push engine: incremental");
       const growing = [];
@@ -2162,12 +2123,12 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
 
     try {
       if (held) {
-        config = await applyDenseHoldLayoutSpawn(
+        const ordered = [...appLayout.filter((s) => s.app)].sort(compareSpawnOrder);
+        config = await applyHoldIncrementalSpawn(
           config,
-          appLayout,
+          ordered,
           log,
           deviceRef,
-          n,
         );
       } else {
         const spawnBudgetMs =
