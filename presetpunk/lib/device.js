@@ -421,16 +421,29 @@ export async function sendMessage(config, msg) {
   sendFrame(config.output, msg);
 }
 
-export async function receiveBatchMessages(config, count) {
+export async function receiveBatchMessages(config, count, opts = {}) {
   const results = [];
   const n = Number(count);
-  const deadline = Date.now() + RECEIVE_TIMEOUT_MS * Math.max(4, n + 2);
+  const sliceMs = opts.sliceTimeoutMs ?? BATCH_SLICE_TIMEOUT_MS;
+  const deadline =
+    Date.now() +
+    (opts.deadlineMs ?? RECEIVE_TIMEOUT_MS * Math.max(4, n + 2));
   while (results.length < n && Date.now() < deadline) {
     const remaining = Math.max(300, deadline - Date.now());
-    const msg = await receiveFromRx(
-      config.rx,
-      Math.min(BATCH_SLICE_TIMEOUT_MS, remaining),
-    );
+    let msg;
+    try {
+      msg = await receiveFromRx(
+        config.rx,
+        Math.min(sliceMs, remaining),
+      );
+    } catch (e) {
+      // FW may abort mid-batch (AppConfig EncodingError / BufferTooSmall) and
+      // never send BatchMsgEnd — keep what arrived so Push can continue.
+      if (/timed out/i.test(String(e.message || e)) && results.length > 0) {
+        return results;
+      }
+      throw e;
+    }
     if (msg.tag === "BatchMsgEnd") {
       // Early end — return what we have (caller may fill gaps).
       return results;
@@ -444,17 +457,24 @@ export async function receiveBatchMessages(config, count) {
     continue;
   }
   if (results.length < n) {
+    if (results.length > 0) return results;
     throw new Error(
       `Batch incomplete: got ${results.length}/${n} items (timeout or cable noise)`,
     );
   }
-  const endDeadline = Date.now() + RECEIVE_TIMEOUT_MS;
+  const endDeadline = Date.now() + (opts.endTimeoutMs ?? RECEIVE_TIMEOUT_MS);
   while (Date.now() < endDeadline) {
-    const endMessage = await receiveFromRx(
-      config.rx,
-      Math.max(200, endDeadline - Date.now()),
-    );
-    if (endMessage.tag === "BatchMsgEnd") return results;
+    try {
+      const endMessage = await receiveFromRx(
+        config.rx,
+        Math.max(200, endDeadline - Date.now()),
+      );
+      if (endMessage.tag === "BatchMsgEnd") return results;
+    } catch (e) {
+      if (/timed out/i.test(String(e.message || e))) break;
+      throw e;
+    }
   }
-  throw new Error("Expected BatchMsgEnd but timed out");
+  // Full item count without BatchMsgEnd is still usable.
+  return results;
 }

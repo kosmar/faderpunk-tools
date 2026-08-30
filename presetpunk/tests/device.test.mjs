@@ -431,3 +431,68 @@ test("disconnectDevice clears onmidimessage on all inputs", async () => {
     restoreNavigator();
   }
 });
+
+test("receiveBatchMessages keeps partial batch when FW aborts without BatchMsgEnd", async () => {
+  const configIn = silentInput("config-in", "Faderpunk Config");
+  const perfIn = silentInput("perf-in", "Faderpunk");
+  const versionFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", {
+      tag: "Version",
+      value: { major: 1, minor: 0, patch: 0 },
+    }),
+  );
+  const batchStartFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", { tag: "BatchMsgStart", value: 2n }),
+  );
+  const appConfigFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", minimalAppConfig),
+  );
+
+  let connectPhase = true;
+  const configOut = {
+    id: "config-out",
+    name: "Faderpunk Config",
+    manufacturer: "Faderpunk",
+    async open() {},
+    send() {
+      if (connectPhase) {
+        connectPhase = false;
+        setTimeout(() => {
+          perfIn.onmidimessage?.({ data: versionFrame });
+        }, 10);
+        return;
+      }
+      // BatchMsgStart(2) + one AppConfig, then silence (no #2, no BatchMsgEnd).
+      setTimeout(() => {
+        configIn.onmidimessage?.({ data: batchStartFrame });
+        setTimeout(() => {
+          configIn.onmidimessage?.({ data: appConfigFrame });
+        }, 10);
+      }, 10);
+    },
+  };
+
+  const restoreNavigator = mockNavigator([configIn, perfIn], [configOut]);
+
+  let device;
+  try {
+    device = await connectDevice();
+    const batchStart = await sendAndReceiveExpect(
+      device.config,
+      { tag: "GetAllApps" },
+      "BatchMsgStart",
+      { timeoutMs: 2000 },
+    );
+    assert.equal(Number(batchStart.value), 2);
+    const apps = await receiveBatchMessages(device.config, 2, {
+      sliceTimeoutMs: 150,
+      deadlineMs: 400,
+      endTimeoutMs: 50,
+    });
+    assert.equal(apps.length, 1, "partial batch returned");
+    assert.equal(apps[0].tag, "AppConfig");
+  } finally {
+    disconnectDevice(device);
+    restoreNavigator();
+  }
+});

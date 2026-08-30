@@ -1790,6 +1790,7 @@ async function getAllApps(config, log) {
     "BatchMsgStart",
     { onLog: log || (() => {}), timeoutMs: 5000, attempts: 12 },
   );
+  const expected = Number(response.value);
   const apps = await receiveBatchMessages(config, response.value);
   const map = new Map();
   for (const item of apps) {
@@ -1807,7 +1808,13 @@ async function getAllApps(config, log) {
       params: meta[5],
     });
   }
-  log?.(`  → ${map.size} apps`);
+  if (map.size < expected) {
+    log?.(
+      `  ⚠ batch short ${map.size}/${expected} (FW dropped AppConfig — often oversized meta)`,
+    );
+  } else {
+    log?.(`  → ${map.size} apps`);
+  }
   return map;
 }
 
