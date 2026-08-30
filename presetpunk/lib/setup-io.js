@@ -1301,7 +1301,23 @@ async function applyDenseHoldLayoutSpawn(
   return ensureCableAfterSpawn(cfg, deviceRef, log, "after dense spawn");
 }
 
-/** Whether a layout needs HoldPerfMute (live dense + Full Push dense path). */
+/**
+ * One multi-ch app at ch0 + only light 1ch neighbours (e.g. Semmy + Controls).
+ * Incremental left-to-right is stable; atomic Hold+FRAM wedges USB (Beta).
+ * Layouts with ≥2 heavies (Hold Sam / Vamp / Zeta) still use hold-dense.
+ */
+function layoutSkipsHoldDenseSpawn(appLayout) {
+  const active = (appLayout || []).filter((s) => s?.app);
+  if (active.length < 8) return false;
+  const multi = active.filter((s) => Number(s.app?.channels) > 1);
+  if (multi.length !== 1 || Number(multi[0].startChannel) !== 0) return false;
+  if (partitionBySpawnWeight(appLayout).heavy.length > 1) return false;
+  return active.every(
+    (s) =>
+      spawnWeight(s) < HEAVY_SPAWN_WEIGHT || Number(s.app?.channels) > 1,
+  );
+}
+
 export function needsHoldForLayout(appLayout) {
   const activeSlots = (appLayout || []).filter((s) => s?.app);
   const n = activeSlots.length;
@@ -1310,6 +1326,7 @@ export function needsHoldForLayout(appLayout) {
     (s) => Number(s.app?.appId) === 49 || s.app?.name === "Blank",
   );
   if (blankOnly) return false;
+  if (layoutSkipsHoldDenseSpawn(appLayout)) return false;
   const heavyN = partitionBySpawnWeight(appLayout).heavy.length;
   const multiCh = activeSlots.some((s) => Number(s.app?.channels) > 1);
   return n >= 8 || heavyN >= 2 || multiCh;

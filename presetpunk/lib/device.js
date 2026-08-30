@@ -234,7 +234,12 @@ export function faderpunkPortsListed(access) {
 /** Faderpunk input that is not the config port — where the perf MIDI (and the panic beacon) arrives. */
 export function findPerfInput(access, configInput) {
   if (!access) return null;
-  for (const port of portCandidates(access.inputs.values())) {
+  const candidates = portCandidates(access.inputs.values());
+  // Prefer a non-Config name — when Version arrived on “Faderpunk”, configInput
+  // is already that port and the old skip-self loop wrongly returned Config.
+  const byName = candidates.find((port) => !/config|2/i.test(port.name ?? ""));
+  if (byName) return byName;
+  for (const port of candidates) {
     if (port === configInput) continue;
     if (configInput?.id != null && port.id === configInput.id) continue;
     return port;

@@ -4,6 +4,7 @@ import { serialize } from "@atov/fp-config";
 import {
   connectDevice,
   disconnectDevice,
+  findPerfInput,
   isUsbWedgeError,
   receiveBatchMessages,
   sendAndReceiveExpect,
@@ -245,6 +246,20 @@ test("isUsbWedgeError matches USB_WEDGE_ERROR and panic suffix", () => {
     true,
   );
   assert.equal(isUsbWedgeError(new Error("No Faderpunk config MIDI port found")), false);
+});
+
+test("findPerfInput prefers non-Config name when Version used Faderpunk in", () => {
+  const configIn = silentInput("config-in", "Faderpunk Config");
+  const perfIn = silentInput("perf-in", "Faderpunk");
+  const access = {
+    inputs: new Map([
+      [configIn.id, configIn],
+      [perfIn.id, perfIn],
+    ]),
+  };
+  // After connect, config.input is often the Version winner (“Faderpunk”).
+  assert.equal(findPerfInput(access, perfIn), perfIn);
+  assert.equal(findPerfInput(access, configIn), perfIn);
 });
 
 const minimalAppConfig = {

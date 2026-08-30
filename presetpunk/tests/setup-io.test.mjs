@@ -488,6 +488,33 @@ test("needsHoldForLayout: Zeta-scale presets use hold-dense", () => {
   );
 });
 
+test("needsHoldForLayout: Semmy@ch0 + Controls skips hold-dense (Beta)", () => {
+  const beta = [
+    {
+      id: 0,
+      app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
+      startChannel: 0,
+    },
+    ...Array.from({ length: 14 }, (_, i) => ({
+      id: i + 1,
+      app: { appId: 1, channels: 1, paramCount: 11, name: "Control" },
+      startChannel: i + 2,
+    })),
+  ];
+  assert.equal(needsHoldForLayout(beta), false);
+  // Two heavies → still hold-dense (Zeta / Hold Sam class).
+  const withExtraHeavy = [
+    ...beta,
+    {
+      id: 15,
+      app: { appId: 101, channels: 1, paramCount: 16, name: "Grooves" },
+      startChannel: 1,
+    },
+  ];
+  // 16 apps with Grooves (w≥3) + Semmy → heavyN≥2
+  assert.equal(needsHoldForLayout(withExtraHeavy), true);
+});
+
 test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () => {
   const grooves = {
     id: 0,
