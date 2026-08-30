@@ -1577,7 +1577,8 @@ async function applySetLayoutIncremental(
       if (held) {
         let released = await releasePerfMute(cfg, log);
         if (released) {
-          await delay(2000);
+          log("  quiet settle 5000ms after Release …");
+          await delay(5000);
         } else {
           await delay(2000);
           try {
@@ -1592,7 +1593,8 @@ async function applySetLayoutIncremental(
             );
             skipPostReleaseParams = true;
           } else {
-            await delay(2000);
+            log("  quiet settle 5000ms after Release …");
+            await delay(5000);
           }
         }
       }
@@ -1605,11 +1607,13 @@ async function applySetLayoutIncremental(
       if (!skipPostReleaseParams && ids.length > 0) {
         log("SetAppParams (post-release) …");
         clearCachedAppStates(cfg.rx);
+        // GetAppParams can stay empty while handlers wake after Release; Set still applies.
         cfg = await applySetAppParams(cfg, paramsById, ids, log, {
           deviceRef,
           underHold: false,
           maxAttempts: 2,
           forceRestart: true,
+          skipReadyWait: true,
         });
       }
     }
@@ -2229,7 +2233,8 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         if (held) {
           let released = await releasePerfMute(config, log);
           if (released) {
-            await delay(2000);
+            log("  quiet settle 5000ms after Release …");
+            await delay(5000);
           } else {
             await delay(2000);
             try {
@@ -2244,7 +2249,8 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
               );
               skipPostReleaseParams = true;
             } else {
-              await delay(2000);
+              log("  quiet settle 5000ms after Release …");
+              await delay(5000);
             }
           }
         }
@@ -2252,11 +2258,13 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           try {
             log("SetAppParams (post-release) …");
             clearCachedAppStates(config.rx);
+            // GetAppParams can stay empty while handlers wake after Release; Set still applies.
             config = await applySetAppParams(config, paramsById, ids, log, {
               deviceRef,
               underHold: false,
               maxAttempts: 2,
               forceRestart: true,
+              skipReadyWait: true,
             });
           } catch (e) {
             throw new Error(`post-release SetAppParams: ${e.message || e}`);
