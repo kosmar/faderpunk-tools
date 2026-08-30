@@ -338,11 +338,12 @@ const SPAWN_QUIET_CAP_MS = 8000;
 const SPAWN_QUIET_4CH_MS = 12000;
 /**
  * After Release before ≥4ch: parked apps unmute + jack-init together.
- * 800ms left Zeta with a live Version probe then dead GetAppParams.
+ * Long settle left apps fully unmuted so the next SetLayout respawn wedged USB;
+ * short gap matches the late-ACK success window (~800ms).
  */
-const UNMUTE_BEFORE_4CH_MS = 7000;
+const UNMUTE_BEFORE_4CH_MS = 800;
 /** Extra air after early Release + 4ch spawn before post-release SetAppParams. */
-const POST_4CH_PARAMS_SETTLE_MS = 4000;
+const POST_4CH_PARAMS_SETTLE_MS = 6000;
 
 /**
  * Quiet pause after each incremental SetLayout before SetAppParams.
@@ -1487,14 +1488,17 @@ async function applySetLayoutIncremental(
 
     if (held) {
       const holdState = { held: true };
-      cfg = await applyHoldIncrementalSpawn(
-        cfg,
-        ordered,
-        log,
-        deviceRef,
-        holdState,
-      );
-      held = holdState.held;
+      try {
+        cfg = await applyHoldIncrementalSpawn(
+          cfg,
+          ordered,
+          log,
+          deviceRef,
+          holdState,
+        );
+      } finally {
+        held = holdState.held;
+      }
     } else {
       log("  push engine: incremental");
       const growing = [];
@@ -2246,14 +2250,17 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
       if (held) {
         const ordered = [...appLayout.filter((s) => s.app)].sort(compareSpawnOrder);
         const holdState = { held: true };
-        config = await applyHoldIncrementalSpawn(
-          config,
-          ordered,
-          log,
-          deviceRef,
-          holdState,
-        );
-        held = holdState.held;
+        try {
+          config = await applyHoldIncrementalSpawn(
+            config,
+            ordered,
+            log,
+            deviceRef,
+            holdState,
+          );
+        } finally {
+          held = holdState.held;
+        }
       } else {
         const spawnBudgetMs =
           n >= 8 ? estimateAtomicSpawnMs(n) : 0;
