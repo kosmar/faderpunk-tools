@@ -1039,6 +1039,37 @@ async function releasePerfMute(cfg, log, label = "") {
 }
 
 /**
+ * HoldPerfMute without resend-on-timeout (pairs with releasePerfMute).
+ * Accepts a late Pong if the device answered after the slice deadline.
+ */
+async function holdPerfMute(cfg, log, label = "") {
+  try {
+    await sendAndReceiveExpect(
+      cfg,
+      { tag: "HoldPerfMute" },
+      "Pong",
+      {
+        timeoutMs: 4000,
+        attempts: 1,
+        deadlineMs: 10000,
+        resendOnTimeout: false,
+        onLog: log,
+      },
+    );
+    log(`  HoldPerfMute${label}`);
+    return true;
+  } catch (e) {
+    const late = await waitForOptionalTag(cfg, "Pong", 2500, { onLog: log });
+    if (late) {
+      log(`  HoldPerfMute${label} (late ACK)`);
+      return true;
+    }
+    log(`  ⚠ HoldPerfMute${label}: ${e.message || e}`);
+    return false;
+  }
+}
+
+/**
  * GetVersion works during LAYOUT_USB_MIDI_MUTE; SetAppParams does not (empty
  * AppState). Poll GetAppParams until the slot actually has a param_handler.
  *
@@ -1330,6 +1361,30 @@ async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
     const channels = Number(slot.app?.channels) || 1;
+
+    // Second multi-ch under continuous Hold wedges USB; Release+re-Hold resets
+    // before Ripppple/Semmy#2.
+    const priorMultiCh = growing
+      .slice(0, -1)
+      .some((s) => Number(s.app?.channels) > 1);
+    if (channels > 1 && priorMultiCh) {
+      log(`  Hold refresh before second multi-ch (${name}) …`);
+      const released = await releasePerfMute(cfg, log, " (before 2nd multi)");
+      if (!released) {
+        throw new Error("ReleasePerfMute failed before second multi-ch spawn");
+      }
+      await delay(2000);
+      try {
+        await probeConfigCable(cfg);
+      } catch (e) {
+        log(`  ⚠ cable probe after Release (2nd multi): ${e.message || e}`);
+      }
+      const reheld = await holdPerfMute(cfg, log, " (before 2nd multi)");
+      if (!reheld) {
+        throw new Error("HoldPerfMute failed before second multi-ch spawn");
+      }
+      await delay(300);
+    }
 
     let pauseMs = incrementalSpawnQuietMs(
       slot,
