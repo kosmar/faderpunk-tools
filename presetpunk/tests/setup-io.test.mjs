@@ -569,11 +569,11 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
   assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 9500);
   assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 9200);
   assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
-  // Dense prior + 4ch → full 12s floor (Zeta Ripppple after Semmy)
+  // Dense prior + 4ch → full 12s floor
   assert.equal(incrementalSpawnQuietMs(ripppple, 10, 12, [semmy]), 12000);
 });
 
-test("compareSpawnOrder: ≥4ch apps spawn last (Ripppple)", () => {
+test("compareSpawnOrder: ≥4ch spawns after low 1ch, before multi-ch (Ripppple)", () => {
   const slots = [
     {
       id: 10,
@@ -594,7 +594,7 @@ test("compareSpawnOrder: ≥4ch apps spawn last (Ripppple)", () => {
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.name),
-    ["Grooves", "Semmy", "Ripppple"],
+    ["Grooves", "Ripppple", "Semmy"],
   );
 });
 

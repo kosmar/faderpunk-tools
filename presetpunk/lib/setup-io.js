@@ -243,8 +243,7 @@ function compareChannelOrder(a, b) {
 
 /**
  * Spawn cost heuristic (no per-app special cases).
- * Higher weight → later in incremental Full Push.
- * Multi-channel is sorted separately (early) — see compareSpawnOrder.
+ * Higher weight → later in incremental Full Push settle/pause sizing.
  */
 export function spawnWeight(slot) {
   if (!slot?.app) return 0;
@@ -300,26 +299,26 @@ function estimateAtomicSpawnMs(appCount) {
  */
 export const SPAWN_DEFER_APP_IDS = new Set([35, 106]);
 
-function shouldDeferSpawn(slot) {
-  if (!slot?.app) return false;
+function spawnSortTier(slot) {
+  if (!slot?.app) return 0;
   const id = Number(slot.app.appId);
-  if (SPAWN_DEFER_APP_IDS.has(id)) return true;
-  if (slot.app.name === "Chord Vamp") return true;
-  // 4ch late under Hold (Ripppple@ch10 after Semmy) wedges USB — spawn last.
-  return Number(slot.app.channels) >= 4;
+  if (SPAWN_DEFER_APP_IDS.has(id) || slot.app.name === "Chord Vamp") return 3;
+  const channels = Math.max(1, Number(slot.app.channels) || 1);
+  const ch = Number(slot.startChannel) || 0;
+  if (channels >= 4) return 1;
+  if (channels === 1 && ch < 9) return 0;
+  return 2;
 }
 
 /**
  * Incremental Full Push order:
- * physical channel order so every intermediate layout grows left-to-right.
- * Starting with a sparse multi-channel app at ch11 reproduced a USB wedge;
- * the same apps at ch0 followed by contiguous Controls are stable.
- * Deferred: Chord Vamp + any ≥4ch app (Ripppple) after every other slot.
+ * low 1ch (ch&lt;9) → ≥4ch (Ripppple under Hold) → multi-ch + high 1ch → Chord Vamp.
+ * Within each tier, physical channel order avoids sparse prefixes.
  */
 export function compareSpawnOrder(a, b) {
-  const da = shouldDeferSpawn(a) ? 1 : 0;
-  const db = shouldDeferSpawn(b) ? 1 : 0;
-  if (da !== db) return da - db;
+  const ta = spawnSortTier(a);
+  const tb = spawnSortTier(b);
+  if (ta !== tb) return ta - tb;
   return compareChannelOrder(a, b);
 }
 
@@ -334,16 +333,8 @@ const DENSE_SPAWN_RAMP_FROM_INDEX = 4;
 const DENSE_SPAWN_RAMP_STEP_MS = 300;
 /** Ceiling for any single spawn pause — late 4ch under density. */
 const SPAWN_QUIET_CAP_MS = 8000;
-/** 4ch into an already-dense layout (Ripppple after Semmy) needs more air. */
+/** 4ch into an already-dense layout needs more air. */
 const SPAWN_QUIET_4CH_MS = 12000;
-/**
- * After Release before ≥4ch: parked apps unmute + jack-init together.
- * Long settle left apps fully unmuted so the next SetLayout respawn wedged USB;
- * short gap matches the late-ACK success window (~800ms).
- */
-const UNMUTE_BEFORE_4CH_MS = 800;
-/** Extra air after early Release + 4ch spawn before post-release SetAppParams. */
-const POST_4CH_PARAMS_SETTLE_MS = 6000;
 
 /**
  * Quiet pause after each incremental SetLayout before SetAppParams.
@@ -1320,10 +1311,9 @@ export function needsHoldForLayout(appLayout) {
 
 /**
  * Grow layout one app at a time under Hold. No SetAppParams here — caller
- * applies params after Release. `holdState.held` may flip to false when a
- * ≥4ch app is about to spawn (Ripppple under Hold after Semmy wedged USB).
+ * applies params after a single Release in the finally path.
  */
-async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef, holdState) {
+async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
   const n = ordered.length;
   log(`  push engine: hold-incremental (spawn only · ${n} apps)`);
   const growing = [];
@@ -1333,31 +1323,6 @@ async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef, holdState
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
     const channels = Number(slot.app?.channels) || 1;
-
-    if (holdState?.held && channels >= 4) {
-      const ok = await releasePerfMute(
-        cfg,
-        log,
-        ` before ${channels}ch spawn (${name})`,
-      );
-      if (ok) {
-        holdState.held = false;
-        // Thundering herd: ~N apps leave wait_while_perf_muted at once.
-        log(`  quiet settle ${UNMUTE_BEFORE_4CH_MS}ms after unmute (before 4ch) …`);
-        await delay(UNMUTE_BEFORE_4CH_MS);
-        try {
-          await probeConfigCable(cfg);
-          log("  ✓ config cable alive after unmute settle");
-        } catch (e) {
-          log(`  ⚠ cable after unmute settle: ${e.message || e}`);
-          await delay(2000);
-        }
-      } else {
-        throw new Error(
-          `ReleasePerfMute failed before ${channels}ch spawn (${name}) — Hold still set. Replug USB, then Push again.`,
-        );
-      }
-    }
 
     let pauseMs = incrementalSpawnQuietMs(
       slot,
@@ -1425,8 +1390,7 @@ async function applySetLayoutIncremental(
   const needsHold = needsHoldForLayout(appLayout);
   let held = false;
   let aborted = false;
-  /** True if we took the Hold path — still need post-release params even if
-   *  Hold was dropped early before a 4ch spawn. */
+  /** True if we took the Hold path — post-release SetAppParams after Release. */
   let postReleaseParams = false;
 
   try {
@@ -1487,18 +1451,7 @@ async function applySetLayoutIncremental(
     clearCachedAppStates(cfg.rx);
 
     if (held) {
-      const holdState = { held: true };
-      try {
-        cfg = await applyHoldIncrementalSpawn(
-          cfg,
-          ordered,
-          log,
-          deviceRef,
-          holdState,
-        );
-      } finally {
-        held = holdState.held;
-      }
+      cfg = await applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef);
     } else {
       log("  push engine: incremental");
       const growing = [];
@@ -1603,19 +1556,20 @@ async function applySetLayoutIncremental(
     aborted = true;
     throw e;
   } finally {
-    if (held && aborted) {
-      // The cable is gone — a full post-release params pass would only stack
-      // per-slot timeouts and reconnects for minutes. One short unmute try.
-      try {
-        await sendAndReceiveExpect(
-          deviceRef?.device?.config ?? cfg,
-          { tag: "ReleasePerfMute" },
-          "Pong",
-          { timeoutMs: 1500, attempts: 1 },
-        );
-        log("  ReleasePerfMute (after abort)");
-      } catch {
-        log("  ⚠ push aborted with Hold still set — replug USB, then Push again");
+    if (aborted) {
+      if (held) {
+        // Cable may be gone — one short unmute try; no SetAppParams hammering.
+        try {
+          await sendAndReceiveExpect(
+            deviceRef?.device?.config ?? cfg,
+            { tag: "ReleasePerfMute" },
+            "Pong",
+            { timeoutMs: 1500, attempts: 1 },
+          );
+          log("  ReleasePerfMute (after abort)");
+        } catch {
+          log("  ⚠ push aborted with Hold still set — replug USB, then Push again");
+        }
       }
     } else if (postReleaseParams && deviceRef?.device?.config) {
       cfg = deviceRef.device.config;
@@ -1639,30 +1593,6 @@ async function applySetLayoutIncremental(
             skipPostReleaseParams = true;
           } else {
             await delay(2000);
-          }
-        }
-      } else {
-        // Hold already dropped before ≥4ch — jack init may still be settling.
-        log(
-          `  quiet settle ${POST_4CH_PARAMS_SETTLE_MS}ms before post-release params …`,
-        );
-        await delay(POST_4CH_PARAMS_SETTLE_MS);
-        try {
-          cfg = await ensureCableAfterSpawn(
-            cfg,
-            deviceRef,
-            log,
-            "before post-release params",
-          );
-        } catch (e) {
-          log(`  ⚠ cable before params: ${e.message || e}`);
-          await delay(3000);
-          try {
-            await probeConfigCable(cfg);
-          } catch (e2) {
-            log(
-              `  ⚠ still quiet before SetAppParams: ${e2.message || e2} — trying anyway`,
-            );
           }
         }
       }
@@ -2249,18 +2179,12 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     try {
       if (held) {
         const ordered = [...appLayout.filter((s) => s.app)].sort(compareSpawnOrder);
-        const holdState = { held: true };
-        try {
-          config = await applyHoldIncrementalSpawn(
-            config,
-            ordered,
-            log,
-            deviceRef,
-            holdState,
-          );
-        } finally {
-          held = holdState.held;
-        }
+        config = await applyHoldIncrementalSpawn(
+          config,
+          ordered,
+          log,
+          deviceRef,
+        );
       } else {
         const spawnBudgetMs =
           n >= 8 ? estimateAtomicSpawnMs(n) : 0;
