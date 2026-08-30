@@ -578,23 +578,33 @@ test("compareSpawnOrder: ≥4ch spawns after low 1ch, before multi-ch (Ripppple)
     {
       id: 10,
       app: { appId: 115, channels: 4, paramCount: 12, name: "Ripppple" },
-      startChannel: 10,
+      startChannel: 8,
     },
     {
-      id: 7,
+      id: 11,
       app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
-      startChannel: 7,
+      startChannel: 12,
     },
     {
       id: 0,
       app: { appId: 101, channels: 1, paramCount: 16, name: "Grooves" },
       startChannel: 0,
     },
+    {
+      id: 8,
+      app: { appId: 122, channels: 1, paramCount: 10, name: "Turing" },
+      startChannel: 9,
+    },
+    {
+      id: 9,
+      app: { appId: 1, channels: 1, paramCount: 11, name: "Control" },
+      startChannel: 11,
+    },
   ];
   const ordered = [...slots].sort(compareSpawnOrder);
   assert.deepEqual(
     ordered.map((s) => s.app.name),
-    ["Grooves", "Ripppple", "Semmy"],
+    ["Grooves", "Turing", "Control", "Ripppple", "Semmy"],
   );
 });
 
@@ -633,6 +643,21 @@ test("incrementalSpawnQuietMs: late heavy 1ch gets the multi-ch quiet floor", ()
   assert.equal(incrementalSpawnQuietMs(echolot, 10, 12), 8000);
   // Early heavy 1ch stays on the short floor (plus first-spawn override).
   assert.equal(incrementalSpawnQuietMs(vamp, 1, 14), 800);
+});
+
+test("incrementalSpawnQuietMs: growing after prior 4ch uses dense floor (Zeta Ripppple→Semmy)", () => {
+  const ripppple = {
+    id: 10,
+    app: { appId: 115, channels: 4, paramCount: 12, name: "Ripppple" },
+    startChannel: 8,
+  };
+  const semmy = {
+    id: 11,
+    app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
+    startChannel: 12,
+  };
+  // index 3 is before latePacked — without prior4ch floor Semmy would stay at 1200ms.
+  assert.equal(incrementalSpawnQuietMs(semmy, 3, 12, [ripppple]), 8000);
 });
 
 test("incrementalSpawnQuietMs: growing after multi-ch uses a long floor (Beta Semmy→Control)", () => {
