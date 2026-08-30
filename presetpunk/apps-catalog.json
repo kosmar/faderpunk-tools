@@ -2989,7 +2989,7 @@
       "module": "vamp",
       "channels": 1,
       "name": "Chord Vamp",
-      "description": "Chord progressions - perform, shift+tap capture, or auto vamp",
+      "description": "Perform, capture, or auto chord vamps",
       "color": "Violet",
       "icon": "NoteGrid",
       "params": [
@@ -3958,7 +3958,7 @@
       "module": "contura",
       "channels": 1,
       "name": "Contura",
-      "description": "Melodic contour over selectable 12-TET scale sets, anchored to the device tonic",
+      "description": "Melodic contour over 12-TET scale sets",
       "color": "Orange",
       "icon": "Note",
       "params": [
@@ -5194,7 +5194,7 @@
       "module": "umbra",
       "channels": 1,
       "name": "Umbra",
-      "description": "Bass shadow companion to Contura - root, fifth, and approach lines over shared scale sets",
+      "description": "Bass shadow over Contura scale sets",
       "color": "Violet",
       "icon": "Note",
       "params": [

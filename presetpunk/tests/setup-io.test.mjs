@@ -585,6 +585,22 @@ test("incrementalSpawnQuietMs: late heavy 1ch gets the multi-ch quiet floor", ()
   assert.equal(incrementalSpawnQuietMs(vamp, 1, 14), 800);
 });
 
+test("incrementalSpawnQuietMs: growing after multi-ch uses a long floor (Beta Semmy→Control)", () => {
+  const semmy = {
+    id: 0,
+    app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
+    startChannel: 0,
+  };
+  const control = {
+    id: 1,
+    app: { appId: 1, channels: 1, paramCount: 11, name: "Control" },
+    startChannel: 2,
+  };
+  assert.equal(incrementalSpawnQuietMs(control, 1, 15, []), 500);
+  assert.equal(incrementalSpawnQuietMs(control, 1, 15, [semmy]), 4000);
+  assert.equal(incrementalSpawnQuietMs(control, 4, 15, [semmy]), 4300);
+});
+
 // ---- wire regression: SetAppParams must serialize ----------------------------
 
 test("SetAppParams with padded grooves vector serializes", () => {

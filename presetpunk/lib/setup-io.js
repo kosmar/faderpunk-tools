@@ -364,8 +364,11 @@ const SPAWN_QUIET_CAP_MS = 8000;
  * Quiet pause after each incremental SetLayout before SetAppParams.
  * Index 0 (post-clear) needs a longer floor — 800ms left heavy 1ch apps
  * (e.g. Grooves) timing out on SetAppParams with no AppState reply.
+ * `alreadyRunning` = slots already in the growing layout (SetLayout respawns
+ * them); a prior multi-ch app (Semmy@ch0) needs a long floor on every later
+ * step or Control#2 wedges USB.
  */
-export function incrementalSpawnQuietMs(slot, index, total) {
+export function incrementalSpawnQuietMs(slot, index, total, alreadyRunning = []) {
   const channels = Number(slot?.app?.channels) || 1;
   const heavy = isHeavySpawnSlot(slot, index, total);
   const weightHeavy = spawnWeight(slot) >= HEAVY_SPAWN_WEIGHT;
@@ -374,13 +377,21 @@ export function incrementalSpawnQuietMs(slot, index, total) {
   // class as late 4ch (Ripppple). Ramp is not enough once the spawn itself
   // stalls USB; use the multi-ch 8000ms floor.
   const latePacked = index >= 6 && (channels > 1 || weightHeavy);
-  const base = latePacked
+  let base = latePacked
     ? 8000
     : channels > 1
       ? 1200
       : heavy || index >= 8
         ? 800
         : 500;
+  const priorMulti = (alreadyRunning || []).some(
+    (s) => Number(s?.app?.channels) > 1,
+  );
+  // Growing after a multi-ch app respawns it on every SetLayout — 500ms after
+  // Semmy left Control(ch2) with a dead config cable (Beta).
+  if (index > 0 && priorMulti) {
+    base = Math.max(base, 4000);
+  }
   if (index === 0) return Math.max(base, LAYOUT_FIRST_SPAWN_QUIET_MS);
   // Every app already running keeps its handlers up while the next one spawns,
   // so spawn latency grows with the layout. A flat 800ms left Echolot as the
@@ -1446,7 +1457,12 @@ async function applySetLayoutIncremental(
         growing.push(slot);
         const name = slot.app?.name || slot.app?.appId;
         const ch = Number(slot.startChannel) || 0;
-        const pauseMs = incrementalSpawnQuietMs(slot, i, n);
+        const pauseMs = incrementalSpawnQuietMs(
+          slot,
+          i,
+          n,
+          growing.slice(0, -1),
+        );
 
         cfg = await applySetLayout(
           cfg,
