@@ -2158,21 +2158,25 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           n >= 8 ? estimateAtomicSpawnMs(n) : 0;
         const framMs = n >= 8 ? Math.max(2000, n * 400) : 0;
         const layoutStartedAt = Date.now();
+        // Dense non-Hold: quiet only — GetVersion poll + reconnect mid-spawn
+        // wedges the same way hold-dense did (Beta Semmy+Controls).
         config = await applySetLayout(
           config,
           appLayout,
           log,
           settleMs,
           deviceRef,
+          undefined,
+          spawnBudgetMs > 0 ? { quietMs: spawnBudgetMs } : {},
         );
         device = deviceRef.device;
         const staggerLeft = Math.max(0, spawnBudgetMs - (Date.now() - layoutStartedAt));
         if (staggerLeft > 0) {
           log(
-            `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, GetVersion) …`,
+            `  wait spawn stagger ${staggerLeft}ms (budget ${spawnBudgetMs}ms, no SysEx) …`,
           );
           await delayKeepalive(config, staggerLeft, {
-            probe: true,
+            probe: false,
             label: "spawn stagger",
             onLog: log,
           });
