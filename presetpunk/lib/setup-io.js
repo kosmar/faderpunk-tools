@@ -1320,13 +1320,15 @@ async function applySetLayout(
 }
 
 /**
- * One multi-ch app at ch0 + only light 1ch neighbours (e.g. Semmy + Controls).
- * Incremental left-to-right is stable without Hold; multi-heavy layouts still Hold.
+ * Layouts stable without Hold-dense incremental spawn.
+ * - Two or more multi-ch apps (USB wedges on 2nd multi under Hold).
+ * - One multi-ch at ch0 + only light 1ch neighbours (e.g. Semmy + Controls).
  */
 function layoutSkipsHoldDenseSpawn(appLayout) {
   const active = (appLayout || []).filter((s) => s?.app);
   if (active.length < 8) return false;
   const multi = active.filter((s) => Number(s.app?.channels) > 1);
+  if (multi.length >= 2) return true;
   if (multi.length !== 1 || Number(multi[0].startChannel) !== 0) return false;
   if (partitionBySpawnWeight(appLayout).heavy.length > 1) return false;
   return active.every(

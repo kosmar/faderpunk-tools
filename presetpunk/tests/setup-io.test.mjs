@@ -515,7 +515,7 @@ test("needsHoldForLayout: Semmy@ch0 + Controls skips hold-dense (Beta)", () => {
   assert.equal(needsHoldForLayout(withExtraHeavy), true);
 });
 
-test("needsHoldForLayout: Zeta-scale multi-heavy still needs Hold", () => {
+test("needsHoldForLayout: Zeta with Semmy+Ripppple skips hold-dense (two multi-ch)", () => {
   const zeta = [
     { id: 0, app: { appId: 101, channels: 1, paramCount: 16, name: "Grooves" }, startChannel: 0 },
     { id: 1, app: { appId: 112, channels: 1, paramCount: 14, name: "Bassment" }, startChannel: 1 },
@@ -529,7 +529,7 @@ test("needsHoldForLayout: Zeta-scale multi-heavy still needs Hold", () => {
       startChannel: i < 4 ? i + 2 : i + 8,
     })),
   ];
-  assert.equal(needsHoldForLayout(zeta), true);
+  assert.equal(needsHoldForLayout(zeta), false);
 });
 
 test("incrementalSpawnQuietMs: first post-clear spawn uses a longer floor", () => {
