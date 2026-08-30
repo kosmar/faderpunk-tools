@@ -560,9 +560,42 @@ test("incrementalSpawnQuietMs: late 4ch spawn gets extra quiet", () => {
     app: { appId: 46, channels: 4, paramCount: 15, name: "Ripppple" },
     startChannel: 7,
   };
-  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 8000);
-  assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 8000);
+  const semmy = {
+    id: 0,
+    app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
+    startChannel: 0,
+  };
+  // latePacked 8000 + ramp (cap 12s for 4ch)
+  assert.equal(incrementalSpawnQuietMs(manifold, 8, 10), 9200);
+  assert.equal(incrementalSpawnQuietMs(ripppple, 7, 10), 9200);
   assert.equal(incrementalSpawnQuietMs(ripppple, 1, 10), 1200);
+  // Dense prior + 4ch → full 12s floor (Zeta Ripppple after Semmy)
+  assert.equal(incrementalSpawnQuietMs(ripppple, 10, 12, [semmy]), 12000);
+});
+
+test("compareSpawnOrder: ≥4ch apps spawn last (Ripppple)", () => {
+  const slots = [
+    {
+      id: 10,
+      app: { appId: 115, channels: 4, paramCount: 12, name: "Ripppple" },
+      startChannel: 10,
+    },
+    {
+      id: 7,
+      app: { appId: 120, channels: 2, paramCount: 9, name: "Semmy" },
+      startChannel: 7,
+    },
+    {
+      id: 0,
+      app: { appId: 101, channels: 1, paramCount: 16, name: "Grooves" },
+      startChannel: 0,
+    },
+  ];
+  const ordered = [...slots].sort(compareSpawnOrder);
+  assert.deepEqual(
+    ordered.map((s) => s.app.name),
+    ["Grooves", "Semmy", "Ripppple"],
+  );
 });
 
 test("incrementalSpawnQuietMs: dense layouts ramp the quiet per running app", () => {

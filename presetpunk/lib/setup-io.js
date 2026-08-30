@@ -303,7 +303,9 @@ function shouldDeferSpawn(slot) {
   if (!slot?.app) return false;
   const id = Number(slot.app.appId);
   if (SPAWN_DEFER_APP_IDS.has(id)) return true;
-  return slot.app.name === "Chord Vamp";
+  if (slot.app.name === "Chord Vamp") return true;
+  // 4ch late under Hold (Ripppple@ch10 after Semmy) wedges USB — spawn last.
+  return Number(slot.app.channels) >= 4;
 }
 
 /**
@@ -311,7 +313,7 @@ function shouldDeferSpawn(slot) {
  * physical channel order so every intermediate layout grows left-to-right.
  * Starting with a sparse multi-channel app at ch11 reproduced a USB wedge;
  * the same apps at ch0 followed by contiguous Controls are stable.
- * Deferred apps (Chord Vamp) spawn after every other slot regardless of channel.
+ * Deferred: Chord Vamp + any ≥4ch app (Ripppple) after every other slot.
  */
 export function compareSpawnOrder(a, b) {
   const da = shouldDeferSpawn(a) ? 1 : 0;
@@ -329,8 +331,10 @@ function isHeavySpawnSlot(slot, index, total) {
 /** Extra quiet per already-running app once a layout gets dense. */
 const DENSE_SPAWN_RAMP_FROM_INDEX = 4;
 const DENSE_SPAWN_RAMP_STEP_MS = 300;
-/** Ceiling for any single spawn pause — the late-4ch worst case. */
+/** Ceiling for any single spawn pause — late 4ch under density. */
 const SPAWN_QUIET_CAP_MS = 8000;
+/** 4ch into an already-dense layout (Ripppple after Semmy) needs more air. */
+const SPAWN_QUIET_4CH_MS = 12000;
 
 /**
  * Quiet pause after each incremental SetLayout before SetAppParams.
@@ -364,6 +368,9 @@ export function incrementalSpawnQuietMs(slot, index, total, alreadyRunning = [])
   if (index > 0 && priorMulti) {
     base = Math.max(base, 4000);
   }
+  if (channels >= 4 && (alreadyRunning || []).length > 0) {
+    base = Math.max(base, SPAWN_QUIET_4CH_MS);
+  }
   if (index === 0) return Math.max(base, LAYOUT_FIRST_SPAWN_QUIET_MS);
   // Every app already running keeps its handlers up while the next one spawns,
   // so spawn latency grows with the layout. A flat 800ms left Echolot as the
@@ -372,7 +379,8 @@ export function incrementalSpawnQuietMs(slot, index, total, alreadyRunning = [])
     index >= DENSE_SPAWN_RAMP_FROM_INDEX
       ? (index - DENSE_SPAWN_RAMP_FROM_INDEX + 1) * DENSE_SPAWN_RAMP_STEP_MS
       : 0;
-  return Math.min(SPAWN_QUIET_CAP_MS, base + ramp);
+  const cap = channels >= 4 ? SPAWN_QUIET_4CH_MS : SPAWN_QUIET_CAP_MS;
+  return Math.min(cap, base + ramp);
 }
 
 /** Place apps at final startChannel (holes OK). Falls back to packed order. */
@@ -1271,11 +1279,10 @@ export function needsHoldForLayout(appLayout) {
 
 /**
  * Grow layout one app at a time under Hold. No SetAppParams here — caller
- * Releases then applies params (MidiOutput frozen until unmute).
- * Atomic multi-app SetLayout under Hold wedged Zeta (12 apps / 5 heavy);
- * Beta-style incremental spawn survived.
+ * applies params after Release. `holdState.held` may flip to false when a
+ * ≥4ch app is about to spawn (Ripppple under Hold after Semmy wedged USB).
  */
-async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
+async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef, holdState) {
   const n = ordered.length;
   log(`  push engine: hold-incremental (spawn only · ${n} apps)`);
   const growing = [];
@@ -1284,15 +1291,32 @@ async function applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef) {
     growing.push(slot);
     const name = slot.app?.name || slot.app?.appId;
     const ch = Number(slot.startChannel) || 0;
+    const channels = Number(slot.app?.channels) || 1;
+
+    if (holdState?.held && channels >= 4) {
+      try {
+        await sendAndReceiveExpect(
+          cfg,
+          { tag: "ReleasePerfMute" },
+          "Pong",
+          { timeoutMs: 3000, attempts: 2 },
+        );
+        holdState.held = false;
+        log(`  ReleasePerfMute before ${channels}ch spawn (${name})`);
+        await delay(800);
+      } catch (e) {
+        log(`  ⚠ ReleasePerfMute before 4ch: ${e.message || e}`);
+      }
+    }
+
     let pauseMs = incrementalSpawnQuietMs(
       slot,
       i,
       n,
       growing.slice(0, -1),
     );
-    // Hold parks jack/MIDI init; still give each step a floor above the
-    // non-Hold light-Control quiet (Zeta died on atomic after long “quiet”).
-    pauseMs = Math.min(SPAWN_QUIET_CAP_MS, Math.max(pauseMs, 2500));
+    const quietCap = channels >= 4 ? SPAWN_QUIET_4CH_MS : SPAWN_QUIET_CAP_MS;
+    pauseMs = Math.min(quietCap, Math.max(pauseMs, 2500));
     cfg = await applySetLayout(
       cfg,
       growing,
@@ -1351,6 +1375,9 @@ async function applySetLayoutIncremental(
   const needsHold = needsHoldForLayout(appLayout);
   let held = false;
   let aborted = false;
+  /** True if we took the Hold path — still need post-release params even if
+   *  Hold was dropped early before a 4ch spawn. */
+  let postReleaseParams = false;
 
   try {
     await sendAndReceiveExpect(
@@ -1378,6 +1405,7 @@ async function applySetLayoutIncremental(
         { timeoutMs: 2000, attempts: 2 },
       );
       held = true;
+      postReleaseParams = true;
       log(`  HoldPerfMute (${n} apps · ${heavyN} heavy)`);
       await delay(300);
     } catch {
@@ -1409,7 +1437,15 @@ async function applySetLayoutIncremental(
     clearCachedAppStates(cfg.rx);
 
     if (held) {
-      cfg = await applyHoldIncrementalSpawn(cfg, ordered, log, deviceRef);
+      const holdState = { held: true };
+      cfg = await applyHoldIncrementalSpawn(
+        cfg,
+        ordered,
+        log,
+        deviceRef,
+        holdState,
+      );
+      held = holdState.held;
     } else {
       log("  push engine: incremental");
       const growing = [];
@@ -1528,18 +1564,20 @@ async function applySetLayoutIncremental(
       } catch {
         log("  ⚠ push aborted with Hold still set — replug USB, then Push again");
       }
-    } else if (held && deviceRef?.device?.config) {
+    } else if (postReleaseParams && deviceRef?.device?.config) {
       try {
         cfg = deviceRef.device.config;
-        await sendAndReceiveExpect(
-          cfg,
-          { tag: "ReleasePerfMute" },
-          "Pong",
-          { timeoutMs: 3000, attempts: 2 },
-        );
-        log("  ReleasePerfMute");
-        // Pong is Core0-only; Core1 unmutes async (store may still run).
-        await delay(2000);
+        if (held) {
+          await sendAndReceiveExpect(
+            cfg,
+            { tag: "ReleasePerfMute" },
+            "Pong",
+            { timeoutMs: 3000, attempts: 2 },
+          );
+          log("  ReleasePerfMute");
+          // Pong is Core0-only; Core1 unmutes async (store may still run).
+          await delay(2000);
+        }
       } catch (e) {
         log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
       }
@@ -2087,6 +2125,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
 
   let device;
   let held = false;
+  let postReleaseParams = false;
   let config;
   try {
     log("Connecting via Web MIDI …");
@@ -2109,6 +2148,7 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
           { timeoutMs: 2000, attempts: 2 },
         );
         held = true;
+        postReleaseParams = true;
         log(`  HoldPerfMute (live dense · ${n} apps · ${heavyN} heavy)`);
         await delay(300);
       } catch {
@@ -2124,12 +2164,15 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
     try {
       if (held) {
         const ordered = [...appLayout.filter((s) => s.app)].sort(compareSpawnOrder);
+        const holdState = { held: true };
         config = await applyHoldIncrementalSpawn(
           config,
           ordered,
           log,
           deviceRef,
+          holdState,
         );
+        held = holdState.held;
       } else {
         const spawnBudgetMs =
           n >= 8 ? estimateAtomicSpawnMs(n) : 0;
@@ -2169,17 +2212,19 @@ export async function pushLiveStructureToDevice(setup, opts = {}) {
         });
       }
     } finally {
-      if (held) {
+      if (postReleaseParams) {
         try {
-          await sendAndReceiveExpect(
-            config,
-            { tag: "ReleasePerfMute" },
-            "Pong",
-            { timeoutMs: 5000, attempts: 2 },
-          );
-          log("  ReleasePerfMute");
-          // Pong is Core0-only; Core1 unmutes async (store may still run).
-          await delay(2000);
+          if (held) {
+            await sendAndReceiveExpect(
+              config,
+              { tag: "ReleasePerfMute" },
+              "Pong",
+              { timeoutMs: 5000, attempts: 2 },
+            );
+            log("  ReleasePerfMute");
+            // Pong is Core0-only; Core1 unmutes async (store may still run).
+            await delay(2000);
+          }
         } catch (e) {
           log(`  ⚠ ReleasePerfMute: ${e.message || e}`);
         }
