@@ -879,21 +879,29 @@ export function paramsWireMatch(sent, got) {
   return true;
 }
 
-async function fetchAppParamsValues(cfg, layoutId, log) {
-  clearCachedAppState(cfg.rx, layoutId);
+async function fetchAppParamsValues(cfg, layoutId, log, opts = {}) {
+  if (!opts.fresh) {
+    const cached = cachedAppState(cfg.rx, layoutId);
+    const cachedValues = cached?.value?.[1];
+    if (Array.isArray(cachedValues) && cachedValues.length > 0) {
+      return cachedValues;
+    }
+  } else {
+    clearCachedAppState(cfg.rx, layoutId);
+  }
   drainConfigQueue(cfg.rx);
   const response = await sendAndReceiveExpect(
     cfg,
     { tag: "GetAppParams", value: { layout_id: layoutId } },
     "AppState",
-    { onLog: log, timeoutMs: 3500, attempts: 2, matchLayoutId: layoutId },
+    { onLog: log, timeoutMs: 8000, attempts: 2, matchLayoutId: layoutId },
   );
   const values = response.value?.[1] ?? response.value?.values;
   return Array.isArray(values) && values.length > 0 ? values : null;
 }
 
 async function verifySetAppParamsViaGet(cfg, layoutId, padded, log) {
-  const got = await fetchAppParamsValues(cfg, layoutId, log);
+  const got = await fetchAppParamsValues(cfg, layoutId, log, { fresh: true });
   if (!got) return { ok: false, reason: "empty AppState from GetAppParams" };
   log(`  · device wire: ${summarizeParamWire(got)}`);
   if (paramsWireMatch(padded, got)) {
@@ -1808,7 +1816,15 @@ async function applySetAppParams(config, paramsById, layoutIds, log, opts = {}) 
         if (attempt === 0) {
           log(`  · host wire: ${summarizeParamWire(hostPadded)}`);
         }
-        const deviceValues = (await fetchAppParamsValues(cfg, id, log)) ?? [];
+        let deviceValues = [];
+        try {
+          deviceValues = (await fetchAppParamsValues(cfg, id, log)) ?? [];
+        } catch (e) {
+          log(
+            `  ↷ GetAppParams before Set: ${e.message || e} — sending all host slots`,
+          );
+          deviceValues = [];
+        }
         let sparse = buildSparseParams(values, deviceValues);
         if (!sparseHasDefinedSlots(sparse)) {
           if (!forceRestart) {
