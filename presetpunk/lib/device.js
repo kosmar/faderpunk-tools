@@ -6,6 +6,8 @@ import {
 } from "./panic-beacon.js";
 
 const RECEIVE_TIMEOUT_MS = 2000;
+const BATCH_SLICE_TIMEOUT_MS = 5000;
+const SYSEX_DEDUPE_MS = 100;
 // The device can answer slowly while app tasks are spawning or immediately
 // after USB reconnect. 300 ms caused valid config ports to be rejected.
 const PROBE_TIMEOUT_MS = 1200;
@@ -56,14 +58,60 @@ async function listenForPanicBeacon(access, configInput) {
   return collector.result();
 }
 
-function attachConfigInput(input) {
-  const rx = {
-    sysexBuffer: [],
-    collecting: false,
+function createSharedRx() {
+  return {
     queue: [],
     waiter: null,
     appStates: new Map(),
+    lastDedupePayload: null,
+    lastDedupeTime: 0,
+    lastSourceInput: null,
   };
+}
+
+function payloadsEqual(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function isDuplicatePayload(rx, payload) {
+  const now = Date.now();
+  if (
+    rx.lastDedupePayload &&
+    now - rx.lastDedupeTime < SYSEX_DEDUPE_MS &&
+    payloadsEqual(rx.lastDedupePayload, payload)
+  ) {
+    return true;
+  }
+  rx.lastDedupePayload = payload;
+  rx.lastDedupeTime = now;
+  return false;
+}
+
+function deliverMessage(rx, input, msg) {
+  rx.lastSourceInput = input;
+  if (msg?.tag === "AppState") {
+    const layoutId = Number(msg.value?.[0]);
+    const values = msg.value?.[1];
+    if (Number.isFinite(layoutId) && Array.isArray(values) && values.length > 0) {
+      rx.appStates.set(layoutId, msg);
+    }
+  }
+  if (rx.waiter) {
+    const { resolve, timer } = rx.waiter;
+    clearTimeout(timer);
+    rx.waiter = null;
+    resolve(msg);
+  } else {
+    rx.queue.push(msg);
+  }
+}
+
+function attachInputToSharedRx(input, rx) {
+  const local = { sysexBuffer: [], collecting: false };
 
   input.onmidimessage = (event) => {
     if (!event.data || event.data.length === 0) return;
@@ -78,17 +126,18 @@ function attachConfigInput(input) {
 
     for (const byte of data) {
       if (byte === SYSEX_START) {
-        rx.sysexBuffer = [byte];
-        rx.collecting = true;
+        local.sysexBuffer = [byte];
+        local.collecting = true;
         continue;
       }
-      if (!rx.collecting) continue;
-      rx.sysexBuffer.push(byte);
+      if (!local.collecting) continue;
+      local.sysexBuffer.push(byte);
       if (byte === SYSEX_EOX) {
-        rx.collecting = false;
-        const payload = parseConfigFrame(new Uint8Array(rx.sysexBuffer));
-        rx.sysexBuffer = [];
+        local.collecting = false;
+        const payload = parseConfigFrame(new Uint8Array(local.sysexBuffer));
+        local.sysexBuffer = [];
         if (!payload) continue;
+        if (isDuplicatePayload(rx, payload)) continue;
         let msg;
         try {
           msg = deserialize("ConfigMsgOut", payload).value;
@@ -96,26 +145,10 @@ function attachConfigInput(input) {
           console.error("Failed to deserialize config message:", err);
           continue;
         }
-        if (msg?.tag === "AppState") {
-          const layoutId = Number(msg.value?.[0]);
-          const values = msg.value?.[1];
-          if (Number.isFinite(layoutId) && Array.isArray(values) && values.length > 0) {
-            rx.appStates.set(layoutId, msg);
-          }
-        }
-        if (rx.waiter) {
-          const { resolve, timer } = rx.waiter;
-          clearTimeout(timer);
-          rx.waiter = null;
-          resolve(msg);
-        } else {
-          rx.queue.push(msg);
-        }
+        deliverMessage(rx, input, msg);
       }
     }
   };
-
-  return rx;
 }
 
 function receiveFromRx(rx, timeoutMs) {
@@ -145,18 +178,8 @@ function configProbeOutputs(outputs) {
   return outputs;
 }
 
-function abortRxWaiters(handlers) {
-  for (const { rx } of handlers) {
-    if (rx.waiter) {
-      clearTimeout(rx.waiter.timer);
-      rx.waiter = null;
-    }
-  }
-}
-
-function detachInputHandlers(handlers, keepInput = null) {
+function detachInputHandlers(handlers) {
   for (const { input, rx } of handlers) {
-    if (keepInput && input === keepInput) continue;
     input.onmidimessage = null;
     if (rx.waiter) {
       clearTimeout(rx.waiter.timer);
@@ -165,48 +188,28 @@ function detachInputHandlers(handlers, keepInput = null) {
   }
 }
 
-/** Wait for first Version on any attached input (GetVersion already sent on TX). */
-function waitForVersionOnAny(handlers, timeoutMs) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const finish = (result) => {
-      if (settled) return;
-      settled = true;
-      abortRxWaiters(handlers);
-      resolve(result);
-    };
-
-    const timer = setTimeout(() => finish(null), timeoutMs);
-    let pending = handlers.length;
-
-    for (const { input, rx } of handlers) {
-      receiveFromRx(rx, timeoutMs)
-        .then((msg) => {
-          if (msg?.tag === "Version") {
-            const { major, minor, patch } = msg.value;
-            clearTimeout(timer);
-            finish({
-              input,
-              rx,
-              version: `${major}.${minor}.${patch}`,
-            });
-          } else {
-            pending -= 1;
-            if (pending === 0) {
-              clearTimeout(timer);
-              finish(null);
-            }
-          }
-        })
-        .catch(() => {
-          pending -= 1;
-          if (pending === 0) {
-            clearTimeout(timer);
-            finish(null);
-          }
-        });
+/** Wait for Version on shared rx. Arm this before TX so a fast reply is not missed. */
+async function waitForVersion(sharedRx, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const msg = await receiveFromRx(
+        sharedRx,
+        Math.max(200, deadline - Date.now()),
+      );
+      if (msg?.tag === "Version") {
+        const { major, minor, patch } = msg.value;
+        return {
+          input: sharedRx.lastSourceInput,
+          rx: sharedRx,
+          version: `${major}.${minor}.${patch}`,
+        };
+      }
+    } catch {
+      return null;
     }
-  });
+  }
+  return null;
 }
 
 function portCandidates(ports) {
@@ -256,11 +259,12 @@ export async function connectDevice() {
   const probeOutputs = configProbeOutputs(outputs);
   const probeOutput = probeOutputs[0] ?? null;
 
+  const sharedRx = createSharedRx();
   const inputHandlers = [];
   for (const input of inputs) {
-    const rx = attachConfigInput(input);
+    attachInputToSharedRx(input, sharedRx);
     await input.open();
-    inputHandlers.push({ input, rx });
+    inputHandlers.push({ input, rx: sharedRx });
   }
 
   let config = null;
@@ -272,15 +276,17 @@ export async function connectDevice() {
       await probeOutput.open();
       // Waiters must be armed before TX — Version can arrive on a different
       // input than the Config-named one (fp-cli: RX Faderpunk / TX Config).
-      const waitPromise = waitForVersionOnAny(inputHandlers, PROBE_TIMEOUT_MS);
+      drainConfigQueue(sharedRx);
+      const waitPromise = waitForVersion(sharedRx, PROBE_TIMEOUT_MS);
       sendFrame(probeOutput, { tag: "GetVersion" });
       const result = await waitPromise;
       if (result) {
         config = {
           input: result.input,
+          inputs,
           output: probeOutput,
           version: result.version,
-          rx: result.rx,
+          rx: sharedRx,
         };
       }
     }
@@ -305,8 +311,6 @@ export async function connectDevice() {
     throw new Error(message);
   }
 
-  detachInputHandlers(inputHandlers, config.input);
-
   return {
     access,
     config,
@@ -316,7 +320,12 @@ export async function connectDevice() {
 
 export function disconnectDevice(device) {
   if (!device?.config) return;
-  device.config.input.onmidimessage = null;
+  const inputs =
+    device.config.inputs ??
+    (device.config.input ? [device.config.input] : []);
+  for (const input of inputs) {
+    if (input) input.onmidimessage = null;
+  }
   if (device.config.rx?.waiter) {
     clearTimeout(device.config.rx.waiter.timer);
     device.config.rx.waiter = null;
@@ -376,6 +385,8 @@ export async function sendAndReceiveExpect(config, msg, expectedTag, opts = {}) 
     } catch (e) {
       const timedOut = /timed out/i.test(String(e.message || e));
       if (timedOut && Date.now() < deadline) {
+        drainConfigQueue(config.rx);
+        sendFrame(config.output, msg);
         continue;
       }
       if (lastTag) {
@@ -416,7 +427,10 @@ export async function receiveBatchMessages(config, count) {
   const deadline = Date.now() + RECEIVE_TIMEOUT_MS * Math.max(4, n + 2);
   while (results.length < n && Date.now() < deadline) {
     const remaining = Math.max(300, deadline - Date.now());
-    const msg = await receiveFromRx(config.rx, Math.min(RECEIVE_TIMEOUT_MS, remaining));
+    const msg = await receiveFromRx(
+      config.rx,
+      Math.min(BATCH_SLICE_TIMEOUT_MS, remaining),
+    );
     if (msg.tag === "BatchMsgEnd") {
       // Early end — return what we have (caller may fill gaps).
       return results;
@@ -427,6 +441,7 @@ export async function receiveBatchMessages(config, count) {
       results.push(msg);
       continue;
     }
+    continue;
   }
   if (results.length < n) {
     throw new Error(

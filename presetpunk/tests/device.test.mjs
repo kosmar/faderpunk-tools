@@ -5,6 +5,8 @@ import {
   connectDevice,
   disconnectDevice,
   isUsbWedgeError,
+  receiveBatchMessages,
+  sendAndReceiveExpect,
   USB_WEDGE_ERROR,
 } from "../lib/device.js";
 import { buildConfigFrame } from "../lib/sysex.js";
@@ -101,6 +103,14 @@ test("connectDevice: split RX/TX — Version on Faderpunk in, GetVersion on Conf
     assert.equal(device.config.output.name, "Faderpunk Config");
     assert.equal(configSends, 1, "one GetVersion on Config out");
     assert.equal(perfOut.getSendCount(), 0, "no sends on Faderpunk perf out");
+    assert.ok(
+      typeof configIn.onmidimessage === "function",
+      "Config input handler kept after connect",
+    );
+    assert.ok(
+      typeof perfIn.onmidimessage === "function",
+      "Perf input handler kept after connect",
+    );
   } finally {
     disconnectDevice(device);
     restoreNavigator();
@@ -235,4 +245,189 @@ test("isUsbWedgeError matches USB_WEDGE_ERROR and panic suffix", () => {
     true,
   );
   assert.equal(isUsbWedgeError(new Error("No Faderpunk config MIDI port found")), false);
+});
+
+const minimalAppConfig = {
+  tag: "AppConfig",
+  value: [
+    0,
+    1n,
+    [0n, "TestApp", "", { tag: "White" }, { tag: "Fader" }, []],
+  ],
+};
+
+test("GetAllApps fan-in: BatchMsgStart on Config, AppConfig on Config port", async () => {
+  const configIn = silentInput("config-in", "Faderpunk Config");
+  const perfIn = silentInput("perf-in", "Faderpunk");
+  const versionFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", {
+      tag: "Version",
+      value: { major: 1, minor: 12, patch: 0 },
+    }),
+  );
+  const batchStartFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", { tag: "BatchMsgStart", value: 1n }),
+  );
+  const appConfigFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", minimalAppConfig),
+  );
+  const batchEndFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", { tag: "BatchMsgEnd" }),
+  );
+
+  let connectPhase = true;
+  const configOut = {
+    id: "config-out",
+    name: "Faderpunk Config",
+    manufacturer: "Faderpunk",
+    async open() {},
+    send() {
+      if (connectPhase) {
+        connectPhase = false;
+        setTimeout(() => {
+          perfIn.onmidimessage?.({ data: versionFrame });
+        }, 10);
+        return;
+      }
+      setTimeout(() => {
+        configIn.onmidimessage?.({ data: batchStartFrame });
+        setTimeout(() => {
+          configIn.onmidimessage?.({ data: appConfigFrame });
+          setTimeout(() => {
+            configIn.onmidimessage?.({ data: batchEndFrame });
+          }, 10);
+        }, 10);
+      }, 10);
+    },
+  };
+
+  const restoreNavigator = mockNavigator([configIn, perfIn], [configOut]);
+
+  let device;
+  try {
+    device = await connectDevice();
+    assert.equal(device.config.version, "1.12.0");
+
+    const batchStart = await sendAndReceiveExpect(
+      device.config,
+      { tag: "GetAllApps" },
+      "BatchMsgStart",
+      { timeoutMs: 2000 },
+    );
+    assert.equal(batchStart.tag, "BatchMsgStart");
+    assert.equal(Number(batchStart.value), 1);
+
+    const apps = await receiveBatchMessages(device.config, 1);
+    assert.equal(apps.length, 1);
+    assert.equal(apps[0].tag, "AppConfig");
+    assert.equal(apps[0].value[2][1], "TestApp");
+  } finally {
+    disconnectDevice(device);
+    restoreNavigator();
+  }
+});
+
+test("duplicate identical SysEx on both inputs is counted once", async () => {
+  const configIn = silentInput("config-in", "Faderpunk Config");
+  const perfIn = silentInput("perf-in", "Faderpunk");
+  const versionFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", {
+      tag: "Version",
+      value: { major: 1, minor: 0, patch: 0 },
+    }),
+  );
+  const batchStartFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", { tag: "BatchMsgStart", value: 1n }),
+  );
+  const appConfigFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", minimalAppConfig),
+  );
+  const batchEndFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", { tag: "BatchMsgEnd" }),
+  );
+
+  let connectPhase = true;
+  const configOut = {
+    id: "config-out",
+    name: "Faderpunk Config",
+    manufacturer: "Faderpunk",
+    async open() {},
+    send() {
+      if (connectPhase) {
+        connectPhase = false;
+        setTimeout(() => {
+          perfIn.onmidimessage?.({ data: versionFrame });
+        }, 10);
+        return;
+      }
+      setTimeout(() => {
+        configIn.onmidimessage?.({ data: batchStartFrame });
+        perfIn.onmidimessage?.({ data: batchStartFrame });
+        setTimeout(() => {
+          configIn.onmidimessage?.({ data: appConfigFrame });
+          perfIn.onmidimessage?.({ data: appConfigFrame });
+          setTimeout(() => {
+            configIn.onmidimessage?.({ data: batchEndFrame });
+          }, 10);
+        }, 10);
+      }, 10);
+    },
+  };
+
+  const restoreNavigator = mockNavigator([configIn, perfIn], [configOut]);
+
+  let device;
+  try {
+    device = await connectDevice();
+
+    const batchStart = await sendAndReceiveExpect(
+      device.config,
+      { tag: "GetAllApps" },
+      "BatchMsgStart",
+      { timeoutMs: 2000 },
+    );
+    assert.equal(Number(batchStart.value), 1);
+
+    const apps = await receiveBatchMessages(device.config, 1);
+    assert.equal(apps.length, 1, "mirrored frame counted once");
+  } finally {
+    disconnectDevice(device);
+    restoreNavigator();
+  }
+});
+
+test("disconnectDevice clears onmidimessage on all inputs", async () => {
+  const configIn = silentInput("config-in", "Faderpunk Config");
+  const perfIn = silentInput("perf-in", "Faderpunk");
+  const versionFrame = buildConfigFrame(
+    serialize("ConfigMsgOut", {
+      tag: "Version",
+      value: { major: 1, minor: 0, patch: 0 },
+    }),
+  );
+  const configOut = {
+    id: "config-out",
+    name: "Faderpunk Config",
+    manufacturer: "Faderpunk",
+    async open() {},
+    send() {
+      setTimeout(() => {
+        perfIn.onmidimessage?.({ data: versionFrame });
+      }, 10);
+    },
+  };
+
+  const restoreNavigator = mockNavigator([configIn, perfIn], [configOut]);
+
+  let device;
+  try {
+    device = await connectDevice();
+    assert.ok(typeof configIn.onmidimessage === "function");
+    assert.ok(typeof perfIn.onmidimessage === "function");
+    disconnectDevice(device);
+    assert.equal(configIn.onmidimessage, null);
+    assert.equal(perfIn.onmidimessage, null);
+  } finally {
+    restoreNavigator();
+  }
 });
