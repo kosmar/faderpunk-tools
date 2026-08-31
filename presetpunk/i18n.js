@@ -317,9 +317,9 @@
       "pull.firstRun":
         "This editor starts empty — no studio presets are shipped.\n\nRead the current layout from your Faderpunk now?\n\nDevice must be connected in this tab (Web MIDI).",
       "pull.title": "Pull from Punk",
-      "empty.loadExample": "Try Manifold Demo",
+      "empty.loadExample": "Try a Demo Preset",
       "empty.loadExampleTitle": "Load a sample layout — no device needed",
-      "status.emptyBank": "Empty editor — add rows, pull from the device, or try Manifold Demo",
+      "status.emptyBank": "Empty editor — add rows, pull from the device, or try a demo preset",
       "modal.later": "Not now",
       "pull.logStart": "=== Pull from device ===",
       "pull.okLog":
@@ -686,9 +686,9 @@
       "pull.firstRun":
         "Der Editor startet leer — es werden keine Studio-Presets mitgeliefert.\n\nAktuelles Layout jetzt vom Faderpunk lesen?\n\nGerät muss in diesem Tab per Web MIDI verbunden sein.",
       "pull.title": "Pull vom Punk",
-      "empty.loadExample": "Manifold-Demo laden",
+      "empty.loadExample": "Demo-Preset laden",
       "empty.loadExampleTitle": "Beispiel-Layout laden — kein Gerät nötig",
-      "status.emptyBank": "Leerer Editor — Zeilen hinzufügen, vom Gerät lesen oder Manifold-Demo laden",
+      "status.emptyBank": "Leerer Editor — Zeilen hinzufügen, vom Gerät lesen oder ein Demo-Preset laden",
       "modal.later": "Später",
       "pull.logStart": "=== Pull vom Gerät ===",
       "pull.okLog":
@@ -1110,9 +1110,9 @@
       "pull.firstRun":
         "L’éditeur démarre vide — aucun preset studio n’est fourni.\n\nLire le layout actuel depuis le Faderpunk maintenant ?\n\nL’appareil doit être connecté dans cet onglet (Web MIDI).",
       "pull.title": "Pull du Punk",
-      "empty.loadExample": "Essayer Manifold Demo",
+      "empty.loadExample": "Essayer un preset démo",
       "empty.loadExampleTitle": "Charger un layout d’exemple — aucun appareil requis",
-      "status.emptyBank": "Éditeur vide — ajoutez des lignes, lisez depuis l’appareil ou essayez Manifold Demo",
+      "status.emptyBank": "Éditeur vide — ajoutez des lignes, lisez depuis l’appareil ou essayez un preset démo",
       "modal.later": "Plus tard",
       "pull.logStart": "=== Pull depuis l’appareil ===",
       "pull.okLog":
