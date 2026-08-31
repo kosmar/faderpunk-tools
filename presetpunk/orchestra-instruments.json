@@ -1855,5 +1855,73 @@
         "section": "General"
       }
     ]
+  },
+  {
+    "id": "polyphrase",
+    "name": "Polyphrase",
+    "midiCh": 8,
+    "csv": "",
+    "ccs": [
+      {
+        "cc": 1,
+        "name": "Repeats",
+        "section": ""
+      },
+      {
+        "cc": 2,
+        "name": "Tone",
+        "section": ""
+      },
+      {
+        "cc": 3,
+        "name": "Depth",
+        "section": ""
+      },
+      {
+        "cc": 4,
+        "name": "Rate",
+        "section": ""
+      },
+      {
+        "cc": 5,
+        "name": "Slider L",
+        "section": ""
+      },
+      {
+        "cc": 6,
+        "name": "Slider R",
+        "section": ""
+      },
+      {
+        "cc": 7,
+        "name": "Mix",
+        "section": ""
+      },
+      {
+        "cc": 8,
+        "name": "Time",
+        "section": ""
+      },
+      {
+        "cc": 9,
+        "name": "Echo Style",
+        "section": ""
+      },
+      {
+        "cc": 10,
+        "name": "Sync",
+        "section": ""
+      },
+      {
+        "cc": 13,
+        "name": "Bypass",
+        "section": ""
+      },
+      {
+        "cc": 14,
+        "name": "Infinite",
+        "section": ""
+      }
+    ]
   }
 ]

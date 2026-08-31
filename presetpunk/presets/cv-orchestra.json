@@ -1,0 +1,144 @@
+{
+  "presets": [
+    {
+      "index": 1,
+      "letter": 0,
+      "name": "CV Orchestra",
+      "desc": "Nord Drum · Minitaur · Polyphrase · Hydra · Vector. Super LFO → Manifold → apps; Contura CV Out → Quantizer → Harmonica / analog pitch. See recipe[] in this JSON.",
+      "port": "out1",
+      "recipe": [
+        "Jack 1 → jack 3: Super LFO A into Manifold IN",
+        "Jack 4 → Bassment: set Bassment Jack to CV In Density",
+        "Jack 5 → Umbra: set Umbra Jack to CV In Interval",
+        "Jack 6 → Heat Pump: set Heat Pump Jack to CV In Depth",
+        "Jack 2 → jack 14: Super LFO B into Control Issues (Polyphrase Repeats)",
+        "Contura Jack = CV Out → jack 15 (Quantizer IN)",
+        "Jack 16 (Quantizer OUT) → Harmonica: set I/O to CV→MIDI",
+        "Optional analog: jack 16 → Minitaur Pitch CV and/or Hydra CV in (mult)",
+        "Optional analog: jack 2 or 4 → Minitaur Filter CV",
+        "Polyphrase MIDI ch 8: hold SYNC on boot, then send any CC on ch 8"
+      ],
+      "rows": [
+        {
+          "app": "super_lfo",
+          "fader": 1,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "cc",
+          "instrumentId": "vector",
+          "cc": 3
+        },
+        {
+          "app": "manifold",
+          "fader": 3,
+          "target": "",
+          "ch": 1,
+          "kind": "none",
+          "instrumentId": "",
+          "cc": 0
+        },
+        {
+          "app": "bassment",
+          "fader": 7,
+          "target": "Minitaur",
+          "ch": 13,
+          "kind": "note",
+          "instrumentId": "minitaur",
+          "cc": 36
+        },
+        {
+          "app": "umbra",
+          "fader": 8,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "note",
+          "instrumentId": "vector",
+          "cc": 36
+        },
+        {
+          "app": "contura",
+          "fader": 9,
+          "target": "Vector",
+          "ch": 14,
+          "kind": "note",
+          "instrumentId": "vector",
+          "cc": 48
+        },
+        {
+          "app": "vamp",
+          "fader": 10,
+          "target": "Hydrasynth",
+          "ch": 16,
+          "kind": "note",
+          "instrumentId": "hydrasynth",
+          "cc": 48
+        },
+        {
+          "app": "harmonica",
+          "fader": 11,
+          "target": "Hydrasynth",
+          "ch": 16,
+          "kind": "none",
+          "instrumentId": "hydrasynth",
+          "cc": 32,
+          "chs": [1, 16]
+        },
+        {
+          "app": "grooves",
+          "fader": 12,
+          "target": "Drum 3P",
+          "ch": 1,
+          "kind": "note",
+          "instrumentId": "drum-3p",
+          "cc": 36,
+          "chs": [1, 1, 1],
+          "ccs": [36, 38, 42]
+        },
+        {
+          "app": "heat_pump",
+          "fader": 13,
+          "target": "Polyphrase",
+          "ch": 8,
+          "kind": "cc",
+          "instrumentId": "polyphrase",
+          "cc": 7
+        },
+        {
+          "app": "control_issues",
+          "fader": 14,
+          "target": "Polyphrase",
+          "ch": 8,
+          "kind": "cc",
+          "instrumentId": "polyphrase",
+          "cc": 1
+        },
+        {
+          "app": "quantizer",
+          "fader": 15,
+          "target": "",
+          "ch": 1,
+          "kind": "none",
+          "instrumentId": "",
+          "cc": 0
+        }
+      ],
+      "global": {
+        "clock": {
+          "clock_src": {
+            "tag": "Internal"
+          },
+          "ext_ppqn": 24,
+          "reset_src": {
+            "tag": "None"
+          },
+          "internal_bpm": 120,
+          "swing_amount": 0
+        },
+        "scale": "Chromatic",
+        "tonic": "C",
+        "takeover": "Pickup"
+      }
+    }
+  ],
+  "active": 0
+}
