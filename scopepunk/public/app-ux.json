@@ -1875,6 +1875,7 @@
             "Main Btn: logic / app color · density bright · soft hit dip",
             "Alt: Top+Btn dim→sat ∝ Extent / Interval (fixed hues) · Third: shortest hue btn→complement ∝ length",
             "Top flashes = layer hits (Main) · Bottom flashes = logic outs (Main)",
+            "<strong>Jack Ch0 / Jack Ch1</strong> (config) — per channel: <strong>Gate Out</strong> (default), <strong>CV Out</strong> (pitch of that voice), or CV In ±5 V into that channel’s three latch dests (Pulses / Extent|Interval / Length). One jack cannot be In and Out at once",
             "Jack0 = logic result + melodic line · Jack1 coupled (OR→∩, AND→△, XOR→∩, Accnt→accent) + Interval"
           ]
         }
@@ -1972,7 +1973,7 @@
     "113": {
       "id": 113,
       "name": "Contura",
-      "blurb": "Melodic contour over selectable 12-TET scale sets, anchored to the device tonic",
+      "blurb": "Melodic contour over 12-TET scale sets",
       "sections": [
         {
           "heading": "Faders",
@@ -2249,16 +2250,16 @@
           "items": [
             "<strong>Main</strong> — Dit length (maps 30 ms up to four 16ths of the clock)",
             "<strong>Alt</strong> — Pitch offset ±48 st around the base note",
-            "<strong>Third</strong> — Extra interval (deadzone; Interval param). On dahs normally; on dits when inverted"
+            "<strong>Third</strong> — Dah extra interval (deadzone; uses the Interval param). Main/Alt/Third mappings flip at playback when inverted"
           ]
         },
         {
           "heading": "Buttons",
           "items": [
-            "<strong>Short</strong> — Mute / unmute (phrase keeps its place; Button LED off when muted, orange when live)",
+            "<strong>Short</strong> — Mute / unmute (phrase keeps its place; Button LED off when muted, orange when live+normal, white when live+inverted)",
             "<strong>Shift + short</strong> — Toggle texture: random MIDI velocity and swing on odd 16ths (Bottom LED white when on)",
             "<strong>Long</strong> — Arm / retrigger on the next 16th (clock Reset also arms when idle)",
-            "<strong>Shift + long</strong> — Toggle invert: swap the Third extra interval from dahs onto dits (rhythm stays). Button fades white↔off"
+            "<strong>Shift + long</strong> — Toggle invert: swap dit↔dah lengths and flip Main/Alt/Third fader mappings at playback"
           ]
         }
       ],
@@ -2271,11 +2272,11 @@
           "faderPlusShiftTitle": "Pitch offset",
           "faderPlusShiftDescription": "Bipolar transposition of the whole phrase around Base note, up to ±48 semitones.",
           "faderPlusFnTitle": "Dah interval",
-          "faderPlusFnDescription": "Adds the Interval param onto dahs only (deadzone around centre). Invert swaps that extra onto dits; rhythm stays ITU.",
+          "faderPlusFnDescription": "Adds the Interval param onto dahs only (deadzone around centre). Dits stay on the Alt-offset pitch.",
           "fnTitle": "Mute / long = re-arm",
           "fnDescription": "Short tap mutes MIDI and CV. Long press arms playback on the next 16th.",
           "fnPlusShiftTitle": "Texture / invert",
-          "fnPlusShiftDescription": "Shift+short toggles texture (random MIDI velocity + odd-16th swing). Shift+long swaps dit/dah pitch assignment; the button fades white↔off.",
+          "fnPlusShiftDescription": "Shift+short toggles texture (random MIDI velocity + odd-16th swing). Shift+long inverts dit↔dah and flips speed/pitch at playback.",
           "ledTop": "Orange high while a tone is sounding",
           "ledBottom": "White when texture is on; off when texture is off"
         }
@@ -2504,7 +2505,7 @@
     "121": {
       "id": 121,
       "name": "Umbra",
-      "blurb": "Bass shadow companion to Contura — root/5th/approach lines over shared 12-TET scale sets, anchored to the device tonic",
+      "blurb": "Bass shadow over Contura scale sets",
       "sections": [
         {
           "heading": "Faders",

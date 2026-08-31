@@ -3801,6 +3801,32 @@
           "value": {
             "name": "Follow device tonic"
           }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack Ch0",
+            "variants": [
+              "Gate Out",
+              "CV Out",
+              "CV In Pulses",
+              "CV In Extent",
+              "CV In Length"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Jack Ch1",
+            "variants": [
+              "Gate Out",
+              "CV Out",
+              "CV In Pulses",
+              "CV In Interval",
+              "CV In Length"
+            ]
+          }
         }
       ]
     },
