@@ -317,7 +317,9 @@
       "pull.firstRun":
         "This editor starts empty — no studio presets are shipped.\n\nRead the current layout from your Faderpunk now?\n\nDevice must be connected in this tab (Web MIDI).",
       "pull.title": "Pull from Punk",
-      "status.emptyBank": "Empty editor — add rows or read from device",
+      "empty.loadExample": "Try Manifold Demo",
+      "empty.loadExampleTitle": "Load a sample layout — no device needed",
+      "status.emptyBank": "Empty editor — add rows, pull from the device, or try Manifold Demo",
       "modal.later": "Not now",
       "pull.logStart": "=== Pull from device ===",
       "pull.okLog":
@@ -684,7 +686,9 @@
       "pull.firstRun":
         "Der Editor startet leer — es werden keine Studio-Presets mitgeliefert.\n\nAktuelles Layout jetzt vom Faderpunk lesen?\n\nGerät muss in diesem Tab per Web MIDI verbunden sein.",
       "pull.title": "Pull vom Punk",
-      "status.emptyBank": "Leerer Editor — Zeilen hinzufügen oder vom Gerät lesen",
+      "empty.loadExample": "Manifold-Demo laden",
+      "empty.loadExampleTitle": "Beispiel-Layout laden — kein Gerät nötig",
+      "status.emptyBank": "Leerer Editor — Zeilen hinzufügen, vom Gerät lesen oder Manifold-Demo laden",
       "modal.later": "Später",
       "pull.logStart": "=== Pull vom Gerät ===",
       "pull.okLog":
@@ -1106,7 +1110,9 @@
       "pull.firstRun":
         "L’éditeur démarre vide — aucun preset studio n’est fourni.\n\nLire le layout actuel depuis le Faderpunk maintenant ?\n\nL’appareil doit être connecté dans cet onglet (Web MIDI).",
       "pull.title": "Pull du Punk",
-      "status.emptyBank": "Éditeur vide — ajoutez des lignes ou lisez depuis l’appareil",
+      "empty.loadExample": "Essayer Manifold Demo",
+      "empty.loadExampleTitle": "Charger un layout d’exemple — aucun appareil requis",
+      "status.emptyBank": "Éditeur vide — ajoutez des lignes, lisez depuis l’appareil ou essayez Manifold Demo",
       "modal.later": "Plus tard",
       "pull.logStart": "=== Pull depuis l’appareil ===",
       "pull.okLog":

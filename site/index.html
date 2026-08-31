@@ -4,6 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>faderpunk-tools</title>
+  <meta name="description" content="Recall whole Faderpunk layouts between gigs, or see live what your punkapps send over MIDI. Browser apps — nothing to install." />
+  <link rel="canonical" href="https://kosmar.github.io/faderpunk-tools/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="faderpunk-tools" />
+  <meta property="og:description" content="Recall whole Faderpunk layouts between gigs, or see live what your punkapps send over MIDI." />
+  <meta property="og:url" content="https://kosmar.github.io/faderpunk-tools/" />
+  <meta property="og:image" content="https://kosmar.github.io/faderpunk-tools/img/og.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="faderpunk-tools" />
+  <meta name="twitter:description" content="Recall whole Faderpunk layouts between gigs, or see live what your punkapps send over MIDI." />
+  <meta name="twitter:image" content="https://kosmar.github.io/faderpunk-tools/img/og.jpg" />
   <style>
     :root {
       --bg: #141414;
@@ -31,7 +44,7 @@
       place-items: center;
       padding: 2rem;
     }
-    main { max-width: 42rem; width: 100%; }
+    main { max-width: 44rem; width: 100%; }
     .brand {
       display: inline-flex;
       align-items: center;
@@ -75,15 +88,22 @@
     }
     p { color: var(--muted); line-height: 1.6; margin: 0 0 1rem; }
     .lede {
+      margin: 0 0 0.75rem;
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--fg);
+    }
+    .need {
       margin: 0 0 1.75rem;
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       font-weight: 350;
       line-height: 1.5;
+      color: var(--muted);
     }
     section { margin-top: 2.75rem; }
     section p:last-child { margin-bottom: 0; }
-    section .more { display: inline; padding: 0; border: 0; color: var(--accent); }
-    ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.75rem; }
+    ul.cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.9rem; }
     a {
       display: block;
       padding: 1rem 1.1rem;
@@ -96,8 +116,41 @@
       border-color: var(--accent);
       background: color-mix(in srgb, var(--accent) 10%, transparent);
     }
+    a.card {
+      padding: 0;
+      overflow: hidden;
+    }
+    a.card:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+    .card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 2 / 1;
+      max-height: 12.5rem;
+      object-fit: cover;
+      object-position: top center;
+      background: #0c0c0c;
+    }
+    .card-body { padding: 1rem 1.1rem 1.1rem; }
     a strong { color: var(--accent); display: block; margin-bottom: 0.25rem; }
-    a span { color: var(--muted); font-size: 0.85rem; }
+    a .outcome { color: var(--muted); font-size: 0.85rem; display: block; line-height: 1.45; }
+    a .cta {
+      display: inline-block;
+      margin-top: 0.7rem;
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+    .badge {
+      display: inline-block;
+      margin-left: 0.35rem;
+      padding: 0.12rem 0.4rem;
+      border: 1px solid color-mix(in srgb, var(--accent) 50%, #333);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      color: var(--accent);
+      vertical-align: 0.12em;
+    }
     footer {
       margin-top: 2rem;
       font-size: 0.75rem;
@@ -114,36 +167,43 @@
         <h1>faderpunk-tools</h1>
       </div>
     </div>
-    <p class="lede">Two personal companion apps for Faderpunk: a preset bank that recalls whole layouts, and a debug scope for punkapp developers. Both run in the browser and talk to the device over Web MIDI — nothing to install. Chromium with SysEx permission required; close other tabs that hold the device ports.</p>
-    <ul>
+    <p class="lede">Recall whole Faderpunk layouts between gigs. Or see live what your punkapps send over MIDI.</p>
+    <p class="need">Both run in the browser — nothing to install. Chromium with SysEx; close other tabs that hold the device ports.</p>
+    <ul class="cards">
       <li>
-        <a href="./presetpunk/">
-          <strong>Presetpunk</strong>
-          <span>Preset bank — a layout layer on top of on-device scenes</span>
+        <a class="card" href="./presetpunk/">
+          <img src="./img/presetpunk.webp" width="1280" height="720" alt="Presetpunk editor with the Manifold Demo layout and fader rows" />
+          <div class="card-body">
+            <strong>Presetpunk</strong>
+            <span class="outcome">Named presets for entire layouts. Pull from the device, push any one back.</span>
+            <span class="cta">Open the bank</span>
+          </div>
         </a>
       </li>
       <li>
-        <a href="./scopepunk/">
-          <strong>Scopepunk</strong>
-          <span>Debug scope for punkapp devs — per-app MIDI traces, profiles, monitor</span>
+        <a class="card" href="./scopepunk/?demo=1">
+          <img src="./img/scopepunk.webp" width="1280" height="720" alt="Scopepunk live MIDI traces in demo mode" />
+          <div class="card-body">
+            <strong>Scopepunk <span class="badge">Demo without a device</span></strong>
+            <span class="outcome">Per-app MIDI traces — a wrong channel or stuck CC shows up in the first second.</span>
+            <span class="cta">Open the scope</span>
+          </div>
         </a>
       </li>
     </ul>
 
     <section>
       <h2>Presetpunk — a layout bank on top of your scenes</h2>
-      <p class="deck">Scenes give you instant recall inside a layout. Presetpunk adds the layer above: the layouts themselves.</p>
-      <p>A browser editor that keeps whole Faderpunk layouts as named presets and pushes any one of them to the device over SysEx. It picks up where the module’s scenes leave off: scenes for everything within your current setup, presets for moving between setups.</p>
-      <p>That extra layer is the point. A preset carries the full slot assignment, every app’s parameters and the global config, so recalling one can hand you a different instrument — and once it’s loaded, the device’s own scenes take over from there as usual. Build the bank, reorder it, keep it in the browser, take it to the next session.</p>
-      <p>The device stays the source of truth: <strong>Pull from Punk</strong> captures whatever you just patched, and pushing back works whole-preset, per-slot, or live while the patch runs. Instruments and a MIDI CC catalog keep a preset readable months later, and the printable cheatsheet gives you a fader-by-fader reference to keep next to you at a live gig. English, German, French.</p>
+      <p class="deck">Scenes recall everything inside a layout. Presetpunk stores the layouts themselves.</p>
+      <p>A named preset carries the full slot assignment, every app’s parameters, and the global config, so recalling one can hand you a different instrument. Once it’s loaded, the device’s own scenes take over as usual.</p>
+      <p>The device stays the source of truth: <strong>Pull from Punk</strong> captures whatever you just patched; pushing back works whole-preset, per-slot, or live. The editor starts empty — load Manifold Demo with no hardware, or pull from your Faderpunk. Instruments, a MIDI CC catalog, and a printable cheatsheet keep a preset readable months later. English, German, French.</p>
     </section>
 
     <section>
       <h2>Scopepunk — a debug scope for punkapp developers</h2>
-      <p class="deck">A developer tool: visually verify what a Faderpunk app actually emits, instead of guessing from a patch cable.</p>
-      <p>A debug scope for punkapp and firmware development, not a performance tool. It shows what your code is actually sending — per app, live.</p>
-      <p>Developing on hardware is otherwise blind: change a curve, flash, then guess from an LED and a patched-in module. Scopepunk draws notes, CC, NRPN and clock as separate labelled traces per app, so a wrong channel, a stuck value or a drifting clock shows up in the first second.</p>
-      <p>Views follow the questions you have while debugging: <em>All</em> to spot the misbehaving app, <em>Focus</em> to iterate on one, <em>Compare</em> for phase and clock-division bugs. Averaged waveform profiles reveal a modulation’s real shape when single frames are too noisy, and an audible monitor puts CC streams through a wavetable when your ears are faster than your eyes. One caveat: USB MIDI carries no CV, so Scopepunk sees only what an app mirrors with <strong>MidiOut → USB</strong> — CV-only apps stay dark. Demo mode works without hardware.</p>
+      <p class="deck">See what a Faderpunk app actually emits, instead of guessing from a patch cable.</p>
+      <p>Developing on hardware is otherwise blind: change a curve, flash, then guess from an LED. Scopepunk draws notes, CC, NRPN and clock as labelled traces per app, so a wrong channel, a stuck value or a drifting clock shows up in the first second.</p>
+      <p>Views follow the question: <em>All</em> to spot the misbehaving app, <em>Focus</em> to iterate on one, <em>Compare</em> for phase and clock-division bugs. Averaged waveform profiles show a modulation’s real shape; an audible monitor puts CC through a wavetable when your ears are faster than your eyes. USB MIDI carries no CV — apps must mirror with <strong>MidiOut → USB</strong>. The card above opens demo mode with no hardware.</p>
     </section>
 
     <footer>

@@ -99,6 +99,14 @@ export function AppShell() {
   const clockBpm = useDiag((s) => s.clockBpm);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") !== "1") return;
+    const st = useDiag.getState();
+    if (st.demo || st.status === "ready") return;
+    st.startDemo();
+  }, []);
+
+  useEffect(() => {
     /** Armed on keydown; one toggle on keyup. Suppresses native button Space→click. */
     let spaceArmed = false;
     /** Ignore transport button click synthesized from the same Space press. */

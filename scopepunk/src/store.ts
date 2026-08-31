@@ -1136,10 +1136,17 @@ export const useDiag = create<DiagState>((set, get) => ({
 
   startDemo: () => {
     void releaseSnapshot().then(() => {
-    void audioEngine.ensure().then(() => {
-      ensureVisibilityBinding(get, set);
-      audioEngine.setMasterGain(get().masterGain);
-      audioEngine.setPlaying(true);
+    void audioEngine
+      .ensure()
+      .then(() => {
+        ensureVisibilityBinding(get, set);
+        audioEngine.setMasterGain(get().masterGain);
+        audioEngine.setPlaying(true);
+      })
+      .catch(() => {
+        // Autoplay without user gesture — visual demo still runs, audio stays silent.
+      })
+      .then(() => {
       const fakeTracks: AppTrack[] = [
         {
           key: "demo-lfo",

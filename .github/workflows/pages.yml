@@ -53,6 +53,8 @@ jobs:
             presetpunk/ _site/presetpunk/
           rsync -a scopepunk/dist/ _site/scopepunk/
           cp site/index.html _site/index.html
+          mkdir -p _site/img
+          cp -R site/img/. _site/img/
           touch _site/.nojekyll
           BUILD_MS=$(node -e 'process.stdout.write(String(Date.now()))')
           VER=$(node -p "require('./presetpunk/package.json').version")

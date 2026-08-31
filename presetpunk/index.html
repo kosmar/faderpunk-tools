@@ -2641,6 +2641,7 @@
     </div>
     <div class="row-actions" id="rowActions">
       <button type="button" class="secondary" id="btnAddFader" data-i18n="row.add" data-i18n-title="row.addTitle" title="">+ Fader</button>
+      <button type="button" class="primary" id="btnLoadExample" hidden data-i18n="empty.loadExample" data-i18n-title="empty.loadExampleTitle" title="">Try Manifold Demo</button>
       <button type="button" class="secondary" id="btnTrimFaders" hidden data-i18n="row.trim" data-i18n-title="row.trimTitle" title="">Trim to 16</button>
       <span class="span" id="rowActionsHint"></span>
     </div>
@@ -7628,6 +7629,11 @@
       return presets.every((sc) => !(sc.rows || []).length);
     }
 
+    function syncBlankBankCta() {
+      const btn = document.getElementById("btnLoadExample");
+      if (btn) btn.hidden = !isBlankBank(bank);
+    }
+
     function normalizeLoadedBank(parsed) {
       if (!Array.isArray(parsed) || parsed.length < 1) return makeBank();
       const used = new Set();
@@ -8895,6 +8901,8 @@
         tOverflow.appendChild(sep);
         overflow.forEach((s) => tOverflow.appendChild(renderRowTr(s, { overflow: true })));
       }
+
+      syncBlankBankCta();
 
       wireRowDrag(tbody, tOverflow);
 
@@ -11267,6 +11275,19 @@
       render();
     };
 
+    document.getElementById("btnLoadExample").onclick = async () => {
+      if (!isBlankBank(bank)) return;
+      const btn = document.getElementById("btnLoadExample");
+      btn.disabled = true;
+      try {
+        await loadBundledPreset("./presets/manifold-demo.json");
+      } catch (e) {
+        setStatus("warn", t("load.failed", { msg: e.message || e }));
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
     document.getElementById("btnTrimFaders").onclick = () => {
       const sc = preset();
       const before = sc.rows.length;
@@ -11617,7 +11638,9 @@
 
       if (isBlankBank(bank)) {
         setStatus("ok", t("status.emptyBank"));
-      } else if (fromServer) {
+      }
+      syncBlankBankCta();
+      if (!isBlankBank(bank) && fromServer) {
         setStatus("ok", t("status.bankFromServer", { n: bank.length, tab: presetGlyphFor(preset()) }));
       }
     }
