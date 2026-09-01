@@ -2566,9 +2566,9 @@
         {
           "heading": "Faders",
           "items": [
-            "<strong>Main</strong> — Ch0 burst length (3–16 sixteenths) · Ch1 pitch center",
-            "<strong>Alt</strong> (Shift) — Ch0 gap between bursts (0–32 sixteenths) · Ch1 pitch range",
-            "<strong>Third</strong> (Btn0) — Ch0 relative gate % · Ch1 MIDI velocity"
+            "<strong>Main</strong> — Ch0 burst length (1–32 sixteenths) · Ch1 pitch center (±4 oct)",
+            "<strong>Alt</strong> (Shift) — Ch0 gap (0–96 sixteenths) · Ch1 pitch range (1–32 scale degrees)",
+            "<strong>Third</strong> (Btn0) — Ch0 relative gate % (1–100) · Ch1 MIDI velocity (1–full)"
           ]
         },
         {
@@ -2586,35 +2586,35 @@
           "jackTitle": "CV In",
           "jackDescription": "±5 V input modulates Length, Gap, or Gate per CV Dest param.",
           "faderTitle": "Burst length",
-          "faderDescription": "Number of sixteenth-note slots per burst (3–16).",
+          "faderDescription": "Number of sixteenth-note slots per burst (1–32).",
           "faderPlusShiftTitle": "Gap",
-          "faderPlusShiftDescription": "Sixteenth slots between auto-fired bursts (0 = next bar).",
+          "faderPlusShiftDescription": "Sixteenth slots between auto-fired bursts (0–96; 0 = next bar).",
           "faderPlusFnTitle": "Gate %",
           "faderPlusFnDescription": "Relative gate length per note as % of a sixteenth slot.",
           "fnTitle": "Mute / Scale",
           "fnDescription": "Short: mute. Long: cycle Scale set.",
           "fnPlusShiftTitle": "Reverse scale",
           "fnPlusShiftDescription": "Long press with Shift cycles Scale backward.",
-          "ledTop": "Latch layer (main = app color, alt = orange, third = violet)",
-          "ledTopPlusShift": "Alt layer active",
-          "ledBottom": "Off when muted"
+          "ledTop": "Main: burst progress while gated. Alt: white fader meter. Third: scale-color fader meter",
+          "ledTopPlusShift": "Alt layer — white Top/Bottom split of gap fader",
+          "ledBottom": "Pairs with Top as the low half of the latch meter; off on Main when idle"
         },
         {
           "jackTitle": "Pitch CV Out",
           "jackDescription": "1V/oct pitch of the current note (Range + V/Oct params).",
           "faderTitle": "Pitch center",
-          "faderDescription": "Melodic center in scale degrees.",
+          "faderDescription": "Melodic center around Base Note, ±4 octaves.",
           "faderPlusShiftTitle": "Pitch range",
-          "faderPlusShiftDescription": "Span of the note pool around center.",
+          "faderPlusShiftDescription": "Meander span in scale degrees (1–32).",
           "faderPlusFnTitle": "Velocity",
-          "faderPlusFnDescription": "MIDI velocity for burst notes.",
+          "faderPlusFnDescription": "MIDI velocity, 1–full.",
           "fnTitle": "Fire / Voicing",
           "fnDescription": "Short: fire burst now. Long: cycle Note → Chord → Voicings.",
           "fnPlusShiftTitle": "Reverse voicing",
           "fnPlusShiftDescription": "Long press with Shift cycles voicing backward.",
-          "ledTop": "Latch layer feedback",
-          "ledTopPlusShift": "Alt layer active",
-          "ledBottom": "Off when muted"
+          "ledTop": "Main: pitch height while gated. Alt: white fader meter. Third: voicing-color fader meter",
+          "ledTopPlusShift": "Alt layer — white Top/Bottom split of range fader",
+          "ledBottom": "Pairs with Top as the low half of the latch meter; off on Main when idle"
         }
       ]
     }
