@@ -2568,7 +2568,7 @@
           "items": [
             "<strong>Main</strong> — Ch0 burst length (1–32 sixteenths) · Ch1 pitch center (±4 oct)",
             "<strong>Alt</strong> (Shift) — Ch0 gap (0–96 sixteenths) · Ch1 pitch range (1–32 scale degrees)",
-            "<strong>Third</strong> (Btn0) — Ch0 relative gate % (1–100) · Ch1 MIDI velocity (1–full)"
+            "<strong>Third</strong> (Btn0) — Ch0 gate % of each note’s duration (1–100; rests ignore gate) · Ch1 MIDI velocity (1–full)"
           ]
         },
         {
@@ -2590,7 +2590,7 @@
           "faderPlusShiftTitle": "Gap",
           "faderPlusShiftDescription": "Sixteenth slots between auto-fired bursts (0–96; 0 = next bar).",
           "faderPlusFnTitle": "Gate %",
-          "faderPlusFnDescription": "Relative gate length per note as % of a sixteenth slot.",
+          "faderPlusFnDescription": "Gate as % of that note’s duration (16th / 8th / dotted 8th / quarter). Rests ignore gate.",
           "fnTitle": "Mute / Scale",
           "fnDescription": "Short: mute. Long: cycle Scale set.",
           "fnPlusShiftTitle": "Reverse scale",
