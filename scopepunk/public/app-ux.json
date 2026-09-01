@@ -2557,6 +2557,66 @@
           "ledBottom": "Pitch height within the current span"
         }
       ]
+    },
+    "122": {
+      "id": 122,
+      "name": "Volata",
+      "blurb": "Staccato melody bursts in device key — always newly generated, always harmonic",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Ch0 burst length (3–16 sixteenths) · Ch1 pitch center",
+            "<strong>Alt</strong> (Shift) — Ch0 gap between bursts (0–32 sixteenths) · Ch1 pitch range",
+            "<strong>Third</strong> (Btn0) — Ch0 relative gate % · Ch1 MIDI velocity"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 short</strong> — Mute (dims both channels)",
+            "<strong>Ch1 short</strong> — Fire one burst now (cuts current)",
+            "<strong>Ch0 long</strong> — Cycle Scale set (Shift+long = reverse; skips Off)",
+            "<strong>Ch1 long</strong> — Cycle Note → Chord → Voicings (Shift+long = reverse)"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV In",
+          "jackDescription": "±5 V input modulates Length, Gap, or Gate per CV Dest param.",
+          "faderTitle": "Burst length",
+          "faderDescription": "Number of sixteenth-note slots per burst (3–16).",
+          "faderPlusShiftTitle": "Gap",
+          "faderPlusShiftDescription": "Sixteenth slots between auto-fired bursts (0 = next bar).",
+          "faderPlusFnTitle": "Gate %",
+          "faderPlusFnDescription": "Relative gate length per note as % of a sixteenth slot.",
+          "fnTitle": "Mute / Scale",
+          "fnDescription": "Short: mute. Long: cycle Scale set.",
+          "fnPlusShiftTitle": "Reverse scale",
+          "fnPlusShiftDescription": "Long press with Shift cycles Scale backward.",
+          "ledTop": "Latch layer (main = app color, alt = orange, third = violet)",
+          "ledTopPlusShift": "Alt layer active",
+          "ledBottom": "Off when muted"
+        },
+        {
+          "jackTitle": "Pitch CV Out",
+          "jackDescription": "1V/oct pitch of the current note (Range + V/Oct params).",
+          "faderTitle": "Pitch center",
+          "faderDescription": "Melodic center in scale degrees.",
+          "faderPlusShiftTitle": "Pitch range",
+          "faderPlusShiftDescription": "Span of the note pool around center.",
+          "faderPlusFnTitle": "Velocity",
+          "faderPlusFnDescription": "MIDI velocity for burst notes.",
+          "fnTitle": "Fire / Voicing",
+          "fnDescription": "Short: fire burst now. Long: cycle Note → Chord → Voicings.",
+          "fnPlusShiftTitle": "Reverse voicing",
+          "fnPlusShiftDescription": "Long press with Shift cycles voicing backward.",
+          "ledTop": "Latch layer feedback",
+          "ledTopPlusShift": "Alt layer active",
+          "ledBottom": "Off when muted"
+        }
+      ]
     }
   }
 }

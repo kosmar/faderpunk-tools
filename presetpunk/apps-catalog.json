@@ -5374,6 +5374,137 @@
           }
         }
       ]
+    },
+    {
+      "id": 122,
+      "slug": "volata",
+      "module": "volata",
+      "channels": 2,
+      "name": "Volata",
+      "description": "Staccato melody bursts in device key",
+      "color": "Rose",
+      "icon": "Note",
+      "params": [
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "MidiOut"
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "VoltPerOct"
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device tonic"
+          }
+        },
+        {
+          "tag": "bool",
+          "value": {
+            "name": "Follow device scale"
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Scale",
+            "variants": [
+              "Chromatic",
+              "Ionian",
+              "Dorian",
+              "Phrygian",
+              "Lydian",
+              "Mixolydian",
+              "Aeolian",
+              "Locrian",
+              "Blues Major",
+              "Blues Minor",
+              "Pentatonic Major",
+              "Pentatonic Minor",
+              "Folk",
+              "Japanese",
+              "Gamelan",
+              "Hungarian Minor"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "CV Dest",
+            "variants": [
+              "Length",
+              "Gap",
+              "Gate"
+            ]
+          }
+        },
+        {
+          "tag": "i32",
+          "value": {
+            "name": "CV Att",
+            "min": 0,
+            "max": 400
+          }
+        }
+      ]
     }
   ]
 }
