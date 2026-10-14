@@ -3385,7 +3385,7 @@
         devicePi >= 0 && !deps.hide.has(devicePi)
           ? dozenLabeledField(
               t("midi.dozenDev"),
-              schemaControlHtml(params[devicePi], s.schemaValues[devicePi], idx, devicePi, deps),
+              dozenDeviceSelectHtml(params[devicePi], s.schemaValues[devicePi], idx, devicePi),
             )
           : "";
       const chHtml =
