@@ -3326,6 +3326,21 @@
       return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${escapeAttr(t("midi.dozenCh"))}">${opts}</select>`;
     }
 
+    /** A–Z labels; option values stay firmware Device Enum indices. */
+    function dozenDeviceSelectHtml(param, value, idx, pi) {
+      const variants = param?.value?.variants || [];
+      const cur = Math.max(0, Math.min(variants.length - 1, Number(value?.value) || 0));
+      const opts = variants
+        .map((lab, i) => ({ i, lab: String(lab || i) }))
+        .sort((a, b) => a.lab.localeCompare(b.lab, undefined, { sensitivity: "base" }))
+        .map(
+          ({ i, lab }) =>
+            `<option value="${i}" ${cur === i ? "selected" : ""}>${escapeHtml(lab)}</option>`,
+        )
+        .join("");
+      return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${escapeAttr(t("midi.dozenDev"))}">${opts}</select>`;
+    }
+
     function dozenCcSlotSelectHtml(idx, pi, curCc, deviceIndex, { title = "CC" } = {}) {
       const cur = Math.max(0, Math.min(127, Number(curCc) || 0));
       const dev = dozenCatalogDevice(deviceIndex);
