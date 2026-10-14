@@ -3193,9 +3193,15 @@
       return devices[idx] || null;
     }
 
+    /** Device Enum index without calling ensureSchemaValues (avoids seed re-entrancy). */
+    function dozenEnumIndexFromRow(row, pi) {
+      if (pi < 0 || !Array.isArray(row?.schemaValues)) return 0;
+      const v = row.schemaValues[pi];
+      return v?.tag === "Enum" ? Math.max(0, Number(v.value) || 0) : 0;
+    }
+
     function dozenRowDeviceIndex(row, devicePi) {
-      ensureSchemaValues(row);
-      return Math.max(0, schemaEnumIndex(row, devicePi));
+      return dozenEnumIndexFromRow(row, devicePi);
     }
 
     function dozenCcParamIndices(cat) {
@@ -3240,10 +3246,7 @@
       const devicePi = (cat.params || []).findIndex(
         (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
       );
-      // Read Enum raw — do not call schemaEnumIndex/ensureSchemaValues (re-entrancy).
-      const raw = devicePi >= 0 ? row.schemaValues[devicePi] : null;
-      const deviceIndex =
-        raw?.tag === "Enum" ? Math.max(0, Number(raw.value) || 0) : 0;
+      const deviceIndex = dozenEnumIndexFromRow(row, devicePi);
       return applyDozenDeviceDefaults(row, deviceIndex);
     }
 
