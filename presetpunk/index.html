@@ -1097,7 +1097,10 @@
     .lane-midi-matrix select[data-k="laneMode"] {
       width: 4.5rem;
     }
-    /* Dozen Ctrl: Device + CH + 4×3 latched CC slots across Inst/CH/CC. */
+    /* Dozen Ctrl: Device + CH + Main/Alt/Third across Params+Inst+CH+CC. */
+    td.dozen-span {
+      vertical-align: top;
+    }
     .dozen-midi-matrix {
       display: flex;
       flex-direction: column;
@@ -1134,11 +1137,11 @@
     }
     .dozen-midi-matrix .dozen-layer {
       display: grid;
-      grid-template-columns: 3.4rem repeat(4, minmax(4.5rem, 1fr));
-      gap: 4px 6px;
+      grid-template-columns: 3.6rem repeat(4, minmax(6rem, 1fr));
+      gap: 4px 8px;
       align-items: center;
       width: 100%;
-      padding: 4px 6px;
+      padding: 5px 8px;
       border-radius: 5px;
       background: color-mix(in srgb, var(--line) 55%, transparent);
     }
@@ -9004,17 +9007,20 @@
       }
       const sc = preset();
       const laneSpec = laneMapApp(s.app);
-      const midiCols = laneSpec
-        ? `<td colspan="3">${laneMidiMatrixHtml(s, i, laneSpec)}</td>`
-        : appHidesOrchestraRouting(s.app)
-          ? `<td colspan="3">${dozenRoutingHtml(s, i)}</td>`
-          : `<td>${instrumentSelectHtml(s, i)}</td>
+      const dozen = appHidesOrchestraRouting(s.app);
+      // Dozen: Params + Inst + CH + CC → one matrix (no empty Params “—” cell).
+      const midCols = dozen
+        ? `<td class="param-cell dozen-span" colspan="4">${dozenRoutingHtml(s, i)}</td>`
+        : laneSpec
+          ? `<td class="param-cell">${appExtrasHtml(s, i) || `<span class="led-muted">—</span>`}</td>
+        <td colspan="3">${laneMidiMatrixHtml(s, i, laneSpec)}</td>`
+          : `<td class="param-cell">${appExtrasHtml(s, i) || `<span class="led-muted">—</span>`}</td>
+        <td>${instrumentSelectHtml(s, i)}</td>
         <td>${chCellHtml(s, i)}</td>
         <td>${ccCellHtml(s, i)}</td>`;
       tr.innerHTML = `
         ${faderCellHtml(s, { overflow })}
-        <td class="param-cell">${appExtrasHtml(s, i) || `<span class="led-muted">—</span>`}</td>
-        ${midiCols}
+        ${midCols}
         <td class="port-cell">${portBitsHtml(s, i, sc.port)}</td>
         <td class="flags-cell">${flagsColHtml(s, i)}</td>
         <td class="row-x-cell">
