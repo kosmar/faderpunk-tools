@@ -4,24 +4,12 @@
       "index": 1,
       "letter": 0,
       "name": "Playground WIP",
-      "desc": "WIP left\u2192right; Super LFO 2ch; Ripppple 4ch; Grooves on 15. No overlap.",
+      "desc": "WIP left\u2192right; Dozen Ctrl 4ch; Super LFO 2ch; Ripppple 4ch. No overlap.",
       "port": "usb",
       "rows": [
         {
-          "app": "maniac_bounce",
+          "app": "dozen_ctrl",
           "fader": 1
-        },
-        {
-          "app": "dit_dah",
-          "fader": 2
-        },
-        {
-          "app": "loop_de_cay",
-          "fader": 3
-        },
-        {
-          "app": "harmonica",
-          "fader": 4
         },
         {
           "app": "vamp",
@@ -46,10 +34,6 @@
         {
           "app": "ripppple",
           "fader": 11
-        },
-        {
-          "app": "semmy",
-          "fader": 15
         }
       ],
       "global": {
