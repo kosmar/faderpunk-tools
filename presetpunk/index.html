@@ -1126,20 +1126,31 @@
       min-width: 3.25rem;
       max-width: 4rem;
     }
-    .dozen-midi-matrix .dozen-slots {
+    .dozen-midi-matrix .dozen-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+    }
+    .dozen-midi-matrix .dozen-layer {
       display: grid;
-      grid-template-columns: auto repeat(4, minmax(4.5rem, 1fr));
+      grid-template-columns: 3.4rem repeat(4, minmax(4.5rem, 1fr));
       gap: 4px 6px;
       align-items: center;
       width: 100%;
+      padding: 4px 6px;
+      border-radius: 5px;
+      background: color-mix(in srgb, var(--line) 55%, transparent);
     }
-    .dozen-midi-matrix .dozen-slots .vm {
+    .dozen-midi-matrix .dozen-layer-lab {
       color: var(--muted);
       font-size: 11px;
-      min-width: 1.1rem;
+      font-weight: 450;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
     }
-    .dozen-midi-matrix .dozen-slots select,
-    .dozen-midi-matrix .dozen-slots input {
+    .dozen-midi-matrix .dozen-layer select,
+    .dozen-midi-matrix .dozen-layer input {
       width: 100%;
       min-width: 0;
     }
@@ -3193,16 +3204,42 @@
 
     function applyDozenDeviceDefaults(row, deviceIndex) {
       const cat = catalogApp(row.app);
-      if (!cat) return false;
+      if (!cat || !appHidesOrchestraRouting(row.app)) return false;
+      if (!Array.isArray(row.schemaValues)) return false;
       const dev = dozenCatalogDevice(deviceIndex);
       const defaults = dev?.defaults;
       if (!Array.isArray(defaults) || defaults.length < 12) return false;
       const ccPis = dozenCcParamIndices(cat);
       for (let s = 0; s < 12 && s < ccPis.length; s++) {
         const n = Math.max(0, Math.min(127, Number(defaults[s]) || 0));
-        setSchemaValue(row, ccPis[s], cc(n));
+        row.schemaValues[ccPis[s]] = cc(n);
       }
+      row._dozenCurated = true;
       return true;
+    }
+
+    /** Unseeded: missing values, all 0, or one orchestra CC stamped onto every slot. */
+    function dozenSlotsNeedCuration(row, cat) {
+      const ccPis = dozenCcParamIndices(cat);
+      if (ccPis.length < 12 || !Array.isArray(row?.schemaValues)) return false;
+      const vals = ccPis.map((pi) => Number(row.schemaValues[pi]?.value?.[0]));
+      if (vals.some((n) => !Number.isFinite(n))) return true;
+      if (vals.every((n) => n === 0)) return true;
+      return vals.every((n) => n === vals[0]);
+    }
+
+    function seedDozenCuration(row) {
+      if (!appHidesOrchestraRouting(row?.app)) return false;
+      const cat = catalogApp(row.app);
+      if (!cat || !DOZEN_DEVICE_CC_CATALOG) return false;
+      if (!Array.isArray(row.schemaValues)) return false;
+      if (!dozenSlotsNeedCuration(row, cat)) return false;
+      const devicePi = (cat.params || []).findIndex(
+        (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
+      );
+      const deviceIndex =
+        devicePi >= 0 ? Math.max(0, schemaEnumIndex(row, devicePi)) : 0;
+      return applyDozenDeviceDefaults(row, deviceIndex);
     }
 
     function dozenLabeledField(label, controlHtml) {
@@ -3219,7 +3256,7 @@
       return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${escapeAttr(t("midi.dozenCh"))}">${opts}</select>`;
     }
 
-    function dozenCcSlotSelectHtml(idx, pi, curCc, deviceIndex) {
+    function dozenCcSlotSelectHtml(idx, pi, curCc, deviceIndex, { title = "CC" } = {}) {
       const cur = Math.max(0, Math.min(127, Number(curCc) || 0));
       const dev = dozenCatalogDevice(deviceIndex);
       const entries = Array.isArray(dev?.ccs) ? dev.ccs : [];
@@ -3242,10 +3279,10 @@
           return `<option value="${i}" ${cur === i ? "selected" : ""}>${i}</option>`;
         }).join("");
       }
-      return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="CC">${opts}</select>`;
+      return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${escapeAttr(title)}">${opts}</select>`;
     }
 
-    /** Device / CH / M·A·T slots — named CC selects from device catalog. */
+    /** Device / CH / Main·Alt·Third banks — named CC selects from device catalog. */
     function dozenRoutingHtml(s, idx) {
       const cat = catalogApp(s.app);
       if (!cat) return midiInactiveCellHtml("midi.cvOnlyCols");
@@ -3270,26 +3307,31 @@
         chPi >= 0 && !deps.hide.has(chPi)
           ? dozenLabeledField(t("midi.dozenCh"), dozenChSelectHtml(s.schemaValues[chPi], idx, chPi))
           : "";
-      const slotCtrl = (pi) => {
-        if (deps.hide.has(pi)) return "";
-        const val = s.schemaValues[pi];
-        const cur = Math.max(0, Math.min(127, Number(val?.value?.[0]) || 0));
-        return dozenCcSlotSelectHtml(idx, pi, cur, deviceIndex);
-      };
       const layers = [
-        { lab: "M", pis: ccPis.slice(0, 4) },
-        { lab: "A", pis: ccPis.slice(4, 8) },
-        { lab: "T", pis: ccPis.slice(8, 12) },
+        { key: "main", lab: t("midi.dozenLayerMain"), tip: t("midi.dozenLayerMainTip"), pis: ccPis.slice(0, 4) },
+        { key: "alt", lab: t("midi.dozenLayerAlt"), tip: t("midi.dozenLayerAltTip"), pis: ccPis.slice(4, 8) },
+        { key: "third", lab: t("midi.dozenLayerThird"), tip: t("midi.dozenLayerThirdTip"), pis: ccPis.slice(8, 12) },
       ];
-      const slotRows = layers
-        .map(({ lab, pis }) => {
+      const layerRows = layers
+        .map(({ lab, tip, pis }) => {
           if (!pis.length) return "";
-          return `<span class="vm">${escapeHtml(lab)}</span>${pis.map(slotCtrl).join("")}`;
+          const slots = pis
+            .map((pi, fader) => {
+              if (deps.hide.has(pi)) return "";
+              const val = s.schemaValues[pi];
+              const cur = Math.max(0, Math.min(127, Number(val?.value?.[0]) || 0));
+              const title = t("midi.dozenSlotTitle", { layer: lab, n: fader + 1 });
+              return dozenCcSlotSelectHtml(idx, pi, cur, deviceIndex, { title });
+            })
+            .join("");
+          return `<div class="dozen-layer" title="${escapeAttr(tip)}">
+            <span class="dozen-layer-lab">${escapeHtml(lab)}</span>${slots}
+          </div>`;
         })
         .join("");
       return `<div class="dozen-midi-matrix" title="${escapeAttr(t("midi.dozenMatrixTitle"))}">
         <div class="dozen-top">${deviceHtml}${chHtml}</div>
-        <div class="dozen-slots">${slotRows}</div>
+        <div class="dozen-layers">${layerRows}</div>
       </div>`;
     }
 
@@ -6581,11 +6623,13 @@
       }
       if (Array.isArray(row.schemaValues) && schemaTagsMatchCatalog(row.schemaValues, cat)) {
         healControlIssuesSchemaValues(row, cat);
+        if (appHidesOrchestraRouting(row.app)) seedDozenCuration(row);
         return row.schemaValues;
       }
       if (Array.isArray(row.rawParams) && schemaTagsMatchCatalog(row.rawParams, cat)) {
         row.schemaValues = structuredClone(row.rawParams);
         healControlIssuesSchemaValues(row, cat);
+        if (appHidesOrchestraRouting(row.app)) seedDozenCuration(row);
         return row.schemaValues;
       }
       // Length can match while tags drifted (Grooves 3→7 voices). Rebuild from
@@ -6652,6 +6696,7 @@
         }
       }
       healControlIssuesSchemaValues(row, cat);
+      if (appHidesOrchestraRouting(row.app)) seedDozenCuration(row);
       return row.schemaValues;
     }
 
@@ -6760,7 +6805,12 @@
         }
         if (p.tag === "MidiCc" && row.app === "echolot") {
           v.value = [echolotPingCc(row)];
-        } else if (p.tag === "MidiCc" && (row.kind === "cc" || row.kind === "both")) {
+        } else if (
+          p.tag === "MidiCc" &&
+          !appHidesOrchestraRouting(row.app) &&
+          (row.kind === "cc" || row.kind === "both")
+        ) {
+          // Dozen keeps twelve independent slot CCs — never stamp row.cc on all.
           v.value = [rowCcNum(row)];
         }
         if (p.tag === "MidiNote") {
@@ -9358,6 +9408,16 @@
         }
         // Overflow stays visible — no auto-trim; drag or „Auf 16 kürzen“
         if (catalogApp(rowRef.app)) ensureSchemaValues(rowRef);
+        if (canonicalizeAppSlug(rowRef.app) === "dozen_ctrl") {
+          // Force ★ defaults for the selected Device (even if slots were non-zero stubs).
+          const cat = catalogApp(rowRef.app);
+          const devicePi = (cat?.params || []).findIndex(
+            (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
+          );
+          const deviceIndex =
+            devicePi >= 0 ? Math.max(0, schemaEnumIndex(rowRef, devicePi)) : 0;
+          applyDozenDeviceDefaults(rowRef, deviceIndex);
+        }
       } else if (k === "target") {
         rowRef.target = el.value;
       } else if (k === "instrumentId") {
