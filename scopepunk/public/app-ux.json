@@ -2590,6 +2590,74 @@
           "faderDescription": "Same bank, channel 4."
         }
       ]
+    },
+    "124": {
+      "id": 124,
+      "name": "Semmy",
+      "blurb": "CV state-variable filter (LP/HP/BP/Notch)",
+      "sections": [
+        {
+          "heading": "Faders",
+          "items": [
+            "<strong>Main</strong> — Cutoff (ch0) and Q (ch1), always",
+            "<strong>Alt</strong> (Shift) — Offset (ch0) and Attenuverter (ch1) while CV is active; LFO Speed (ch0) and Att (ch1) while the internal LFO runs",
+            "<strong>Third</strong> — Morph on ch0 while the internal LFO runs (Btn0 hold); Dry/Wet on ch1 (Btn1 hold; 0 = dry source, full = filtered)"
+          ]
+        },
+        {
+          "heading": "Buttons",
+          "items": [
+            "<strong>Ch0 short</strong> — mute/unmute output",
+            "<strong>Ch0 long</strong> — cycle filter mode LP → HP → BP → Notch on long-press register (mode color held until release); fader scrub while held cancels",
+            "<strong>Ch0 Shift + short</strong> — while the internal LFO runs: toggle free-running or clock-synced (button flashes when sync engages)"
+          ]
+        },
+        {
+          "heading": "Signal / LEDs",
+          "items": [
+            "CV In on ch0, filtered CV Out on ch1",
+            "Chamberlin state-variable filter at 1 kHz; cutoff roughly 0.1–200 Hz",
+            "With nothing moving on the input for about 1.2 s, an internal morphing LFO feeds the filter instead",
+            "CV active: ch0 button shows the filter mode hue; ch1 meters the output",
+            "LFO active: ch0 button and top LED use morph_color; long-press shows mode color until release, then eases back to morph",
+            "Mute dims the ch0 button off; output parks at 0 V (unipolar) or mid-scale (bipolar)",
+            "<em>LFO Speed</em> shifts the whole internal rate range to Slow or Slowest",
+            "CV Out is always active when not muted; jacks stay CV-only",
+            "MIDI Out ports mirror the same post-filter signal in parallel (mute silences MIDI too)",
+            "<em>MIDI Mode</em> CC — gated CC from filtered output; Note — two-octave pitch span from <em>Base Note</em>"
+          ]
+        }
+      ],
+      "channels": [
+        {
+          "jackTitle": "CV In",
+          "jackDescription": "CV input. Set Range to 0–10 V for unipolar sources or ±5 V for bipolar. With no movement for about 1.2 s the internal morph LFO takes over.",
+          "faderTitle": "Cutoff / LFO Speed",
+          "faderDescription": "Main: filter cutoff. Alt while the internal LFO runs: LFO rate (or clock division when sync is on). Alt while CV is active: output offset.",
+          "faderPlusShiftTitle": "Offset / Morph",
+          "faderPlusShiftDescription": "CV: output offset after the filter. Internal LFO: morph amount on the wave (Third layer while Btn0 is held).",
+          "faderPlusFnTitle": "Morph",
+          "faderPlusFnDescription": "While the internal LFO runs, Btn0 hold + fader scrubs morph.",
+          "fnTitle": "Mute / Mode",
+          "fnDescription": "Short tap mutes the output. Long press cycles LP → HP → BP → Notch (mode color until release).",
+          "fnPlusShiftTitle": "LFO Clock Sync",
+          "fnPlusShiftDescription": "While the internal LFO runs, toggles free-running vs clock-synced. The button flashes when sync engages.",
+          "ledTop": "Morph hue while the internal LFO runs; red offset level while Shift is held",
+          "ledBottom": "Red offset level while Shift is held"
+        },
+        {
+          "jackTitle": "CV Out",
+          "jackDescription": "Dry/wet mix of the filter source and filtered CV, after attenuverter and offset.",
+          "faderTitle": "Q / Att / Dry·Wet",
+          "faderDescription": "Main: filter resonance (stable, no self-oscillation). Alt: output attenuverter. Third (Btn1 hold): dry/wet (0 = pre-filter source, full = filtered).",
+          "faderPlusShiftTitle": "Attenuverter",
+          "faderPlusShiftDescription": "Scales the mixed signal before the jack.",
+          "faderPlusFnTitle": "Dry/Wet",
+          "faderPlusFnDescription": "Btn1 hold + fader: blend dry source into filtered output.",
+          "ledTop": "Output level, red att while Shift, or cyan dry/wet while Btn1 is held",
+          "ledBottom": "Output level, or red att while Shift is held"
+        }
+      ]
     }
   }
 }

@@ -4,7 +4,7 @@
       "index": 1,
       "letter": 0,
       "name": "Playground WIP",
-      "desc": "WIP left\u2192right; Dozen Ctrl 4ch; Super LFO 2ch; Ripppple 4ch. No overlap.",
+      "desc": "WIP left\u2192right; Dozen Ctrl 4ch; Super LFO 2ch; Ripppple 4ch; Semmy 2ch. No overlap.",
       "port": "usb",
       "rows": [
         {
@@ -34,6 +34,10 @@
         {
           "app": "ripppple",
           "fader": 11
+        },
+        {
+          "app": "semmy",
+          "fader": 15
         }
       ],
       "global": {

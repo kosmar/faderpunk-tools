@@ -5460,6 +5460,111 @@
           "tag": "MidiOut"
         }
       ]
+    },
+    {
+      "id": 124,
+      "slug": "semmy",
+      "module": "semmy",
+      "channels": 2,
+      "name": "Semmy",
+      "description": "CV state-variable filter (LP/HP/BP/Notch)",
+      "color": "Cyan",
+      "icon": "Attenuate",
+      "params": [
+        {
+          "tag": "Color",
+          "value": {
+            "name": "Color",
+            "variants": [
+              {
+                "tag": "Blue"
+              },
+              {
+                "tag": "Green"
+              },
+              {
+                "tag": "Rose"
+              },
+              {
+                "tag": "Orange"
+              },
+              {
+                "tag": "Cyan"
+              },
+              {
+                "tag": "Pink"
+              },
+              {
+                "tag": "Violet"
+              },
+              {
+                "tag": "Yellow"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Range",
+          "value": {
+            "name": "Range",
+            "variants": [
+              {
+                "tag": "_0_10V"
+              },
+              {
+                "tag": "_Neg5_5V"
+              }
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "Mode",
+            "variants": [
+              "LP",
+              "HP",
+              "BP",
+              "Notch"
+            ]
+          }
+        },
+        {
+          "tag": "Enum",
+          "value": {
+            "name": "LFO Speed",
+            "variants": [
+              "Normal",
+              "Slow",
+              "Slowest"
+            ]
+          }
+        },
+        {
+          "tag": "MidiMode"
+        },
+        {
+          "tag": "MidiChannel",
+          "value": {
+            "name": "MIDI Channel"
+          }
+        },
+        {
+          "tag": "MidiNote",
+          "value": {
+            "name": "Base Note"
+          }
+        },
+        {
+          "tag": "MidiCc",
+          "value": {
+            "name": "CC number"
+          }
+        },
+        {
+          "tag": "MidiOut"
+        }
+      ]
     }
   ]
 }
