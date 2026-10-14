@@ -1097,6 +1097,52 @@
     .lane-midi-matrix select[data-k="laneMode"] {
       width: 4.5rem;
     }
+    /* Dozen Ctrl: Device + CH + 4×3 latched CC slots across Inst/CH/CC. */
+    .dozen-midi-matrix {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      width: 100%;
+      max-width: 100%;
+      font-size: 12px;
+    }
+    .dozen-midi-matrix .dozen-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 10px;
+      align-items: center;
+    }
+    .dozen-midi-matrix .dozen-field {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-width: 0;
+    }
+    .dozen-midi-matrix .dozen-top select[data-k="sv"] {
+      min-width: 8rem;
+      max-width: 14rem;
+    }
+    .dozen-midi-matrix .dozen-top .dozen-field:last-child select[data-k="sv"] {
+      min-width: 3.25rem;
+      max-width: 4rem;
+    }
+    .dozen-midi-matrix .dozen-slots {
+      display: grid;
+      grid-template-columns: auto repeat(4, minmax(4.5rem, 1fr));
+      gap: 4px 6px;
+      align-items: center;
+      width: 100%;
+    }
+    .dozen-midi-matrix .dozen-slots .vm {
+      color: var(--muted);
+      font-size: 11px;
+      min-width: 1.1rem;
+    }
+    .dozen-midi-matrix .dozen-slots select,
+    .dozen-midi-matrix .dozen-slots input {
+      width: 100%;
+      min-width: 0;
+    }
     th { color: var(--muted); font-size: 12px; font-weight: 400; background: #191919; }
     tr:last-child td { border-bottom: 0; }
     tbody tr[data-row] > td {
@@ -3093,6 +3139,158 @@
         tags.has("MidiIn") ||
         tags.has("MidiMode")
       );
+    }
+
+    /**
+     * Dozen Ctrl: Device + MIDI CH + 12 latched CCs replace Orchestra
+     * Instrument/CH/CC (rendered as one colspan=3 matrix).
+     */
+    function appHidesOrchestraRouting(app) {
+      return canonicalizeAppSlug(app) === "dozen_ctrl";
+    }
+
+    let DOZEN_DEVICE_CC_CATALOG = null;
+    let dozenCatalogLoadPromise = null;
+
+    async function loadDozenDeviceCcCatalog() {
+      if (dozenCatalogLoadPromise) return dozenCatalogLoadPromise;
+      dozenCatalogLoadPromise = (async () => {
+        try {
+          const res = await fetch("./dozen-device-cc-catalog.json", { cache: "no-store" });
+          if (!res.ok) throw new Error(String(res.status));
+          DOZEN_DEVICE_CC_CATALOG = await res.json();
+          return true;
+        } catch (e) {
+          console.warn(
+            "dozen-device-cc-catalog.json missing — Dozen CC pickers fall back to 0–127",
+            e,
+          );
+          DOZEN_DEVICE_CC_CATALOG = null;
+          return false;
+        }
+      })();
+      return dozenCatalogLoadPromise;
+    }
+
+    function dozenCatalogDevice(deviceIndex) {
+      const devices = DOZEN_DEVICE_CC_CATALOG?.devices;
+      if (!Array.isArray(devices) || !devices.length) return null;
+      const idx = Math.max(0, Math.min(devices.length - 1, Number(deviceIndex) || 0));
+      return devices[idx] || null;
+    }
+
+    function dozenRowDeviceIndex(row, devicePi) {
+      ensureSchemaValues(row);
+      return Math.max(0, schemaEnumIndex(row, devicePi));
+    }
+
+    function dozenCcParamIndices(cat) {
+      return (cat?.params || [])
+        .map((p, i) => ({ p, i }))
+        .filter((x) => x.p?.tag === "MidiCc")
+        .map((x) => x.i);
+    }
+
+    function applyDozenDeviceDefaults(row, deviceIndex) {
+      const cat = catalogApp(row.app);
+      if (!cat) return false;
+      const dev = dozenCatalogDevice(deviceIndex);
+      const defaults = dev?.defaults;
+      if (!Array.isArray(defaults) || defaults.length < 12) return false;
+      const ccPis = dozenCcParamIndices(cat);
+      for (let s = 0; s < 12 && s < ccPis.length; s++) {
+        const n = Math.max(0, Math.min(127, Number(defaults[s]) || 0));
+        setSchemaValue(row, ccPis[s], cc(n));
+      }
+      return true;
+    }
+
+    function dozenLabeledField(label, controlHtml) {
+      if (!controlHtml) return "";
+      return `<span class="dozen-field"><span class="vm">${escapeHtml(label)}</span>${controlHtml}</span>`;
+    }
+
+    function dozenChSelectHtml(value, idx, pi) {
+      const cur = Math.max(1, Math.min(16, Number(value?.value?.[0]) || 1));
+      const opts = Array.from({ length: 16 }, (_, i) => {
+        const n = i + 1;
+        return `<option value="${n}" ${cur === n ? "selected" : ""}>${n}</option>`;
+      }).join("");
+      return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="${escapeAttr(t("midi.dozenCh"))}">${opts}</select>`;
+    }
+
+    function dozenCcSlotSelectHtml(idx, pi, curCc, deviceIndex) {
+      const cur = Math.max(0, Math.min(127, Number(curCc) || 0));
+      const dev = dozenCatalogDevice(deviceIndex);
+      const entries = Array.isArray(dev?.ccs) ? dev.ccs : [];
+      let opts = "";
+      if (entries.length) {
+        const hasCur = entries.some((e) => Number(e.cc) === cur);
+        if (!hasCur) {
+          opts += `<option value="${cur}" selected>CC ${cur} ?</option>`;
+        }
+        opts += entries
+          .map((e) => {
+            const n = Number(e.cc);
+            if (!Number.isFinite(n)) return "";
+            const lab = String(e.label || `CC ${n}`);
+            return `<option value="${n}" ${cur === n ? "selected" : ""}>${escapeHtml(lab)}</option>`;
+          })
+          .join("");
+      } else {
+        opts = Array.from({ length: 128 }, (_, i) => {
+          return `<option value="${i}" ${cur === i ? "selected" : ""}>${i}</option>`;
+        }).join("");
+      }
+      return `<select data-i="${idx}" data-k="sv" data-pi="${pi}" title="CC">${opts}</select>`;
+    }
+
+    /** Device / CH / M·A·T slots — named CC selects from device catalog. */
+    function dozenRoutingHtml(s, idx) {
+      const cat = catalogApp(s.app);
+      if (!cat) return midiInactiveCellHtml("midi.cvOnlyCols");
+      ensureSchemaValues(s);
+      coerceParamDeps(s);
+      const deps = paramDeps(s);
+      const params = cat.params || [];
+      const devicePi = params.findIndex(
+        (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
+      );
+      const chPi = params.findIndex((p) => p?.tag === "MidiChannel");
+      const ccPis = dozenCcParamIndices(cat);
+      const deviceIndex = devicePi >= 0 ? dozenRowDeviceIndex(s, devicePi) : 0;
+      const deviceHtml =
+        devicePi >= 0 && !deps.hide.has(devicePi)
+          ? dozenLabeledField(
+              t("midi.dozenDev"),
+              schemaControlHtml(params[devicePi], s.schemaValues[devicePi], idx, devicePi, deps),
+            )
+          : "";
+      const chHtml =
+        chPi >= 0 && !deps.hide.has(chPi)
+          ? dozenLabeledField(t("midi.dozenCh"), dozenChSelectHtml(s.schemaValues[chPi], idx, chPi))
+          : "";
+      const slotCtrl = (pi) => {
+        if (deps.hide.has(pi)) return "";
+        const val = s.schemaValues[pi];
+        const cur = Math.max(0, Math.min(127, Number(val?.value?.[0]) || 0));
+        return dozenCcSlotSelectHtml(idx, pi, cur, deviceIndex);
+      };
+      const layers = [
+        { lab: "M", pis: ccPis.slice(0, 4) },
+        { lab: "A", pis: ccPis.slice(4, 8) },
+        { lab: "T", pis: ccPis.slice(8, 12) },
+      ];
+      const slotRows = layers
+        .map(({ lab, pis }) => {
+          if (!pis.length) return "";
+          return `<span class="vm">${escapeHtml(lab)}</span>${pis.map(slotCtrl).join("")}`;
+        })
+        .join("");
+      return `<div class="dozen-midi-matrix" title="${escapeAttr(t("midi.dozenMatrixTitle"))}">
+        <div class="dozen-top">${deviceHtml}${chHtml}</div>
+        <div class="dozen-slots">${slotRows}</div>
+      </div>`;
     }
 
     function midiInactiveCellHtml(titleKey) {
@@ -5978,8 +6176,10 @@
     }
 
     function ccCellHtml(s, idx) {
-      if (appMidiRoutingColsInactive(s.app)) {
-        return midiInactiveCellHtml("midi.cvOnlyCols");
+      if (appMidiRoutingColsInactive(s.app) || appHidesOrchestraRouting(s.app)) {
+        return midiInactiveCellHtml(
+          appHidesOrchestraRouting(s.app) ? "midi.dozenSlotsInExtras" : "midi.cvOnlyCols",
+        );
       }
       if (s.app === "fp_grids") {
         const notes = gridsNotes(s);
@@ -6274,6 +6474,17 @@
           /^(Ch|CC|Mode) Map$/i.test(String(p.value?.name || ""))
         ) {
           claimed.add(i);
+          return;
+        }
+        if (appHidesOrchestraRouting(row.app)) {
+          // Device + CH + all CCs render in the colspan=3 dozen matrix.
+          if (
+            p.tag === "MidiChannel" ||
+            p.tag === "MidiCc" ||
+            (p.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")))
+          ) {
+            claimed.add(i);
+          }
           return;
         }
         if (p.tag === "MidiChannel") {
@@ -7482,8 +7693,10 @@
     }
 
     function instrumentSelectHtml(s, idx) {
-      if (appMidiRoutingColsInactive(s.app)) {
-        return midiInactiveCellHtml("midi.cvOnlyCols");
+      if (appMidiRoutingColsInactive(s.app) || appHidesOrchestraRouting(s.app)) {
+        return midiInactiveCellHtml(
+          appHidesOrchestraRouting(s.app) ? "midi.dozenDeviceInExtras" : "midi.cvOnlyCols",
+        );
       }
       // Harmonica / Echolot / Grooves: one instrument select per voice/slot.
       if (s.app === "harmonica" || s.app === "echolot") {
@@ -8741,7 +8954,9 @@
       const laneSpec = laneMapApp(s.app);
       const midiCols = laneSpec
         ? `<td colspan="3">${laneMidiMatrixHtml(s, i, laneSpec)}</td>`
-        : `<td>${instrumentSelectHtml(s, i)}</td>
+        : appHidesOrchestraRouting(s.app)
+          ? `<td colspan="3">${dozenRoutingHtml(s, i)}</td>`
+          : `<td>${instrumentSelectHtml(s, i)}</td>
         <td>${chCellHtml(s, i)}</td>
         <td>${ccCellHtml(s, i)}</td>`;
       tr.innerHTML = `
@@ -9078,6 +9293,13 @@
           return;
         }
         setSchemaValue(rowRef, pi, next);
+        if (
+          canonicalizeAppSlug(rowRef.app) === "dozen_ctrl" &&
+          param.tag === "Enum" &&
+          /^Device$/i.test(String(param.value?.name || ""))
+        ) {
+          applyDozenDeviceDefaults(rowRef, Number(next?.value) || 0);
+        }
       } else if (k === "ditPhrase") {
         ensureSchemaValues(rowRef);
         const start = el.selectionStart;
@@ -11572,6 +11794,7 @@
       });
       document.title = `Presetpunk ${appVersionLabel()}`;
       await loadAppsCatalog();
+      await loadDozenDeviceCcCatalog();
       const fromServer = await hydrateBankFromServer();
       syncAllGroovesFromSchema();
       await refillCsvSelect();
