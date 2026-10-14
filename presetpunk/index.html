@@ -3237,8 +3237,10 @@
       const devicePi = (cat.params || []).findIndex(
         (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
       );
+      // Read Enum raw — do not call schemaEnumIndex/ensureSchemaValues (re-entrancy).
+      const raw = devicePi >= 0 ? row.schemaValues[devicePi] : null;
       const deviceIndex =
-        devicePi >= 0 ? Math.max(0, schemaEnumIndex(row, devicePi)) : 0;
+        raw?.tag === "Enum" ? Math.max(0, Number(raw.value) || 0) : 0;
       return applyDozenDeviceDefaults(row, deviceIndex);
     }
 
