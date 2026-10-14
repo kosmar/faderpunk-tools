@@ -3211,27 +3211,39 @@
         .map((x) => x.i);
     }
 
-    function orchestraInstMatchingName(name) {
-      const want = String(name || "")
+    function normInstKey(s) {
+      return String(s || "")
         .trim()
         .toLowerCase()
         .replace(/[_-]+/g, " ")
         .replace(/\s+/g, " ");
-      if (!want) return null;
-      const norm = (s) =>
-        String(s || "")
-          .trim()
-          .toLowerCase()
-          .replace(/[_-]+/g, " ")
-          .replace(/\s+/g, " ");
-      return (
-        instruments.find((i) => norm(i.name) === want) ||
-        instruments.find((i) => norm(i.id) === want) ||
-        null
-      );
     }
 
-    /** If Device name matches an Orchestra instrument, stamp its midiCh. */
+    /** Canonical product from CSV path (`ASM/Hydrasynth.csv` → `Hydrasynth`). */
+    function csvProductName(path) {
+      const clean = String(path || "").replace(/\.csv$/i, "");
+      const parts = clean.split(/[/\\]/).filter(Boolean);
+      return parts.length ? parts[parts.length - 1] : "";
+    }
+
+    /**
+     * Match Dozen Device → Orchestra instrument.
+     * Prefer stable id / CSV product name; display `name` is user-editable.
+     */
+    function orchestraInstMatchingName(name) {
+      const want = normInstKey(name);
+      if (!want) return null;
+      const byId = instruments.find((i) => normInstKey(i.id) === want);
+      if (byId) return byId;
+      const byCsv = instruments.find(
+        (i) => i.csv && normInstKey(csvProductName(i.csv)) === want,
+      );
+      if (byCsv) return byCsv;
+      // Last resort: current display label (may be renamed by the user).
+      return instruments.find((i) => normInstKey(i.name) === want) || null;
+    }
+
+    /** If Device matches an Orchestra instrument (id/CSV/name), stamp its midiCh. */
     function applyDozenOrchestraChannel(row, deviceIndex) {
       if (!appHidesOrchestraRouting(row?.app) || !Array.isArray(row?.schemaValues)) {
         return false;
@@ -3243,8 +3255,11 @@
         cat.params.find(
           (p) => p?.tag === "Enum" && /^Device$/i.test(String(p.value?.name || "")),
         )?.value?.variants || [];
-      const name = dev?.name || variants[deviceIndex] || "";
-      const inst = orchestraInstMatchingName(name);
+      const label = dev?.name || variants[deviceIndex] || "";
+      const inst =
+        orchestraInstMatchingName(dev?.id) ||
+        orchestraInstMatchingName(label) ||
+        null;
       if (!inst) return false;
       const chPi = (cat.params || []).findIndex((p) => p?.tag === "MidiChannel");
       if (chPi < 0) return false;
